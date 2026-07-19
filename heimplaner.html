@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>Heimplaner</title>
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d0f14">
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Heimplaner">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
+
+<!-- Android / general -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Heimplaner">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+
+<!-- Description -->
+<meta name="description" content="Persönlicher Haushaltsplaner für Mauro & Lena">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0f14;--panel:#13161e;--surface:#1a1d27;--border:rgba(255,255,255,0.07);
+  --text:#e8eaf0;--muted:#6b7280;--subtle:#2a2d3a;--subtle2:#1e2130;
+  --p1:#6C8EFF;--p1bg:rgba(108,142,255,0.12);
+  --p2:#FF7EB3;--p2bg:rgba(255,126,179,0.12);
+  --shared:#4ECDC4;--shbg:rgba(78,205,196,0.12);
+  --today:#F5A623;--prio:#FF5A5A;--done:.32;
+  --green:#4ade80;--gbg:rgba(74,222,128,0.12);
+  --amber:#fbbf24;--abg:rgba(251,191,36,0.12);
+  --red:#f87171;--rbg:rgba(248,113,113,0.12);
+  --sb:220px;--r:12px;--rs:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sb);background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sb-logo{padding:18px 18px 12px;border-bottom:1px solid var(--border)}
+.sb-logo h1{font-family:'Playfair Display',serif;font-size:1.15rem}
+.sb-logo .sub{font-size:.62rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.08em}
+.mini-month{padding:12px 14px;border-bottom:1px solid var(--border)}
+.mm-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.mm-hd .mn{font-size:.76rem;font-weight:600}
+.mm-hd button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.88rem;padding:2px 5px;border-radius:4px}
+.mm-hd button:hover{color:var(--text)}
+.mini-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.mini-cal .dow{font-size:.55rem;color:var(--muted);text-align:center;padding:1px 0 3px;text-transform:uppercase}
+.mini-cal .mday{font-size:.68rem;text-align:center;padding:2px 1px;border-radius:4px;cursor:pointer;color:var(--muted);transition:all .15s;line-height:1.5}
+.mini-cal .mday:hover{background:var(--subtle);color:var(--text)}
+.mini-cal .mday.in-week{color:var(--text);background:var(--subtle)}
+.mini-cal .mday.today{background:var(--today);color:#000;font-weight:700}
+.mini-cal .mday.empty{pointer-events:none}
+.sb-nav{padding:10px 8px 4px;flex:1;overflow-y:auto}
+.sb-nav .sec-lbl{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;padding:0 8px;margin-bottom:4px;margin-top:8px;display:block}
+.vbtn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border:none;background:none;border-radius:var(--rs);color:var(--muted);font-family:'Inter',sans-serif;font-size:.79rem;cursor:pointer;transition:all .15s;text-align:left}
+.vbtn:hover{background:var(--subtle);color:var(--text)}
+.vbtn.active{background:var(--surface);color:var(--text);font-weight:500}
+.vbtn .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.vbtn .badge{margin-left:auto;background:var(--prio);color:#fff;font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:99px}
+.sb-stats{padding:12px 14px;border-top:1px solid var(--border)}
+.ring-row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.ring-bg{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+.ring-bg::after{content:'';position:absolute;inset:5px;border-radius:50%;background:var(--panel)}
+.ring-pct{font-size:.58rem;font-weight:700;color:var(--today);position:relative;z-index:1}
+.ring-info .rl{font-size:.68rem;color:var(--muted)}
+.ring-info .rn{font-size:.85rem;font-weight:600}
+.st-row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:.72rem}
+.st-row .sl{color:var(--muted)}
+.sb-reset{width:100%;margin-top:10px;background:var(--subtle);border:1px solid var(--border);color:var(--muted);padding:6px;border-radius:var(--rs);font-family:'Inter',sans-serif;font-size:.71rem;cursor:pointer}
+.sb-reset:hover{color:var(--text)}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:0 22px;height:54px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.wk-nav{display:flex;align-items:center;gap:7px}
+.wk-nav button{background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:var(--rs);width:26px;height:26px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.wk-nav button:hover{color:var(--text);border-color:var(--muted)}
+.wk-lbl{font-size:.83rem;font-weight:500;min-width:170px}
+.today-btn{background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--today);font-family:'Inter',sans-serif;font-size:.71rem;font-weight:600;padding:3px 9px;cursor:pointer}
+.today-btn:hover{background:rgba(245,166,35,.1)}
+.mob-hd-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;font-size:1rem;flex-shrink:0}
+.content{flex:1;overflow-y:auto;padding:16px 22px 32px;scrollbar-width:thin;scrollbar-color:var(--subtle) transparent}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:var(--subtle);border-radius:99px}
+.sec-hd{font-size:.64rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:9px;margin-top:2px}
+.hidden{display:none!important}
+
+/* ── TODAY BANNER ── */
+.today-banner{background:linear-gradient(135deg,rgba(245,166,35,.1),rgba(245,166,35,.03));border:1px solid rgba(245,166,35,.22);border-radius:var(--r);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
+.tb-date{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--today);min-width:40px;text-align:center;line-height:1}
+.tb-dow{font-size:.68rem;color:var(--today);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.tb-stat{font-size:.78rem}.tb-stat b{color:var(--today)}
+.tb-chips{flex:1;display:flex;flex-wrap:wrap;gap:4px}
+.tbc{font-size:.7rem;padding:3px 8px;border-radius:99px;cursor:pointer;display:flex;align-items:center;gap:3px}
+.tbc:hover{filter:brightness(1.15)}
+.tbc.done{opacity:var(--done);text-decoration:line-through}
+.tbc-p1{background:var(--p1bg);color:var(--p1);border:1px solid rgba(108,142,255,.22)}
+.tbc-p2{background:var(--p2bg);color:var(--p2);border:1px solid rgba(255,126,179,.22)}
+.tbc-shared{background:var(--shbg);color:var(--shared);border:1px solid rgba(78,205,196,.22)}
+.tbc-prio{box-shadow:0 0 0 1.5px var(--prio)}
+.blocked-banner{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.22);border-radius:var(--r);padding:9px 14px;margin-bottom:10px;display:flex;align-items:center;gap:9px;font-size:.78rem;cursor:pointer}
+.blocked-banner:hover{background:rgba(248,113,113,.14)}
+
+/* ── WEEK GRID ── */
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+.day-col{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;min-height:220px}
+.day-col.is-today{border-color:rgba(245,166,35,.38);box-shadow:0 0 0 1px rgba(245,166,35,.1),0 4px 16px rgba(245,166,35,.06)}
+.day-col.is-past{opacity:.62}
+.day-head{padding:8px 8px 6px;border-bottom:1px solid var(--border);text-align:center}
+.dh-dow{font-size:.58rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:2px}
+.dh-num{font-family:'Playfair Display',serif;font-size:1.2rem;line-height:1}
+.is-today .dh-num,.is-today .dh-dow{color:var(--today)}
+.dh-prog{height:2px;background:var(--subtle);border-radius:99px;margin-top:4px;overflow:hidden}
+.dh-prog-fill{height:100%;border-radius:99px;background:var(--today);transition:width .4s}
+.day-tasks{flex:1;padding:6px}
+.task-chip{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:5px;margin-bottom:4px;font-size:.69rem;cursor:pointer;position:relative}
+.task-chip:hover{filter:brightness(1.2)}
+.task-chip.done{opacity:var(--done);text-decoration:line-through}
+.task-chip.cp1{background:var(--p1bg);color:var(--p1)}
+.task-chip.cp2{background:var(--p2bg);color:var(--p2)}
+.task-chip.cshared{background:var(--shbg);color:var(--shared)}
+.chip-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.cp1 .chip-dot{background:var(--p1)}.cp2 .chip-dot{background:var(--p2)}.cshared .chip-dot{background:var(--shared)}
+.chip-st{margin-left:auto;font-size:.58rem;flex-shrink:0}
+.s-done{opacity:var(--done)!important;text-decoration:line-through}
+.chip-prio{position:absolute;right:3px;top:1px;font-size:.56rem;color:var(--prio)}
+
+/* ── PERSON VIEW ── */
+.pv-hd{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:14px 18px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border)}
+.pv-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;flex-shrink:0}
+.pv-av-p1{background:var(--p1bg);color:var(--p1);border:2px solid var(--p1)}
+.pv-av-p2{background:var(--p2bg);color:var(--p2);border:2px solid var(--p2)}
+.pv-name{font-family:'Playfair Display',serif;font-size:1.25rem}
+.pv-sub{font-size:.72rem;color:var(--muted);margin-top:2px}
+.pv-stats{margin-left:auto;display:flex;gap:16px}
+.pv-stat .psn{font-family:'Playfair Display',serif;font-size:1.4rem;line-height:1}
+.pv-stat .psl{font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
+.pv-day-row{display:grid;grid-template-columns:86px 1fr;gap:9px;margin-bottom:7px;align-items:start}
+.pvdl{padding-top:8px;text-align:right}
+.pvdl .pvd{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.pvdl .pvdt{font-size:.63rem;color:var(--muted);margin-top:1px}
+.pvdl.tlbl .pvd{color:var(--today)}
+.pv-day-tasks{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;min-height:38px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.pv-day-tasks.tbg{border-color:rgba(245,166,35,.25);background:rgba(245,166,35,.03)}
+.pv-pill{display:flex;align-items:center;gap:4px;padding:5px 9px;border-radius:99px;font-size:.74rem;font-weight:500;cursor:pointer}
+.pv-pill:hover{filter:brightness(1.15)}
+.pv-pill.pp1{background:var(--p1bg);color:var(--p1)}
+.pv-pill.pp2{background:var(--p2bg);color:var(--p2)}
+.pv-pill.pshared{background:var(--shbg);color:var(--shared)}
+.pv-pill.is-prio{box-shadow:0 0 0 1.5px var(--prio)}
+.pv-pill.s-done{opacity:var(--done);text-decoration:line-through}
+.pv-pill.s-blocked{box-shadow:0 0 0 1.5px var(--red)}
+.pst{font-size:.6rem}
+.pst.wip{color:var(--amber)}.pst.blk{color:var(--red)}
+.empty-day{color:var(--muted);font-size:.74rem;font-style:italic}
+
+/* ── SHOP ── */
+.shop-top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.shop-top h2{font-family:'Playfair Display',serif;font-size:1.3rem}
+.shop-stat{font-size:.76rem;color:var(--muted);margin-left:auto}
+.shop-prog{height:3px;background:var(--subtle);border-radius:99px;margin-bottom:14px;overflow:hidden}
+.shop-prog-fill{height:100%;background:linear-gradient(90deg,var(--shared),var(--p1));border-radius:99px;transition:width .4s}
+.cat-section{margin-bottom:16px}
+.cat-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.cat-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px}
+.shop-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 11px;cursor:pointer;transition:all .2s;position:relative;user-select:none}
+.shop-item:hover{border-color:var(--shared)}
+.shop-item.bought{opacity:var(--done)}
+.shop-item.bought .si-name{text-decoration:line-through}
+.shop-item.has-task{border-left:3px solid var(--p1)}
+.si-name{font-size:.81rem;font-weight:500;margin-bottom:2px}
+.si-qty{font-size:.7rem;color:var(--muted)}
+.si-task{font-size:.6rem;color:var(--p1);margin-top:4px;display:flex;align-items:center;gap:3px}
+.si-check{position:absolute;top:7px;right:7px;width:17px;height:17px;border-radius:4px;border:1.5px solid var(--muted);display:flex;align-items:center;justify-content:center;font-size:.68rem;transition:all .15s}
+.shop-item.bought .si-check{background:var(--shared);border-color:var(--shared);color:#000}
+.shop-add-bar{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.clear-btn{background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);padding:5px 12px;font-family:'Inter',sans-serif;font-size:.72rem;cursor:pointer}
+.clear-btn:hover{color:var(--text);border-color:var(--muted)}
+
+/* ── MEALS ── */
+.meal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:16px}
+.meal-day{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.meal-day.is-today{border-color:rgba(245,166,35,.32)}
+.meal-day-hd{padding:7px 9px 5px;border-bottom:1px solid var(--border);text-align:center}
+.mdow{font-size:.58rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:1px}
+.mnum{font-family:'Playfair Display',serif;font-size:1.15rem;line-height:1}
+.is-today .mdow,.is-today .mnum{color:var(--today)}
+.meal-slots{padding:6px}
+.meal-slot{margin-bottom:5px}
+.ms-lbl{font-size:.56rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:2px}
+.ms-content{min-height:30px;background:var(--panel);border:1px dashed var(--border);border-radius:5px;padding:4px 6px;cursor:pointer;transition:all .15s;font-size:.69rem;color:var(--muted);display:flex;align-items:center;gap:3px}
+.ms-content:hover{border-color:var(--muted);color:var(--text)}
+.ms-content.has-meal{border-style:solid;border-color:var(--border);color:var(--text);background:var(--subtle2)}
+.ms-content .me{font-size:.85rem;flex-shrink:0}
+.ms-content .mn2{flex:1;line-height:1.3}
+.ms-content .mdel{margin-left:auto;opacity:0;font-size:.68rem;color:var(--muted);transition:opacity .15s}
+.ms-content:hover .mdel{opacity:1}
+.add-all-btn{width:100%;background:rgba(78,205,196,.1);border:1px solid rgba(78,205,196,.28);border-radius:var(--rs);color:var(--shared);font-family:'Inter',sans-serif;font-size:.72rem;font-weight:600;padding:6px;cursor:pointer;margin-top:4px}
+.add-all-btn:hover{background:rgba(78,205,196,.18)}
+
+/* ── RECIPES ── */
+.recipe-search{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:8px 13px;color:var(--text);font-family:'Inter',sans-serif;font-size:.81rem;outline:none;margin-bottom:10px}
+.recipe-search:focus{border-color:var(--p1)}
+.recipe-search::placeholder{color:var(--muted)}
+.rfbtns{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.rfbtn{background:var(--surface);border:1px solid var(--border);border-radius:99px;color:var(--muted);font-family:'Inter',sans-serif;font-size:.7rem;padding:3px 11px;cursor:pointer}
+.rfbtn:hover{color:var(--text)}
+.rfbtn.active{background:var(--p1bg);border-color:var(--p1);color:var(--p1)}
+.recipes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s}
+.rc:hover{border-color:var(--p1);transform:translateY(-2px)}
+.rc-top{font-size:1.8rem;padding:12px;text-align:center;background:var(--subtle2)}
+.rc-body{padding:9px 11px}
+.rc-name{font-size:.82rem;font-weight:600;margin-bottom:3px}
+.rc-meta{display:flex;gap:7px;font-size:.66rem;color:var(--muted);margin-bottom:5px}
+.rc-tags{display:flex;gap:3px;flex-wrap:wrap}
+.rc-tag{font-size:.6rem;padding:2px 6px;border-radius:99px;background:var(--subtle);color:var(--muted)}
+.rc-addbtn{width:100%;margin-top:6px;background:var(--p1bg);border:1px solid var(--p1);border-radius:var(--rs);color:var(--p1);font-family:'Inter',sans-serif;font-size:.71rem;font-weight:600;padding:5px;cursor:pointer}
+.rc-addbtn:hover{background:rgba(108,142,255,.22)}
+
+/* ── MANAGE ── */
+.tm-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.tm-col{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden}
+.tm-col-hd{padding:10px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;font-size:.78rem;font-weight:600}
+.tm-dot{width:7px;height:7px;border-radius:50%}
+.tm-list{padding:8px}
+.tm-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px;margin-bottom:6px}
+.tm-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.tm-name{font-size:.79rem;font-weight:500}
+.tm-acts{display:flex;gap:4px;align-items:center}
+.tm-del,.prio-btn{background:none;border:none;cursor:pointer;padding:2px 3px;border-radius:4px;font-size:.76rem}
+.tm-del{color:var(--muted)}.tm-del:hover{color:var(--prio)}
+.prio-btn{color:var(--muted)}.prio-btn.on{color:var(--prio)}
+.day-pills{display:flex;gap:2px;flex-wrap:wrap}
+.dp{font-size:.58rem;padding:2px 5px;border-radius:99px;cursor:pointer;border:1px solid var(--border);color:var(--muted);user-select:none}
+.dp:hover{border-color:var(--muted);color:var(--text)}
+.dp.op1{background:var(--p1bg);border-color:var(--p1);color:var(--p1)}
+.dp.op2{background:var(--p2bg);border-color:var(--p2);color:var(--p2)}
+.dp.osh{background:var(--shbg);border-color:var(--shared);color:var(--shared)}
+.add-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px}
+.af-title{font-size:.76rem;font-weight:600;margin-bottom:9px}
+.af-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.af-in{background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;color:var(--text);font-family:'Inter',sans-serif;font-size:.79rem;outline:none;transition:border-color .15s}
+.af-in:focus{border-color:var(--p1)}
+.af-in::placeholder{color:var(--muted)}
+.af-in.txt{flex:1;min-width:120px}
+.af-in.ej{width:44px;text-align:center}
+.af-sel{background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;color:var(--text);font-family:'Inter',sans-serif;font-size:.79rem;outline:none}
+.af-sel option{background:var(--panel)}
+.af-add{background:var(--p1);color:#fff;border:none;border-radius:var(--rs);padding:6px 14px;font-family:'Inter',sans-serif;font-size:.79rem;font-weight:600;cursor:pointer}
+.af-add:hover{opacity:.85}
+
+/* ── MONTH ── */
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.month-dow{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:center;padding:4px 0 8px}
+.month-cell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:90px;padding:6px;cursor:pointer;transition:border-color .15s}
+.month-cell:hover{border-color:var(--p1)}
+.month-cell.today{border-color:rgba(245,166,35,.5);background:rgba(245,166,35,.04)}
+.month-cell.other-month{opacity:.3}
+.month-cell.has-events{border-color:rgba(108,142,255,.3)}
+.mc-num{font-size:.8rem;font-weight:600;margin-bottom:4px;color:var(--muted)}
+.month-cell.today .mc-num{color:var(--today);font-weight:700}
+.mc-event{font-size:.63rem;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.mc-event.ep1{background:var(--p1bg);color:var(--p1)}
+.mc-event.ep2{background:var(--p2bg);color:var(--p2)}
+.mc-event.esh{background:var(--shbg);color:var(--shared)}
+.mc-event.emeal{background:var(--abg);color:var(--amber)}
+
+/* ── PINBOARD ── */
+.pin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.pin-note{border-radius:var(--r);padding:14px 16px;position:relative;min-height:120px;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.pin-note:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.pin-pin{position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:1.2rem}
+.pin-title{font-size:.9rem;font-weight:600;margin-bottom:8px;line-height:1.3}
+.pin-body{font-size:.78rem;line-height:1.6;opacity:.85;white-space:pre-wrap}
+.pin-date{font-size:.62rem;opacity:.55;margin-top:10px}
+.pin-del{position:absolute;top:8px;right:8px;background:none;border:none;opacity:0;cursor:pointer;font-size:.9rem;color:inherit;transition:opacity .15s}
+.pin-note:hover .pin-del{opacity:.7}
+
+/* ── AI ── */
+.ai-msg{display:flex;gap:10px;margin-bottom:14px;align-items:flex-start}
+.ai-msg.user{flex-direction:row-reverse}
+.ai-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
+.ai-avatar.bot{background:linear-gradient(135deg,var(--p1),var(--shared));color:#fff}
+.ai-avatar.usr{background:var(--p2bg);color:var(--p2);border:1px solid var(--p2)}
+.ai-bubble{max-width:80%;padding:10px 14px;border-radius:12px;font-size:.82rem;line-height:1.6}
+.ai-msg.bot .ai-bubble{background:var(--subtle);border-radius:4px 12px 12px 12px}
+.ai-msg.user .ai-bubble{background:var(--p1bg);border:1px solid rgba(108,142,255,.2);border-radius:12px 4px 12px 12px}
+.ai-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ai-action-btn{background:var(--surface);border:1px solid var(--p1);border-radius:var(--rs);color:var(--p1);font-family:'Inter',sans-serif;font-size:.73rem;padding:4px 10px;cursor:pointer}
+.ai-action-btn:hover{background:var(--p1bg)}
+.ai-typing{display:flex;gap:4px;padding:10px 14px;background:var(--subtle);border-radius:4px 12px 12px 12px;width:fit-content}
+.ai-typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typing .9s infinite}
+.ai-typing span:nth-child(2){animation-delay:.2s}
+.ai-typing span:nth-child(3){animation-delay:.4s}
+@keyframes typing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+.mic-active{background:rgba(233,69,96,.2)!important;border-color:var(--red)!important;animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(233,69,96,.4)}50%{box-shadow:0 0 0 6px rgba(233,69,96,0)}}
+.ai-quick-btn{background:var(--surface);border:1px solid var(--border);border-radius:99px;color:var(--text);font-family:'Inter',sans-serif;font-size:.75rem;padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:5px}
+.ai-quick-btn:hover{border-color:var(--p1);color:var(--p1)}
+
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:22px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.5);max-height:90vh;overflow-y:auto}
+.modal.rd-wide{max-width:500px}
+.modal h3{font-family:'Playfair Display',serif;font-size:1.15rem;margin-bottom:14px}
+.modal-row{margin-bottom:10px}
+.modal-row label{font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px}
+.modal-in{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:7px 11px;color:var(--text);font-family:'Inter',sans-serif;font-size:.81rem;outline:none}
+.modal-in:focus{border-color:var(--p1)}
+.modal-in::placeholder{color:var(--muted)}
+.modal-btns{display:flex;gap:7px;margin-top:14px;justify-content:flex-end}
+.mbtn{border:none;border-radius:var(--rs);padding:7px 15px;font-family:'Inter',sans-serif;font-size:.79rem;font-weight:600;cursor:pointer}
+.mbtn-cancel{background:var(--subtle);color:var(--muted)}.mbtn-cancel:hover{color:var(--text)}
+.mbtn-confirm{background:var(--p1);color:#fff}.mbtn-confirm:hover{opacity:.85}
+.st-btns{display:flex;gap:5px;flex-wrap:wrap}
+.st-btn{padding:5px 11px;border-radius:var(--rs);border:1px solid var(--border);background:none;color:var(--muted);font-family:'Inter',sans-serif;font-size:.76rem;cursor:pointer}
+.st-btn.sel-open{background:var(--subtle);border-color:var(--muted);color:var(--text)}
+.st-btn.sel-wip{background:var(--abg);border-color:var(--amber);color:var(--amber)}
+.st-btn.sel-blocked{background:var(--rbg);border-color:var(--red);color:var(--red)}
+.st-btn.sel-done{background:var(--gbg);border-color:var(--green);color:var(--green)}
+.dup-warn{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.28);border-radius:var(--rs);padding:9px 11px;margin-bottom:10px;font-size:.78rem;color:var(--today)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:9px 18px;font-size:.8rem;z-index:200;opacity:0;transition:all .3s;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  body{flex-direction:column;height:100dvh;overflow:hidden}
+  .sidebar{display:none}
+  .main{flex:1;display:flex;flex-direction:column;min-height:0}
+  .topbar{height:52px;padding:0 14px;gap:8px}
+  .wk-lbl{font-size:.76rem;min-width:0;flex:1;text-align:center}
+  .content{flex:1;overflow-y:auto;padding:12px 14px 90px;-webkit-overflow-scrolling:touch}
+  .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--border);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px 10px;cursor:pointer;color:var(--muted);font-size:.58rem;gap:3px;border:none;background:none;font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent}
+  .bn-item.active{color:var(--p1)}
+  .bn-item .bn-icon{font-size:1.3rem;line-height:1}
+  .bn-icon-wrap{position:relative;display:inline-block}
+  .bn-badge{position:absolute;top:-4px;right:-4px;background:var(--prio);color:#fff;font-size:.55rem;font-weight:700;padding:1px 4px;border-radius:99px}
+  .today-banner{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 14px}
+  .week-grid{grid-template-columns:1fr;gap:7px}
+  .day-col.is-past{display:none}
+  .day-head{display:flex;align-items:center;gap:10px;padding:10px 12px}
+  .dh-dow{font-size:.7rem;margin-bottom:0}
+  .dh-num{font-size:1.1rem}
+  .dh-prog{flex:1;margin-top:0}
+  .day-tasks{padding:8px 12px;display:flex;flex-wrap:wrap;gap:5px}
+  .task-chip{margin-bottom:0;padding:6px 10px;border-radius:99px}
+  .pv-day-row{grid-template-columns:60px 1fr;gap:7px}
+  .shop-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+  .shop-item{padding:12px 12px 10px}
+  .si-name{font-size:.85rem}
+  .si-check{width:22px;height:22px;border-radius:6px;font-size:.8rem}
+  .shop-add-bar{flex-direction:column}
+  .shop-add-bar .af-in,.shop-add-bar .af-sel,.shop-add-bar .af-add,.shop-add-bar .clear-btn{width:100%}
+  .meal-grid{grid-template-columns:1fr;gap:8px}
+  .meal-day-hd{display:flex;align-items:center;gap:10px;padding:10px 14px}
+  .meal-slots{display:flex;gap:8px;padding:10px 12px;overflow-x:auto;scrollbar-width:none}
+  .meal-slots::-webkit-scrollbar{display:none}
+  .meal-slot{min-width:110px;flex-shrink:0}
+  .recipes-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .tm-grid{grid-template-columns:1fr;gap:10px}
+  .month-cell{min-height:60px;padding:4px}
+  .mc-event{display:none}
+  .month-cell.has-events .mc-num::after{content:' ●';color:var(--p1)}
+  .pin-grid{grid-template-columns:1fr 1fr}
+  .modal{padding:18px;border-radius:16px 16px 0 0;margin:0;max-width:100%;align-self:flex-end;max-height:85dvh}
+  .modal-overlay{align-items:flex-end;padding:0}
+  .modal-btns{flex-wrap:wrap}
+  .mbtn{flex:1;text-align:center;padding:10px}
+  .toast{bottom:80px}
+  .mob-drawer{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;pointer-events:none}
+  .mob-drawer.open{pointer-events:all}
+  .mob-overlay{position:absolute;inset:0;background:rgba(0,0,0,.6);opacity:0;transition:opacity .25s;backdrop-filter:blur(2px)}
+  .mob-drawer.open .mob-overlay{opacity:1}
+  .mob-panel{position:absolute;left:0;top:0;bottom:0;width:260px;background:var(--panel);border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow-y:auto}
+  .mob-drawer.open .mob-panel{transform:translateX(0)}
+  .mob-panel-hd{padding:20px 18px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .mob-panel-hd h2{font-family:'Playfair Display',serif;font-size:1.1rem}
+  .mob-close{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer}
+  .mob-nav-sec{padding:10px 10px 4px}
+  .mob-sec-lbl{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;padding:0 8px;margin-bottom:4px;display:block}
+  .mob-nav-btn{display:flex;align-items:center;gap:9px;width:100%;padding:10px 12px;border:none;background:none;border-radius:var(--rs);color:var(--muted);font-family:'Inter',sans-serif;font-size:.84rem;cursor:pointer;text-align:left}
+  .mob-nav-btn.active{background:var(--surface);color:var(--text);font-weight:500}
+  .mob-nav-btn .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .mob-stats{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border)}
+  .mob-stat-row{display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:7px}
+  .mob-stat-row .sl{color:var(--muted)}
+  .mob-reset{width:100%;margin-top:10px;background:var(--subtle);border:1px solid var(--border);color:var(--muted);padding:7px;border-radius:var(--rs);font-family:'Inter',sans-serif;font-size:.73rem;cursor:pointer}
+}
+@media(min-width:769px){
+  .bottom-nav,.mob-hd-btn,.mob-drawer{display:none}
+}
+.sb-edit-btn{font-size:.75rem;opacity:0;transition:opacity .15s;padding:2px 4px;border-radius:4px;cursor:pointer;flex-shrink:0}
+.vbtn:hover .sb-edit-btn{opacity:.6}
+.sb-edit-btn:hover{opacity:1!important;background:var(--subtle)}
+/* ── SAFE AREA (iOS notch / home bar) ── */
+body { padding-top: env(safe-area-inset-top); }
+.topbar { padding-left: max(22px, env(safe-area-inset-left)); padding-right: max(22px, env(safe-area-inset-right)); }
+.bottom-nav { padding-bottom: max(env(safe-area-inset-bottom), 6px); }
+.sidebar { padding-bottom: env(safe-area-inset-bottom); }
+</style>
+</head>
+<body>
+
+<!-- MOBILE DRAWER -->
+<div class="mob-drawer" id="mob-drawer" onclick="closeMobDrawer(event)">
+  <div class="mob-overlay"></div>
+  <div class="mob-panel">
+    <div class="mob-panel-hd"><h2>Heimplaner</h2><button class="mob-close" onclick="closeMobDrawerDirect()">✕</button></div>
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <span style="font-size:.76rem;font-weight:600" id="mm-label-mob"></span>
+        <div style="display:flex;gap:2px">
+          <button onclick="changeMonth(-1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.88rem;padding:2px 5px">‹</button>
+          <button onclick="changeMonth(1)"  style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.88rem;padding:2px 5px">›</button>
+        </div>
+      </div>
+      <div class="mini-cal" id="mini-cal-mob"></div>
+    </div>
+    <div class="mob-nav-sec">
+      <span class="mob-sec-lbl">Planer</span>
+      <button class="mob-nav-btn active" data-view="all" onclick="setView('all',this);closeMobDrawerDirect()"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Alle</button>
+      <button class="mob-nav-btn" data-view="p1" onclick="setView('p1',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p1)"></span><span data-sync="p1">Mauro</span></button>
+      <button class="mob-nav-btn" data-view="p2" onclick="setView('p2',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2">Lena</span></button>
+      <button class="mob-nav-btn" data-view="month" onclick="setView('month',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p1)"></span>Monatsplaner</button>
+    </div>
+    <div class="mob-nav-sec">
+      <span class="mob-sec-lbl">Haushalt</span>
+      <button class="mob-nav-btn" data-view="shop" onclick="setView('shop',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste</button>
+      <button class="mob-nav-btn" data-view="meals" onclick="setView('meals',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
+      <button class="mob-nav-btn" data-view="recipes" onclick="setView('recipes',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
+      <button class="mob-nav-btn" data-view="pinboard" onclick="setView('pinboard',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
+      <button class="mob-nav-btn" data-view="ai" onclick="setView('ai',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>KI-Assistent ✨</button>
+      <button class="mob-nav-btn" data-view="manage" onclick="setView('manage',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Aufgaben verwalten</button>
+      <button class="mob-nav-btn" data-view="settings" onclick="setView('settings',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
+    </div>
+    <div class="mob-stats">
+      <div class="mob-stat-row"><span class="sl">Woche</span><span id="mob-ring-num" style="font-weight:600">0/0</span></div>
+      <div class="mob-stat-row"><span class="sl">🔥 Streak</span><span id="mob-streak" style="color:var(--today);font-weight:600">0 Tage</span></div>
+      <div class="mob-stat-row"><span class="sl">🔴 Blockiert</span><span id="mob-blocked" style="color:var(--red);font-weight:600">0</span></div>
+      <button class="mob-reset" onclick="if(confirm('Woche zurücksetzen?')){getWeekDates(weekOffset).forEach(d=>{delete HP.done[dk(d)]});HP_save();render();}closeMobDrawerDirect()">↺ Woche zurücksetzen</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bn-item active" data-view="all" onclick="setView('all',this)"><span class="bn-icon">📅</span><span>Woche</span></button>
+  <button class="bn-item" data-view="shop" onclick="setView('shop',this)">
+    <span class="bn-icon-wrap"><span class="bn-icon">🛒</span><span class="bn-badge hidden" id="bn-badge">0</span></span><span>Einkauf</span>
+  </button>
+  <button class="bn-item" data-view="meals" onclick="setView('meals',this)"><span class="bn-icon">🍽️</span><span>Menü</span></button>
+  <button class="bn-item" data-view="ai" onclick="setView('ai',this)"><span class="bn-icon">✨</span><span>KI</span></button>
+  <button class="bn-item" onclick="openMobDrawer()"><span class="bn-icon">☰</span><span>Mehr</span></button>
+</nav>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo"><h1>Heimplaner</h1><div class="sub">Euer Haushalt · 2025</div></div>
+  <div class="mini-month">
+    <div class="mm-hd">
+      <span class="mn" id="mm-label"></span>
+      <div style="display:flex;gap:2px">
+        <button onclick="changeMonth(-1)">‹</button>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="mini-cal" id="mini-cal"></div>
+  </div>
+  <div class="sb-nav">
+    <span class="sec-lbl">Planer</span>
+    <button class="vbtn active" data-view="all" onclick="setView('all',this)"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Alle Personen</button>
+    <button class="vbtn" data-view="p1" onclick="setView('p1',this)" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--p1)"></span><span data-sync="p1" id="sb-lbl-p1">Mauro</span></span>
+      <span class="sb-edit-btn" onclick="event.stopPropagation();renamePerson('p1')" title="Umbenennen">✏️</span>
+    </button>
+    <button class="vbtn" data-view="p2" onclick="setView('p2',this)" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2" id="sb-lbl-p2">Lena</span></span>
+      <span class="sb-edit-btn" onclick="event.stopPropagation();renamePerson('p2')" title="Umbenennen">✏️</span>
+    </button>
+    <button class="vbtn" data-view="month" onclick="setView('month',this)"><span class="dot" style="background:var(--p1)"></span>Monatsplaner</button>
+    <span class="sec-lbl" style="margin-top:12px">Haushalt</span>
+    <button class="vbtn" data-view="shop" onclick="setView('shop',this)"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste<span class="badge hidden" id="shop-badge">0</span></button>
+    <button class="vbtn" data-view="meals" onclick="setView('meals',this)"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
+    <button class="vbtn" data-view="recipes" onclick="setView('recipes',this)"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
+    <button class="vbtn" data-view="pinboard" onclick="setView('pinboard',this)"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
+    <button class="vbtn" data-view="ai" onclick="setView('ai',this)"><span class="dot" style="background:linear-gradient(135deg,var(--shared),var(--p1))"></span>KI-Assistent ✨</button>
+    <span class="sec-lbl" style="margin-top:12px">Einstellungen</span>
+    <button class="vbtn" data-view="manage" onclick="setView('manage',this)"><span class="dot" style="background:var(--muted)"></span>Aufgaben verwalten</button>
+    <button class="vbtn" data-view="settings" onclick="setView('settings',this)"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
+  </div>
+  <div class="sb-stats">
+    <div class="ring-row">
+      <div class="ring-bg" id="ring-bg"><span class="ring-pct" id="ring-pct">0%</span></div>
+      <div class="ring-info"><div class="rl">Diese Woche</div><div class="rn" id="ring-num">0 / 0</div></div>
+    </div>
+    <div class="st-row"><span class="sl">🔥 Streak</span><span style="font-weight:600;color:var(--today)" id="st-streak">0 Tage</span></div>
+    <div class="st-row"><span class="sl">🔴 Blockiert</span><span style="font-weight:600;color:var(--red)" id="st-blocked">0</span></div>
+    <button class="sb-reset" onclick="if(confirm('Woche zurücksetzen?')){getWeekDates(weekOffset).forEach(d=>{delete HP.done[dk(d)]});HP_save();render();}">↺ Woche zurücksetzen</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <button class="mob-hd-btn" onclick="openMobDrawer()">☰</button>
+    <div class="wk-nav">
+      <button onclick="changeWeek(-1)">‹</button>
+      <span class="wk-lbl" id="wk-lbl"></span>
+      <button onclick="changeWeek(1)">›</button>
+      <button class="today-btn" onclick="goToday()">Heute</button>
+    </div>
+  </div>
+  <div class="content" id="content">
+
+    <!-- ALL VIEW -->
+    <div id="view-all">
+      <div class="today-banner" id="today-banner"></div>
+      <div id="blocked-banners"></div>
+      <div class="sec-hd">Wochenübersicht</div>
+      <div class="week-grid" id="week-grid"></div>
+    </div>
+
+    <!-- PERSON VIEW -->
+    <div id="view-person" class="hidden">
+      <div class="pv-hd" id="pv-hd"></div>
+      <div id="pv-days"></div>
+    </div>
+
+    <!-- SHOP VIEW -->
+    <div id="view-shop" class="hidden">
+      <div class="shop-top"><h2>🛒 Einkaufsliste</h2><div class="shop-stat" id="shop-stat">0 Artikel</div></div>
+      <div class="shop-prog"><div class="shop-prog-fill" id="shop-prog-fill" style="width:0%"></div></div>
+      <div id="shop-cats"></div>
+      <div class="shop-add-bar">
+        <input class="af-in txt" id="shop-add-name" placeholder="Artikel hinzufügen…" style="min-width:150px">
+        <input class="af-in" id="shop-add-qty" placeholder="Menge" style="width:70px">
+        <input class="af-in" id="shop-add-unit" placeholder="Einheit" style="width:70px">
+        <select class="af-sel" id="shop-add-cat">
+          <option value="" disabled selected>📂 Kategorie wählen…</option>
+          <option value="Früchte & Gemüse">🥦 Früchte & Gemüse</option>
+          <option value="Kühlwaren">🧀 Kühlwaren</option>
+          <option value="Fleisch & Fisch">🥩 Fleisch & Fisch</option>
+          <option value="Backwaren">🍞 Backwaren</option>
+          <option value="Getränke">🥤 Getränke</option>
+          <option value="Haushalt">🧹 Haushalt</option>
+          <option value="Tiefkühl">❄️ Tiefkühl</option>
+          <option value="Vorrat">🥫 Vorrat</option>
+          <option value="Sonstiges">📦 Sonstiges</option>
+        </select>
+        <button class="af-add" onclick="addShopItem()">+ Hinzufügen</button>
+        <button class="clear-btn" onclick="clearBought()">✓ Erledigte entfernen</button>
+      </div>
+    </div>
+
+    <!-- MEAL VIEW -->
+    <div id="view-meals" class="hidden">
+      <div class="sec-hd" style="margin-bottom:14px">Menüplan</div>
+      <div class="meal-grid" id="meal-grid"></div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="add-all-btn" style="width:auto;padding:7px 18px" onclick="addWholeWeekToShop()">🛒 Ganze Woche zur Einkaufsliste</button>
+      </div>
+    </div>
+
+    <!-- RECIPES VIEW -->
+    <div id="view-recipes" class="hidden">
+      <div class="sec-hd" id="recipe-hd" style="margin-bottom:10px">Rezeptbibliothek</div>
+      <input class="recipe-search" id="recipe-search" placeholder="Rezept suchen…">
+      <div class="rfbtns" id="recipe-filters"></div>
+      <div class="recipes-grid" id="recipes-grid"></div>
+    </div>
+
+    <!-- MANAGE VIEW -->
+    <div id="view-manage" class="hidden">
+      <div class="sec-hd" style="margin-bottom:14px">Aufgaben verwalten</div>
+      <div class="tm-grid">
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p1)"></div><span id="tm-h-p1">Mauro</span></div><div class="tm-list" id="tm-p1"></div></div>
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p2)"></div><span id="tm-h-p2">Lena</span></div><div class="tm-list" id="tm-p2"></div></div>
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--shared)"></div><span>Gemeinsam</span></div><div class="tm-list" id="tm-shared"></div></div>
+      </div>
+      <div class="add-form">
+        <div class="af-title">Neue Aufgabe</div>
+        <div class="af-row" style="margin-bottom:8px">
+          <input class="af-in ej" id="af-emoji" placeholder="😊" maxlength="2">
+          <input class="af-in txt" id="af-name" placeholder="Aufgabe…">
+          <select class="af-sel" id="af-who"><option value="p1" id="af-op1">Mauro</option><option value="p2" id="af-op2">Lena</option><option value="shared">Gemeinsam</option></select>
+        </div>
+        <div class="af-row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px">
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
+            <span style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Wochentage</span>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              <span class="dp af-day-pill" data-day="0">Mo</span><span class="dp af-day-pill" data-day="1">Di</span><span class="dp af-day-pill" data-day="2">Mi</span><span class="dp af-day-pill" data-day="3">Do</span><span class="dp af-day-pill" data-day="4">Fr</span><span class="dp af-day-pill" data-day="5">Sa</span><span class="dp af-day-pill" data-day="6">So</span>
+              <span class="dp" style="color:var(--shared);border-color:var(--shared)" onclick="toggleAllDays()">Alle</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Uhrzeit</span>
+            <input class="af-in" type="time" id="af-time" style="width:110px">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Erinnerung</span>
+            <select class="af-sel" id="af-reminder" style="min-width:130px">
+              <option value="">Keine</option><option value="0">Zur Uhrzeit</option><option value="5">5 Min vorher</option><option value="15">15 Min vorher</option><option value="30">30 Min vorher</option><option value="60">1 Std vorher</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);cursor:pointer"><input type="checkbox" id="af-prio" style="accent-color:var(--prio)"> Priorität</label>
+          </div>
+        </div>
+        <button class="af-add" style="width:100%" onclick="addTask()">+ Aufgabe hinzufügen</button>
+      </div>
+    </div>
+
+    <!-- MONTH VIEW -->
+    <div id="view-month" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem" id="month-title"></h2>
+        <button class="mbtn mbtn-cancel" style="padding:5px 12px" onclick="changeMonthView(-1)">‹</button>
+        <button class="mbtn mbtn-cancel" style="padding:5px 12px" onclick="changeMonthView(1)">›</button>
+        <button class="today-btn" onclick="goMonthToday()">Heute</button>
+      </div>
+      <div id="month-cal"></div>
+    </div>
+
+    <!-- PINBOARD VIEW -->
+    <div id="view-pinboard" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">📌 Pinnwand</h2>
+        <button class="af-add" onclick="openAddNote()" style="margin-left:auto">+ Notiz</button>
+      </div>
+      <div id="pin-board"></div>
+    </div>
+
+    <!-- AI VIEW -->
+    <div id="view-ai" class="hidden">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">✨ KI-Assistent</h2>
+        <span style="font-size:.72rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:3px 10px;border-radius:99px">Claude Sonnet</span>
+      </div>
+      <div id="ai-quick-btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+      <div id="ai-chat" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);min-height:300px;max-height:45vh;overflow-y:auto;padding:14px;margin-bottom:12px;scrollbar-width:thin"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="ai-mic-btn" onclick="toggleSpeech()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);width:42px;height:42px;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="Spracheingabe">🎤</button>
+        <input class="af-in txt" id="ai-input" placeholder="Frage oder Befehl… z.B. 'Füge Milch zur Einkaufsliste hinzu'">
+        <button class="af-add" onclick="sendAiMessage()">Senden ↵</button>
+      </div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:8px">💡 Mikrofon für Spracheingabe · Tasks, Einkauf & Rezepte per Sprache hinzufügen</div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div id="view-settings" class="hidden">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem;margin-bottom:18px">⚙️ Import / Export</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">📤 Daten exportieren</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Alle Daten als JSON-Backup speichern</div>
+          <button class="af-add" style="width:100%;margin-bottom:8px" onclick="exportJSON()">💾 JSON exportieren</button>
+          <button class="af-add" style="width:100%;background:var(--green);color:#000" onclick="exportICS()">📅 Kalender (.ics) exportieren</button>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">📥 Daten importieren</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">JSON-Backup wiederherstellen</div>
+          <label style="display:block;width:100%;text-align:center;background:var(--surface);border:2px dashed var(--border);border-radius:var(--rs);padding:16px;cursor:pointer;font-size:.82rem;color:var(--muted)">
+            📂 JSON-Datei wählen
+            <input type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+          </label>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:10px">📅 Kalender-Optionen</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="exp-tasks" checked style="accent-color:var(--p1)"> Tasks mit Uhrzeit</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="exp-meals" checked style="accent-color:var(--p1)"> Menüplan-Einträge</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="exp-notes" checked style="accent-color:var(--p1)"> Pinnwand-Notizen mit Datum</label>
+          <button class="af-add" style="width:100%;background:var(--shared);color:#000" onclick="exportICS()">📤 .ics exportieren</button>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">🗑 Daten zurücksetzen</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Löscht alle gespeicherten Daten unwiderruflich</div>
+          <button onclick="resetAllData()" style="width:100%;background:var(--rbg);border:1px solid var(--red);color:var(--red);border-radius:var(--rs);padding:9px;font-family:Inter,sans-serif;font-size:.8rem;cursor:pointer">⚠️ Alle Daten löschen</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="heimplaner-data.js"></script>
+<script src="heimplaner-app.js"></script>
+
+<!-- PWA: Service Worker + Install Banner -->
+<script>
+// ── Service Worker ──────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW failed:', err));
+  });
+}
+
+// ── Deep link via URL param ──────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get('view');
+  if (view) {
+    setTimeout(() => {
+      const btn = document.querySelector('[data-view="'+view+'"]');
+      if (btn) setView(view, btn);
+    }, 100);
+  }
+});
+
+// ── Install Banner ───────────────────────────
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  if (document.getElementById('install-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'install-banner';
+  banner.style.cssText = [
+    'position:fixed','top:0','left:0','right:0','z-index:300',
+    'background:linear-gradient(135deg,#1a1d27,#13161e)',
+    'border-bottom:1px solid rgba(108,142,255,.3)',
+    'padding:12px 20px','display:flex','align-items:center','gap:12px',
+    'font-family:Inter,sans-serif','font-size:.82rem','color:#e8eaf0',
+    'box-shadow:0 4px 20px rgba(0,0,0,.4)'
+  ].join(';');
+  banner.innerHTML =
+    '<span style="font-size:1.4rem">🏠</span>'+
+    '<div style="flex:1"><div style="font-weight:600">Heimplaner installieren</div>'+
+    '<div style="font-size:.72rem;color:#6b7280;margin-top:1px">Als App auf dem Homescreen speichern</div></div>'+
+    '<button onclick="installApp()" style="background:#6C8EFF;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-family:Inter,sans-serif;font-size:.78rem;font-weight:600;cursor:pointer">Installieren</button>'+
+    '<button onclick="document.getElementById(\'install-banner\').remove()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:1.1rem;padding:4px">✕</button>';
+  document.body.insertBefore(banner, document.body.firstChild);
+}
+
+async function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('install-banner')?.remove();
+  if (outcome === 'accepted') {
+    setTimeout(() => {
+      const t = document.getElementById('toast');
+      if (t) { t.textContent = '✅ Heimplaner installiert!'; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+    }, 500);
+  }
+}
+
+// iOS: show manual install hint (no beforeinstallprompt on iOS)
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandalone = window.navigator.standalone === true;
+if (isIOS && !isInStandalone) {
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      if (document.getElementById('install-banner')) return;
+      const banner = document.createElement('div');
+      banner.id = 'install-banner';
+      banner.style.cssText = [
+        'position:fixed','bottom:70px','left:16px','right:16px','z-index:300',
+        'background:linear-gradient(135deg,#1a1d27,#13161e)',
+        'border:1px solid rgba(108,142,255,.3)',
+        'border-radius:14px','padding:14px 16px',
+        'display:flex','align-items:flex-start','gap:12px',
+        'font-family:Inter,sans-serif','font-size:.8rem','color:#e8eaf0',
+        'box-shadow:0 8px 30px rgba(0,0,0,.5)'
+      ].join(';');
+      banner.innerHTML =
+        '<span style="font-size:1.6rem;flex-shrink:0">🏠</span>'+
+        '<div style="flex:1">'+
+        '<div style="font-weight:600;margin-bottom:4px">Auf dem Homescreen installieren</div>'+
+        '<div style="font-size:.73rem;color:#a8b2d8;line-height:1.5">'+
+        'Tippe auf <b style="color:#6C8EFF">Teilen</b> (□↑) unten in Safari,<br>'+
+        'dann <b style="color:#6C8EFF">„Zum Home-Bildschirm"</b> wählen.</div></div>'+
+        '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:1.1rem;flex-shrink:0">✕</button>';
+      document.body.appendChild(banner);
+      setTimeout(() => banner.remove(), 12000);
+    }, 3000);
+  });
+}
+</script>
+</body>
+</html>
