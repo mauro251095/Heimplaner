@@ -1102,3 +1102,185 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('ai-input')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAiMessage();}});
   document.getElementById('recipe-search')?.addEventListener('input',filterRecipes);
 });
+
+// ═══════════════════════════════════════════════
+// SYNC – Echtzeit-Synchronisation via Netlify
+// ═══════════════════════════════════════════════
+
+const SYNC_URL = '/.netlify/functions/sync';
+let syncPassword = localStorage.getItem('hp_sync_pw') || '';
+let syncEnabled = false;
+let syncTimer = null;
+let lastSyncedAt = null;
+let syncPollTimer = null;
+
+// ── Sync UI ───────────────────────────────────
+function initSync() {
+  // Show sync status bar in topbar
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return;
+
+  const syncBar = document.createElement('div');
+  syncBar.id = 'sync-bar';
+  syncBar.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:.72rem;color:var(--muted)';
+  syncBar.innerHTML =
+    '<span id="sync-status">⚪ Nicht verbunden</span>' +
+    '<button onclick="openSyncModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:Inter,sans-serif;font-size:.7rem;padding:3px 9px;cursor:pointer">🔄 Sync</button>';
+  topbar.appendChild(syncBar);
+
+  // Auto-connect if password saved
+  if (syncPassword) connectSync();
+}
+
+function setSyncStatus(status, color) {
+  const el = document.getElementById('sync-status');
+  if (el) el.innerHTML = '<span style="color:' + color + '">' + status + '</span>';
+}
+
+function openSyncModal() {
+  showModal(
+    '<h3>🔄 Synchronisation</h3>' +
+    '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Gemeinsames Passwort für Mauro & Lena — beide müssen dasselbe Passwort eingeben.</p>' +
+    '<div class="modal-row"><label>Passwort</label>' +
+    '<input class="modal-in" type="password" id="sync-pw-input" placeholder="Euer gemeinsames Passwort" value="' + syncPassword + '"></div>' +
+    (syncEnabled
+      ? '<div style="background:var(--gbg);border:1px solid var(--green);border-radius:var(--rs);padding:9px 12px;font-size:.78rem;color:var(--green);margin-bottom:10px">✅ Verbunden — Daten werden synchronisiert</div>'
+      : '') +
+    '<div class="modal-btns" style="justify-content:space-between">' +
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>' +
+    (syncEnabled ? '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="disconnectSync()">Trennen</button>' : '') +
+    '<button class="mbtn mbtn-confirm" onclick="saveSyncPassword()">✓ Verbinden</button>' +
+    '</div>'
+  );
+  setTimeout(() => document.getElementById('sync-pw-input')?.focus(), 50);
+}
+
+function saveSyncPassword() {
+  const pw = document.getElementById('sync-pw-input')?.value.trim();
+  if (!pw) { showToast('Bitte Passwort eingeben'); return; }
+  syncPassword = pw;
+  localStorage.setItem('hp_sync_pw', pw);
+  closeModal();
+  connectSync();
+}
+
+function disconnectSync() {
+  syncEnabled = false;
+  syncPassword = '';
+  localStorage.removeItem('hp_sync_pw');
+  clearInterval(syncPollTimer);
+  setSyncStatus('⚪ Nicht verbunden', 'var(--muted)');
+  closeModal();
+  showToast('Synchronisation getrennt');
+}
+
+// ── Connect & Poll ─────────────────────────────
+async function connectSync() {
+  setSyncStatus('⏳ Verbinde…', 'var(--amber)');
+  try {
+    // Test connection by loading data
+    const remote = await syncLoad();
+    if (remote === null) {
+      // First time: push local data
+      await syncSave();
+    } else {
+      // Merge: use newer data
+      mergeData(remote);
+    }
+    syncEnabled = true;
+    setSyncStatus('🟢 Synchron', 'var(--green)');
+    showToast('✅ Synchronisation aktiv');
+    startSyncPolling();
+  } catch(e) {
+    setSyncStatus('🔴 Fehler', 'var(--red)');
+    showToast('❌ Sync-Fehler: ' + e.message);
+    syncEnabled = false;
+  }
+}
+
+async function syncLoad() {
+  const res = await fetch(SYNC_URL, {
+    headers: { 'x-app-password': syncPassword }
+  });
+  if (res.status === 401) throw new Error('Falsches Passwort');
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Server-Fehler ' + res.status);
+  const json = await res.json();
+  lastSyncedAt = json.updated_at;
+  return json.data;
+}
+
+async function syncSave() {
+  if (!syncEnabled && !syncPassword) return;
+  const res = await fetch(SYNC_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-app-password': syncPassword
+    },
+    body: JSON.stringify({ data: HP })
+  });
+  if (res.status === 401) { disconnectSync(); throw new Error('Falsches Passwort'); }
+  if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+  setSyncStatus('🟢 Synchron', 'var(--green)');
+}
+
+function mergeData(remote) {
+  // Simply use remote data — last-write-wins
+  if (!remote || typeof remote !== 'object') return;
+  Object.assign(HP, remote);
+  if (!HP.notes) HP.notes = [];
+  if (!HP.customRecipes) HP.customRecipes = [];
+  if (!HP.taskStatus) HP.taskStatus = {};
+  if (!HP.taskNotes) HP.taskNotes = {};
+  HP_save(); // also save to localStorage
+  render();
+}
+
+function startSyncPolling() {
+  clearInterval(syncPollTimer);
+  // Poll every 15 seconds for changes from other devices
+  syncPollTimer = setInterval(async () => {
+    if (!syncEnabled) return;
+    try {
+      const res = await fetch(SYNC_URL, {
+        headers: { 'x-app-password': syncPassword }
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      // Only update if remote is newer
+      if (json.updated_at && json.updated_at !== lastSyncedAt) {
+        lastSyncedAt = json.updated_at;
+        mergeData(json.data);
+        setSyncStatus('🟢 Aktualisiert', 'var(--green)');
+        showToast('🔄 Daten aktualisiert');
+      }
+    } catch(e) {
+      setSyncStatus('🟡 Offline', 'var(--amber)');
+    }
+  }, 15000);
+}
+
+// ── Hook into save ────────────────────────────
+const _origSave = HP_save;
+// Override HP_save to also sync
+function HP_save() {
+  try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
+  // Debounce sync saves (wait 2s after last change)
+  if (syncEnabled) {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(async () => {
+      try {
+        setSyncStatus('⏳ Speichert…', 'var(--amber)');
+        await syncSave();
+      } catch(e) {
+        setSyncStatus('🔴 Sync-Fehler', 'var(--red)');
+      }
+    }, 2000);
+  }
+}
+
+// ── Init on load ──────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(initSync, 500);
+});
