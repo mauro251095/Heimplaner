@@ -2,28 +2,29 @@
 // HEIMPLANER – SERVICE WORKER
 // Offline-fähig, cached alle App-Dateien
 // ═══════════════════════════════════════════════
-
-const CACHE = 'heimplaner-v1';
+const CACHE = 'heimplaner-v3';
 const ASSETS = [
-  './heimplaner.html',
+  './index.html',
   './heimplaner-data.js',
   './heimplaner-app.js',
+  './heimplaner-login.js',
+  './heimplaner-sync.js',
   './manifest.json',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700&display=swap'
+  './icon-192.png',
+  './icon-512.png'
 ];
-
-// Install: cache all assets
+ 
+// Install: cache assets
 self.addEventListener('install', e => {
+  self.skipWaiting();
   e.waitUntil(
-    caches.open(CACHE).then(cache => {
-      return Promise.allSettled(
-        ASSETS.map(url => cache.add(url).catch(() => {}))
-      );
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE).then(cache =>
+      Promise.allSettled(ASSETS.map(url => cache.add(url).catch(() => {})))
+    )
   );
 });
-
-// Activate: remove old caches
+ 
+// Activate: remove ALL old caches immediately
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -31,18 +32,32 @@ self.addEventListener('activate', e => {
     ).then(() => self.clients.claim())
   );
 });
-
-// Fetch: cache-first for app files, network-first for API
+ 
+// Fetch: network-first voor HTML, cache-first voor rest
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-
-  // Always go to network for Anthropic API
-  if (url.hostname === 'api.anthropic.com') {
+ 
+  // Altijd network voor API
+  if (url.hostname === 'api.anthropic.com' || url.pathname.startsWith('/.netlify/')) {
     e.respondWith(fetch(e.request));
     return;
   }
-
-  // Cache-first for everything else
+ 
+  // Network-first voor navigatie (HTML)
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put(e.request, copy));
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+ 
+  // Cache-first voor JS/CSS/images
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
@@ -51,32 +66,7 @@ self.addEventListener('fetch', e => {
         const copy = response.clone();
         caches.open(CACHE).then(cache => cache.put(e.request, copy));
         return response;
-      }).catch(() => {
-        // Offline fallback for navigation
-        if (e.request.mode === 'navigate') {
-          return caches.match('./heimplaner.html');
-        }
       });
     })
   );
-});
-
-// Push notifications (for future use)
-self.addEventListener('push', e => {
-  const data = e.data ? e.data.json() : {};
-  e.waitUntil(
-    self.registration.showNotification(data.title || 'Heimplaner', {
-      body: data.body || '',
-      icon: './icon-192.png',
-      badge: './icon-192.png',
-      tag: data.tag || 'heimplaner',
-      renotify: true,
-      data: data
-    })
-  );
-});
-
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(clients.openWindow('./heimplaner.html'));
 });
