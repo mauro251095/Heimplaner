@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Heimplaner</title>
-  <script src="/.netlify/functions/auth"></script>
 
 <!-- PWA Manifest -->
 <link rel="manifest" href="manifest.json">
@@ -36,7 +35,7 @@
   --p1:#6C8EFF;--p1bg:rgba(108,142,255,0.12);
   --p2:#FF7EB3;--p2bg:rgba(255,126,179,0.12);
   --shared:#4ECDC4;--shbg:rgba(78,205,196,0.12);
-  --today:#F5A623;--prio:#FF5A5A;--done:.32;
+  --today:#22c55e;--prio:#FF5A5A;--done:.32;
   --green:#4ade80;--gbg:rgba(74,222,128,0.12);
   --amber:#fbbf24;--abg:rgba(251,191,36,0.12);
   --red:#f87171;--rbg:rgba(248,113,113,0.12);
@@ -45,6 +44,20 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex}
 
+
+/* ── LIGHT THEME ── */
+body.light{
+  --bg:#f0f2f7;--panel:#ffffff;--surface:#f8f9fc;--border:rgba(0,0,0,0.08);
+  --text:#1a1d27;--muted:#6b7280;--subtle:#e4e7ef;--subtle2:#eef0f6;
+  --p1bg:rgba(108,142,255,0.15);--p2bg:rgba(255,126,179,0.15);
+  --shbg:rgba(78,205,196,0.15);--gbg:rgba(34,197,94,0.15);
+  --abg:rgba(251,191,36,0.15);--rbg:rgba(248,113,113,0.15);
+  --done:.45;
+}
+body.light .topbar,body.light .sidebar{box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+body.light .mini-cal .mday.in-week{background:#e8edff;color:#1a1d27;}
+body.light .day-col{box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+body.light .modal{box-shadow:0 20px 60px rgba(0,0,0,0.15);}
 /* ── SIDEBAR ── */
 .sidebar{width:var(--sb);background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
 .sb-logo{padding:18px 18px 12px;border-bottom:1px solid var(--border)}
@@ -484,8 +497,7 @@ body { padding-top: env(safe-area-inset-top); }
     <div class="mini-cal" id="mini-cal"></div>
   </div>
   <div class="sb-nav">
-    <span class="sec-lbl">Planer</span>
-    <button class="vbtn active" data-view="all" onclick="setView('all',this)"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Alle Personen</button>
+    <span class="sec-lbl">Personen</span>
     <button class="vbtn" data-view="p1" onclick="setView('p1',this)" style="justify-content:space-between">
       <span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--p1)"></span><span data-sync="p1" id="sb-lbl-p1">Mauro</span></span>
       <span class="sb-edit-btn" onclick="event.stopPropagation();renamePerson('p1')" title="Umbenennen">✏️</span>
@@ -494,6 +506,8 @@ body { padding-top: env(safe-area-inset-top); }
       <span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2" id="sb-lbl-p2">Lena</span></span>
       <span class="sb-edit-btn" onclick="event.stopPropagation();renamePerson('p2')" title="Umbenennen">✏️</span>
     </button>
+    <span class="sec-lbl" style="margin-top:12px">Planer</span>
+    <button class="vbtn active" data-view="all" onclick="setView('all',this)"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Wochenplaner</button>
     <button class="vbtn" data-view="month" onclick="setView('month',this)"><span class="dot" style="background:var(--p1)"></span>Monatsplaner</button>
     <span class="sec-lbl" style="margin-top:12px">Haushalt</span>
     <button class="vbtn" data-view="shop" onclick="setView('shop',this)"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste<span class="badge hidden" id="shop-badge">0</span></button>
@@ -505,20 +519,11 @@ body { padding-top: env(safe-area-inset-top); }
     <button class="vbtn" data-view="manage" onclick="setView('manage',this)"><span class="dot" style="background:var(--muted)"></span>Aufgaben verwalten</button>
     <button class="vbtn" data-view="settings" onclick="setView('settings',this)"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
   </div>
-  <div class="sb-stats">
-    <div class="ring-row">
-      <div class="ring-bg" id="ring-bg"><span class="ring-pct" id="ring-pct">0%</span></div>
-      <div class="ring-info"><div class="rl">Diese Woche</div><div class="rn" id="ring-num">0 / 0</div></div>
-    </div>
-    <div class="st-row"><span class="sl">🔥 Streak</span><span style="font-weight:600;color:var(--today)" id="st-streak">0 Tage</span></div>
-    <div class="st-row"><span class="sl">🔴 Blockiert</span><span style="font-weight:600;color:var(--red)" id="st-blocked">0</span></div>
-    <button class="sb-reset" onclick="if(confirm('Woche zurücksetzen?')){getWeekDates(weekOffset).forEach(d=>{delete HP.done[dk(d)]});HP_save();render();}">↺ Woche zurücksetzen</button>
-  </div>
-</aside>
+  </aside>
 
 <!-- MAIN -->
 <main class="main">
-  <div class="topbar">
+  <div class="topbar" id="main-topbar">
     <button class="mob-hd-btn" onclick="openMobDrawer()">☰</button>
     <div class="wk-nav">
       <button onclick="changeWeek(-1)">‹</button>
@@ -580,7 +585,10 @@ body { padding-top: env(safe-area-inset-top); }
 
     <!-- RECIPES VIEW -->
     <div id="view-recipes" class="hidden">
-      <div class="sec-hd" id="recipe-hd" style="margin-bottom:10px">Rezeptbibliothek</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div class="sec-hd" id="recipe-hd" style="margin-bottom:0">Rezeptbibliothek</div>
+        <button class="af-add" onclick="openRecipeImport()" style="margin-left:auto;background:var(--shbg);border:1px solid var(--shared);color:var(--shared)">✨ Rezept per KI importieren</button>
+      </div>
       <input class="recipe-search" id="recipe-search" placeholder="Rezept suchen…">
       <div class="rfbtns" id="recipe-filters"></div>
       <div class="recipes-grid" id="recipes-grid"></div>
@@ -665,7 +673,15 @@ body { padding-top: env(safe-area-inset-top); }
 
     <!-- SETTINGS VIEW -->
     <div id="view-settings" class="hidden">
-      <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem;margin-bottom:18px">⚙️ Import / Export</h2>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">⚙️ Einstellungen</h2>
+        <button onclick="toggleTheme()" id="theme-toggle-btn" style="margin-left:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:Inter,sans-serif;font-size:.8rem;padding:6px 14px;cursor:pointer">🌙 Dunkel</button>
+      </div>
+      <!-- Personenfarben -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px">
+        <div style="font-size:.9rem;font-weight:600;margin-bottom:14px">🎨 Personenfarben</div>
+        <div id="color-settings"></div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
           <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">📤 Daten exportieren</div>
@@ -701,10 +717,8 @@ body { padding-top: env(safe-area-inset-top); }
 
 <div class="toast" id="toast"></div>
 
-<script src="heimplaner-login.js"></script>
 <script src="heimplaner-data.js"></script>
 <script src="heimplaner-app.js"></script>
-<script src="heimplaner-sync.js"></script>
 
 <!-- PWA: Service Worker + Install Banner -->
 <script>
@@ -804,8 +818,6 @@ if (isIOS && !isInStandalone) {
     }, 3000);
   });
 }
-<script src="heimplaner-data.js"></script>
-<script src="heimplaner-app.js"></script>
-<script src="heimplaner-sync.js"></script>
+</script>
 </body>
 </html>

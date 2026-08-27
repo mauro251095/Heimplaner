@@ -109,28 +109,6 @@ function renderMiniMonth(calId='mini-cal', lblId='mm-label') {
 }
 
 function renderSidebarStats() {
-  const dates=getWeekDates(weekOffset), tasks=allTasks();
-  let tot=0,done=0,blocked=0;
-  dates.forEach((date,di)=>{
-    const dt=tasks.filter(t=>t.days.includes(di));
-    tot+=dt.length;
-    dt.forEach(t=>{ if(isDone(date,t.id)) done++; if(getStatus(t.id)==='blocked') blocked++; });
-  });
-  const pct=tot?Math.round(done/tot*100):0;
-  const rp=document.getElementById('ring-pct'); if(rp) rp.textContent=pct+'%';
-  const rn=document.getElementById('ring-num'); if(rn) rn.textContent=done+' / '+tot;
-  const rb=document.getElementById('ring-bg'); if(rb) rb.style.background='conic-gradient(var(--today) 0% '+pct+'%, var(--subtle) '+pct+'% 100%)';
-  const today=new Date(); today.setHours(0,0,0,0);
-  let streak=0;
-  for(let i=0;i<60;i++) {
-    const dd=new Date(today); dd.setDate(today.getDate()-i);
-    const di2=(dd.getDay()+6)%7;
-    const dt2=tasks.filter(t=>t.days.includes(di2));
-    if(!dt2.length){streak++;continue;}
-    if(dt2.every(t=>isDone(dd,t.id))) streak++; else break;
-  }
-  const ss=document.getElementById('st-streak'); if(ss) ss.textContent=streak+' Tage';
-  const sb=document.getElementById('st-blocked'); if(sb) sb.textContent=blocked;
   updateShopBadge();
 }
 
@@ -190,7 +168,7 @@ function renderWeekGrid() {
       const d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
       const si=st==='wip'?'🟡':st==='blocked'?'🔴':'';
       const chip=document.createElement('div');
-      chip.className='task-chip c'+t.who+' s-'+st+(d?' done':'');
+      chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
       chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(t.time)+'</span>':'')+'</span>'+
         '<span class="chip-st">'+si+'</span>'+(t.prio?'<span class="chip-prio">●</span>':'');
       chip.addEventListener('click',()=>openTaskModal(t.id));
@@ -211,7 +189,8 @@ function renderPersonView(who) {
     '<div><div class="pv-name" style="color:'+color+'">'+n+'</div><div class="pv-sub">Persönliche Wochenübersicht</div></div>'+
     '<div class="pv-stats"><div class="pv-stat"><div class="psn" style="color:'+color+'">'+done+'</div><div class="psl">Erledigt</div></div>'+
     '<div class="pv-stat"><div class="psn">'+tot+'</div><div class="psl">Gesamt</div></div>'+
-    '<div class="pv-stat"><div class="psn" style="color:var(--today)">'+pct+'%</div><div class="psl">Quote</div></div></div>';
+    '<div class="pv-stat"><div class="psn" style="color:var(--today)">'+pct+'%</div><div class="psl">Quote</div></div></div>'+
+    '<button onclick="openQuickAddTask(\''+who+'\')" style="margin-left:12px;background:var(--p1bg);border:1px solid var(--p1);border-radius:var(--rs);color:var(--p1);font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;padding:6px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Aufgabe</button>';
   const pvDays=document.getElementById('pv-days'); if(!pvDays) return; pvDays.innerHTML='';
   dates.forEach((date,di)=>{
     const tl=isToday(date), dayT=tasks.filter(t=>t.days.includes(di));
@@ -226,7 +205,7 @@ function renderPersonView(who) {
     sorted.forEach(t=>{
       const d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
       const pill=document.createElement('div');
-      pill.className='pv-pill p'+(t.who==='shared'?'shared':t.who[1])+(d?' s-done':'')+(t.prio?' is-prio':'')+(st==='blocked'?' s-blocked':'');
+      pill.className='pv-pill '+(t.important?'p-important':(t.who==='shared'?'pshared':'p'+t.who[1]))+(d?' s-done':'')+(t.prio?' is-prio':'')+(st==='blocked'?' s-blocked':'');
       pill.innerHTML=(t.prio?'<span style="font-size:.6rem;color:var(--prio)">●</span>':'')+t.emoji+' '+t.name+
         (st==='wip'?'<span class="pst wip">🟡</span>':st==='blocked'?'<span class="pst blk">🔴</span>':'')+
         (t.who==='shared'?'<span style="font-size:.62rem;opacity:.55"> gem.</span>':'');
@@ -234,6 +213,62 @@ function renderPersonView(who) {
       tc.appendChild(pill);
     });
   });
+}
+
+function openQuickAddTask(who) {
+  const n = HP.names[who];
+  const color = who==='p1'?'var(--p1)':'var(--p2)';
+  showModal(
+    '<h3>+ Aufgabe für '+n+'</h3>'+
+    '<div class="modal-row"><label>Emoji & Name</label>'+
+    '<div style="display:flex;gap:7px">'+
+    '<input class="modal-in" id="qa-emoji" placeholder="⭐" maxlength="2" style="width:48px;text-align:center">'+
+    '<input class="modal-in" id="qa-name" placeholder="Aufgabe…" style="flex:1"></div></div>'+
+    '<div class="modal-row"><label>Wochentage</label>'+
+    '<div style="display:flex;gap:4px;flex-wrap:wrap" id="qa-days">'+
+    DS.map((d,i)=>'<span class="dp" data-day="'+i+'" onclick="this.classList.toggle(\'op'+who+'\')" style="cursor:pointer">'+d+'</span>').join('')+
+    '<span class="dp" style="color:var(--shared);border-color:var(--shared);cursor:pointer" onclick="document.querySelectorAll(\'#qa-days .dp[data-day]\').forEach(x=>x.classList.add(\'op'+who+'\'))">Alle</span>'+
+    '</div></div>'+
+    '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+    '<input type="checkbox" id="tm-important"'+(isImportant?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
+    '<span style="font-size:.82rem;font-weight:500;color:var(--red)">🚨 Wichtig</span>'+
+    '<span style="font-size:.74rem;color:var(--muted);margin-left:4px">— Task wird rot markiert</span>'+
+    '</label></div>'+
+    '<div class="modal-row" style="display:flex;gap:8px">'+
+    '<div style="flex:1"><label>Uhrzeit</label><input class="modal-in" type="time" id="qa-time"></div>'+
+    '<div style="flex:1"><label>Erinnerung</label><select class="modal-in" id="qa-reminder">'+
+    '<option value="">Keine</option><option value="0">Zur Uhrzeit</option><option value="5">5 Min</option><option value="15">15 Min</option><option value="30">30 Min</option></select></div>'+
+    '<div style="display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);cursor:pointer"><input type="checkbox" id="qa-prio" style="accent-color:var(--prio)"> Priorität</label></div>'+
+    '</div>'+
+    '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+    '<input type="checkbox" id="qa-important" style="accent-color:var(--red);width:16px;height:16px">'+
+    '<span style="font-size:.82rem;font-weight:500;color:var(--red)">🚨 Wichtig</span>'+
+    '</label></div>'+
+    '<div class="modal-btns">'+
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
+    '<button class="mbtn mbtn-confirm" style="background:'+color+'" onclick="saveQuickAddTask(\''+who+'\')">✓ Hinzufügen</button>'+
+    '</div>'
+  );
+  setTimeout(()=>document.getElementById('qa-name')?.focus(),50);
+}
+
+function saveQuickAddTask(who) {
+  const emoji=document.getElementById('qa-emoji')?.value.trim()||'⭐';
+  const name=document.getElementById('qa-name')?.value.trim();
+  const time=document.getElementById('qa-time')?.value||'';
+  const reminder=document.getElementById('qa-reminder')?.value||'';
+  const prio=document.getElementById('qa-prio')?.checked||false;
+  if(!name){showToast('Bitte Aufgabenname eingeben');return;}
+  const important=document.getElementById('qa-important')?.checked||false;
+  const days=[];
+  document.querySelectorAll('#qa-days .dp[data-day]').forEach(el=>{
+    if(el.classList.contains('op'+who)) days.push(parseInt(el.dataset.day));
+  });
+  const finalDays=days.length?days:[0,1,2,3,4,5,6];
+  const tid=who+Date.now();
+  HP.tasks[who].push({id:tid,emoji,name,days:finalDays,prio,important,status:'open',time,reminder});
+  if(time&&reminder!=='') scheduleTaskNotif({id:tid,emoji,name,days:finalDays,time,reminder});
+  HP_save();closeModal();render();showToast(emoji+' '+name+' hinzugefügt');
 }
 
 // ── SHOP ──────────────────────────────────────
@@ -497,25 +532,6 @@ function renderRecipes() {
 }
 function setRecipeFilter(c){recipeFilter=c;renderRecipes();}
 function filterRecipes(){renderRecipes();}
-function openRecipeDetail(rid) {
-  const r=allRecipes().find(x=>x.id===rid); if(!r) return;
-  const rows=r.ing.map((ing,i)=>
-    '<li style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'+
-    '<input type="checkbox" id="ic-'+i+'" checked style="accent-color:var(--shared);width:15px;height:15px;cursor:pointer;flex-shrink:0">'+
-    '<label for="ic-'+i+'" style="flex:1;font-size:.79rem;cursor:pointer">'+ing.n+(ing.optional?' <span style="font-size:.65rem;color:var(--amber)">(optional)</span>':'')+'</label>'+
-    '<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">'+ing.q+' '+ing.u+'</span></li>').join('');
-  showModal('<span style="font-size:2rem;text-align:center;display:block;margin-bottom:6px">'+r.emoji+'</span>'+
-    '<h3 style="text-align:center">'+r.name+'</h3>'+
-    '<div style="display:flex;gap:10px;justify-content:center;font-size:.73rem;color:var(--muted);margin-bottom:12px">'+
-    '<span>⏱ '+r.time+' Min</span><span>👥 '+r.pers+' Pers.</span><span>'+r.tags.join(' · ')+'</span></div>'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
-    '<span style="font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Zutaten wählen</span>'+
-    '<button onclick="toggleAllIng('+r.ing.length+')" style="background:none;border:none;color:var(--muted);font-size:.72rem;cursor:pointer">Alle an/ab</button></div>'+
-    '<ul style="list-style:none">'+rows+'</ul>'+
-    '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
-    '<button class="mbtn" style="background:var(--shbg);border:1px solid var(--shared);color:var(--shared)" onclick="addSelectedIngs(\''+rid+'\')">🛒 Auswahl zur Liste</button>'+
-    '<button class="mbtn mbtn-confirm" onclick="closeModal();openMealPlanModal(\''+rid+'\')">📅 Menüplan</button></div>',true);
-}
 function toggleAllIng(n){const cbs=Array.from({length:n},(_,i)=>document.getElementById('ic-'+i)).filter(Boolean);const all=cbs.every(c=>c.checked);cbs.forEach(c=>c.checked=!all);}
 function addSelectedIngs(rid) {
   const r=allRecipes().find(x=>x.id===rid); if(!r) return;
@@ -669,10 +685,16 @@ function addTask(){
 function openTaskModal(tid) {
   const task=allTasks().find(t=>t.id===tid); if(!task) return;
   const st=getStatus(tid), note=HP.taskNotes[tid]||'';
+  const isImportant = task.important || false;
   const stBtns=[['open','⬜ Offen'],['wip','🟡 In Arbeit'],['blocked','🔴 Blockiert'],['done','✅ Erledigt']]
     .map(([s,l])=>'<button class="st-btn'+(st===s?' sel-'+s:'')+'" onclick="setTaskStatus(\''+tid+'\',\''+s+'\',this)">'+l+'</button>').join('');
   showModal('<h3>'+task.emoji+' '+task.name+'</h3>'+
     '<div class="modal-row"><label>Status</label><div class="st-btns">'+stBtns+'</div></div>'+
+    '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+    '<input type="checkbox" id="tm-important"'+(isImportant?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
+    '<span style="font-size:.82rem;font-weight:500;color:var(--red)">🚨 Wichtig</span>'+
+    '<span style="font-size:.74rem;color:var(--muted);margin-left:4px">— Task wird rot markiert</span>'+
+    '</label></div>'+
     '<div class="modal-row" style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Uhrzeit</label><input class="modal-in" type="time" id="tm-time" value="'+(task.time||'')+'"></div>'+
     '<div style="flex:1"><label>Erinnerung</label><select class="modal-in" id="tm-rem">'+
@@ -1104,183 +1126,189 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 // ═══════════════════════════════════════════════
-// SYNC – Echtzeit-Synchronisation via Netlify
+
+// ═══════════════════════════════════════════════
+// THEME – Hell/Dunkel Toggle
 // ═══════════════════════════════════════════════
 
-const SYNC_URL = '/.netlify/functions/sync';
-let syncPassword = localStorage.getItem('hp_sync_pw') || '';
-let syncEnabled = false;
-let syncTimer = null;
-let lastSyncedAt = null;
-let syncPollTimer = null;
-
-// ── Sync UI ───────────────────────────────────
-function initSync() {
-  // Show sync status bar in topbar
-  const topbar = document.querySelector('.topbar');
-  if (!topbar) return;
-
-  const syncBar = document.createElement('div');
-  syncBar.id = 'sync-bar';
-  syncBar.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:.72rem;color:var(--muted)';
-  syncBar.innerHTML =
-    '<span id="sync-status">⚪ Nicht verbunden</span>' +
-    '<button onclick="openSyncModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:Inter,sans-serif;font-size:.7rem;padding:3px 9px;cursor:pointer">🔄 Sync</button>';
-  topbar.appendChild(syncBar);
-
-  // Auto-connect if password saved
-  if (syncPassword) connectSync();
+function applyTheme(theme) {
+  document.body.classList.toggle('light', theme === 'light');
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = theme === 'light' ? '🌙 Dunkel' : '☀️ Hell';
 }
 
-function setSyncStatus(status, color) {
-  const el = document.getElementById('sync-status');
-  if (el) el.innerHTML = '<span style="color:' + color + '">' + status + '</span>';
+function toggleTheme() {
+  const newTheme = HP.theme === 'dark' ? 'light' : 'dark';
+  HP.theme = newTheme;
+  HP_save();
+  applyTheme(newTheme);
 }
 
-function openSyncModal() {
+// ═══════════════════════════════════════════════
+// FARBEN – Personenfarben anpassen
+// ═══════════════════════════════════════════════
+
+function renderColorSettings() {
+  const el = document.getElementById('color-settings');
+  if (!el) return;
+  const persons = [
+    {key:'p1', label: HP.names.p1},
+    {key:'p2', label: HP.names.p2},
+    {key:'shared', label: 'Gemeinsam'}
+  ];
+  el.innerHTML = persons.map(p => {
+    const currentColor = getColor(p.key);
+    const swatches = COLOR_OPTIONS.map(c =>
+      `<span onclick="setPersonColor('${p.key}','${c.val}')" title="${c.name}" style="display:inline-block;width:24px;height:24px;border-radius:50%;background:${c.val};cursor:pointer;border:3px solid ${c.val===currentColor?'#fff':'transparent'};transition:border .15s;margin:2px"></span>`
+    ).join('');
+    return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:.82rem;font-weight:500;min-width:80px;color:${currentColor}">${p.label}</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">${swatches}</div>
+    </div>`;
+  }).join('');
+}
+
+function setPersonColor(who, color) {
+  if (!HP.colors) HP.colors = {...DEFAULT_COLORS};
+  HP.colors[who] = color;
+  HP_save();
+  applyColors();
+  renderColorSettings();
+  showToast('Farbe geändert');
+}
+
+function applyColors() {
+  const root = document.documentElement;
+  const p1 = getColor('p1');
+  const p2 = getColor('p2');
+  const sh = getColor('shared');
+  const opt1 = COLOR_OPTIONS.find(c=>c.val===p1);
+  const opt2 = COLOR_OPTIONS.find(c=>c.val===p2);
+  const opts = COLOR_OPTIONS.find(c=>c.val===sh);
+  root.style.setProperty('--p1', p1);
+  root.style.setProperty('--p1bg', opt1?.bg||'rgba(108,142,255,0.12)');
+  root.style.setProperty('--p2', p2);
+  root.style.setProperty('--p2bg', opt2?.bg||'rgba(255,126,179,0.12)');
+  root.style.setProperty('--shared', sh);
+  root.style.setProperty('--shbg', opts?.bg||'rgba(78,205,196,0.12)');
+}
+
+// ═══════════════════════════════════════════════
+// REZEPT-IMPORT via KI-Assistent
+// ═══════════════════════════════════════════════
+
+function openRecipeImport() {
   showModal(
-    '<h3>🔄 Synchronisation</h3>' +
-    '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Gemeinsames Passwort für Mauro & Lena — beide müssen dasselbe Passwort eingeben.</p>' +
-    '<div class="modal-row"><label>Passwort</label>' +
-    '<input class="modal-in" type="password" id="sync-pw-input" placeholder="Euer gemeinsames Passwort" value="' + syncPassword + '"></div>' +
-    (syncEnabled
-      ? '<div style="background:var(--gbg);border:1px solid var(--green);border-radius:var(--rs);padding:9px 12px;font-size:.78rem;color:var(--green);margin-bottom:10px">✅ Verbunden — Daten werden synchronisiert</div>'
-      : '') +
-    '<div class="modal-btns" style="justify-content:space-between">' +
+    '<h3>📖 Rezept per Text importieren</h3>' +
+    '<p style="font-size:.79rem;color:var(--muted);margin-bottom:12px">Füge einen Rezepttext ein — der KI-Assistent erfasst Zutaten und Anleitung automatisch.</p>' +
+    '<div class="modal-row"><label>Rezepttext einfügen</label>' +
+    '<textarea class="modal-in" id="import-text" rows="10" placeholder="Rezeptname und Zutaten hier einfügen..." style="resize:vertical;font-family:Inter,sans-serif;font-size:.78rem"></textarea></div>' +
+    '<div id="import-status" style="font-size:.76rem;color:var(--muted);margin-top:4px"></div>' +
+    '<div class="modal-btns">' +
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>' +
-    (syncEnabled ? '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="disconnectSync()">Trennen</button>' : '') +
-    '<button class="mbtn mbtn-confirm" onclick="saveSyncPassword()">✓ Verbinden</button>' +
+    '<button class="mbtn mbtn-confirm" onclick="importRecipeWithAI()">✨ Mit KI importieren</button>' +
     '</div>'
   );
-  setTimeout(() => document.getElementById('sync-pw-input')?.focus(), 50);
+  setTimeout(() => document.getElementById('import-text')?.focus(), 50);
 }
 
-function saveSyncPassword() {
-  const pw = document.getElementById('sync-pw-input')?.value.trim();
-  if (!pw) { showToast('Bitte Passwort eingeben'); return; }
-  syncPassword = pw;
-  localStorage.setItem('hp_sync_pw', pw);
-  closeModal();
-  connectSync();
+async function importRecipeWithAI() {
+  const text = document.getElementById('import-text')?.value.trim();
+  if (!text) { showToast('Bitte Rezepttext eingeben'); return; }
+  const statusEl = document.getElementById('import-status');
+  if (statusEl) statusEl.textContent = '⏳ KI analysiert Rezept…';
+  const btn = document.querySelector('#modal-ov .mbtn-confirm');
+  if (btn) btn.disabled = true;
+
+  const prompt = `Analysiere diesen Rezepttext und gib ein JSON-Objekt zurück.
+Antworte NUR mit dem JSON, kein anderer Text, keine Markdown-Backticks.
+
+Format:
+{
+  "name": "Rezeptname",
+  "emoji": "passendes Emoji",
+  "cat": "Frühstück|Salate|Pasta|Hauptspeisen|Grill|Suppen|Snacks|Desserts",
+  "time": Zubereitungszeit in Minuten als Zahl,
+  "pers": Personenanzahl als Zahl,
+  "tags": ["tag1","tag2"],
+  "ing": [{"n":"Zutatname","q":"Menge","u":"Einheit"}],
+  "steps": ["Schritt 1...","Schritt 2..."]
 }
 
-function disconnectSync() {
-  syncEnabled = false;
-  syncPassword = '';
-  localStorage.removeItem('hp_sync_pw');
-  clearInterval(syncPollTimer);
-  setSyncStatus('⚪ Nicht verbunden', 'var(--muted)');
-  closeModal();
-  showToast('Synchronisation getrennt');
-}
+Rezepttext:
+${text}`;
 
-// ── Connect & Poll ─────────────────────────────
-async function connectSync() {
-  setSyncStatus('⏳ Verbinde…', 'var(--amber)');
   try {
-    // Test connection by loading data
-    const remote = await syncLoad();
-    if (remote === null) {
-      // First time: push local data
-      await syncSave();
-    } else {
-      // Merge: use newer data
-      mergeData(remote);
-    }
-    syncEnabled = true;
-    setSyncStatus('🟢 Synchron', 'var(--green)');
-    showToast('✅ Synchronisation aktiv');
-    startSyncPolling();
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{role: 'user', content: prompt}]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.map(c=>c.text||'').join('') || '';
+    const cleaned = raw.replace(/```json|```/g,'').trim();
+    const recipe = JSON.parse(cleaned);
+    if (!recipe.name || !recipe.ing) throw new Error('Ungültiges Format');
+
+    recipe.id = 'cr' + Date.now();
+    recipe.custom = true;
+    if (!HP.customRecipes) HP.customRecipes = [];
+    HP.customRecipes.push(recipe);
+    HP_save();
+    closeModal();
+    renderRecipes();
+    showToast('✅ ' + recipe.emoji + ' ' + recipe.name + ' importiert');
   } catch(e) {
-    setSyncStatus('🔴 Fehler', 'var(--red)');
-    showToast('❌ Sync-Fehler: ' + e.message);
-    syncEnabled = false;
+    if (statusEl) statusEl.textContent = '❌ Fehler: ' + e.message + ' — bitte nochmal versuchen.';
+    if (btn) btn.disabled = false;
   }
 }
 
-async function syncLoad() {
-  const res = await fetch(SYNC_URL, {
-    headers: { 'x-app-password': syncPassword }
-  });
-  if (res.status === 401) throw new Error('Falsches Passwort');
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error('Server-Fehler ' + res.status);
-  const json = await res.json();
-  lastSyncedAt = json.updated_at;
-  return json.data;
+// ═══════════════════════════════════════════════
+// REZEPT-ANLEITUNG anzeigen
+// ═══════════════════════════════════════════════
+
+function openRecipeDetail(rid) {
+  const r = allRecipes().find(x => x.id === rid);
+  if (!r) return;
+  const rows = r.ing.map((ing, i) =>
+    '<li style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">' +
+    '<input type="checkbox" id="ic-' + i + '" checked style="accent-color:var(--shared);width:15px;height:15px;cursor:pointer;flex-shrink:0">' +
+    '<label for="ic-' + i + '" style="flex:1;font-size:.79rem;cursor:pointer">' + ing.n + (ing.optional ? ' <span style="font-size:.65rem;color:var(--amber)">(optional)</span>' : '') + '</label>' +
+    '<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">' + ing.q + ' ' + ing.u + '</span></li>'
+  ).join('');
+
+  const stepsHtml = r.steps && r.steps.length
+    ? '<div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:14px 0 8px">Zubereitung</div>' +
+      r.steps.map((s, i) =>
+        '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.79rem;line-height:1.5">' +
+        '<span style="background:var(--p1bg);color:var(--p1);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;margin-top:1px">' + (i+1) + '</span>' +
+        '<span>' + s + '</span></div>'
+      ).join('')
+    : '';
+
+  showModal(
+    '<span style="font-size:2rem;text-align:center;display:block;margin-bottom:6px">' + r.emoji + '</span>' +
+    '<h3 style="text-align:center">' + r.name + '</h3>' +
+    '<div style="display:flex;gap:10px;justify-content:center;font-size:.73rem;color:var(--muted);margin-bottom:12px">' +
+    '<span>⏱ ' + r.time + ' Min</span><span>👥 ' + r.pers + ' Pers.</span><span>' + r.tags.join(' · ') + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+    '<span style="font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Zutaten wählen</span>' +
+    '<button onclick="toggleAllIng(' + r.ing.length + ')" style="background:none;border:none;color:var(--muted);font-size:.72rem;cursor:pointer">Alle an/ab</button></div>' +
+    '<ul style="list-style:none">' + rows + '</ul>' +
+    stepsHtml +
+    '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>' +
+    '<button class="mbtn" style="background:var(--shbg);border:1px solid var(--shared);color:var(--shared)" onclick="addSelectedIngs(\'' + rid + '\')">🛒 Auswahl zur Liste</button>' +
+    '<button class="mbtn mbtn-confirm" onclick="closeModal();openMealPlanModal(\'' + rid + '\')">📅 Menüplan</button></div>', true
+  );
 }
 
-async function syncSave() {
-  if (!syncEnabled && !syncPassword) return;
-  const res = await fetch(SYNC_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-app-password': syncPassword
-    },
-    body: JSON.stringify({ data: HP })
-  });
-  if (res.status === 401) { disconnectSync(); throw new Error('Falsches Passwort'); }
-  if (!res.ok) throw new Error('Speichern fehlgeschlagen');
-  setSyncStatus('🟢 Synchron', 'var(--green)');
-}
-
-function mergeData(remote) {
-  // Simply use remote data — last-write-wins
-  if (!remote || typeof remote !== 'object') return;
-  Object.assign(HP, remote);
-  if (!HP.notes) HP.notes = [];
-  if (!HP.customRecipes) HP.customRecipes = [];
-  if (!HP.taskStatus) HP.taskStatus = {};
-  if (!HP.taskNotes) HP.taskNotes = {};
-  HP_save(); // also save to localStorage
-  render();
-}
-
-function startSyncPolling() {
-  clearInterval(syncPollTimer);
-  // Poll every 15 seconds for changes from other devices
-  syncPollTimer = setInterval(async () => {
-    if (!syncEnabled) return;
-    try {
-      const res = await fetch(SYNC_URL, {
-        headers: { 'x-app-password': syncPassword }
-      });
-      if (!res.ok) return;
-      const json = await res.json();
-      // Only update if remote is newer
-      if (json.updated_at && json.updated_at !== lastSyncedAt) {
-        lastSyncedAt = json.updated_at;
-        mergeData(json.data);
-        setSyncStatus('🟢 Aktualisiert', 'var(--green)');
-        showToast('🔄 Daten aktualisiert');
-      }
-    } catch(e) {
-      setSyncStatus('🟡 Offline', 'var(--amber)');
-    }
-  }, 15000);
-}
-
-// ── Hook into save ────────────────────────────
-const _origSave = HP_save;
-// Override HP_save to also sync
-function HP_save() {
-  try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
-  // Debounce sync saves (wait 2s after last change)
-  if (syncEnabled) {
-    clearTimeout(syncTimer);
-    syncTimer = setTimeout(async () => {
-      try {
-        setSyncStatus('⏳ Speichert…', 'var(--amber)');
-        await syncSave();
-      } catch(e) {
-        setSyncStatus('🔴 Sync-Fehler', 'var(--red)');
-      }
-    }, 2000);
-  }
-}
-
-// ── Init on load ──────────────────────────────
+// ── Init ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(initSync, 500);
+  applyTheme(HP.theme || 'dark');
+  applyColors();
 });
