@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════
-// HEIMPLANER – SERVICE WORKER
-// Offline-fähig, cached alle App-Dateien
-// ═══════════════════════════════════════════════
-// Service Worker deaktiviert
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => {
   e.waitUntil(
