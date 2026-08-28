@@ -118,7 +118,8 @@ function renderAllView() { renderTodayBanner(); renderBlockedBanners(); renderWe
 function renderTodayBanner() {
   const today=new Date(); today.setHours(0,0,0,0);
   const di=(today.getDay()+6)%7, tasks=allTasks();
-  const dayT=tasks.filter(t=>t.days.includes(di));
+  const todayKey=dk(today);
+  const dayT=tasks.filter(t=>t.onceDate?t.onceDate===todayKey:t.days.includes(di));
   const doneC=dayT.filter(t=>isDone(today,t.id)||getStatus(t.id)==='done').length;
   const prioOpen=dayT.filter(t=>t.prio&&!isDone(today,t.id)&&getStatus(t.id)!=='done').length;
   const chips=dayT.length
@@ -153,7 +154,8 @@ function renderWeekGrid() {
   const dates=getWeekDates(weekOffset), tasks=allTasks();
   grid.innerHTML='';
   dates.forEach((date,di)=>{
-    const dayT=tasks.filter(t=>t.days.includes(di));
+    const key2=dk(date);
+    const dayT=tasks.filter(t=>t.onceDate?t.onceDate===key2:t.days.includes(di));
     const doneT=dayT.filter(t=>isDone(date,t.id)||getStatus(t.id)==='done');
     const pct=dayT.length?Math.round(doneT.length/dayT.length*100):0;
     const col=document.createElement('div');
@@ -193,7 +195,7 @@ function renderPersonView(who) {
     '<button onclick="openQuickAddTask(\''+who+'\')" style="margin-left:12px;background:var(--p1bg);border:1px solid var(--p1);border-radius:var(--rs);color:var(--p1);font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;padding:6px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Aufgabe</button>';
   const pvDays=document.getElementById('pv-days'); if(!pvDays) return; pvDays.innerHTML='';
   dates.forEach((date,di)=>{
-    const tl=isToday(date), dayT=tasks.filter(t=>t.days.includes(di));
+    const tl=isToday(date), key3=dk(date), dayT=tasks.filter(t=>t.onceDate?t.onceDate===key3:t.days.includes(di));
     const sorted=[...dayT].sort((a,b)=>a.prio&&!b.prio?-1:!a.prio&&b.prio?1:0);
     const row=document.createElement('div'); row.className='pv-day-row';
     row.innerHTML='<div class="pvdl'+(tl?' tlbl':'')+'"><div class="pvd">'+DS[di]+(tl?' · Heute':'')+'</div>'+
@@ -215,59 +217,87 @@ function renderPersonView(who) {
   });
 }
 
-function openQuickAddTask(who) {
-  const n = HP.names[who];
-  const color = who==='p1'?'var(--p1)':'var(--p2)';
+function openQuickAddTask(who, prefillDate='') {
+  const n = who==='p1'?HP.names.p1:who==='p2'?HP.names.p2:'Gemeinsam';
+  const color = who==='p1'?'var(--p1)':who==='p2'?'var(--p2)':'var(--shared)';
+  const dayClass = who==='p1'?'op1':who==='p2'?'op2':'osh';
   showModal(
-    '<h3>+ Aufgabe für '+n+'</h3>'+
+    '<h3>+ Aufgabe / Termin</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label>'+
     '<div style="display:flex;gap:7px">'+
     '<input class="modal-in" id="qa-emoji" placeholder="⭐" maxlength="2" style="width:48px;text-align:center">'+
-    '<input class="modal-in" id="qa-name" placeholder="Aufgabe…" style="flex:1"></div></div>'+
+    '<input class="modal-in" id="qa-name" placeholder="Aufgabe oder Termin…" style="flex:1"></div></div>'+
+    '<div class="modal-row"><label>Für wen</label>'+
+    '<select class="modal-in" id="qa-who">'+
+    '<option value="p1"'+(who==='p1'?' selected':'')+'>'+HP.names.p1+'</option>'+
+    '<option value="p2"'+(who==='p2'?' selected':'')+'>'+HP.names.p2+'</option>'+
+    '<option value="shared"'+(who==='shared'?' selected':'')+'>Gemeinsam</option>'+
+    '</select></div>'+
+    '<div class="modal-row"><label>Art</label>'+
+    '<div style="display:flex;gap:8px">'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="radio" name="qa-type" value="weekly" checked onchange="document.getElementById(\'qa-weekly\').style.display=\'\';document.getElementById(\'qa-once\').style.display=\'none\'"> Wöchentlich</label>'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="radio" name="qa-type" value="once" onchange="document.getElementById(\'qa-weekly\').style.display=\'none\';document.getElementById(\'qa-once\').style.display=\'\'"> Einmalig</label>'+
+    '</div></div>'+
+    '<div id="qa-weekly">'+
     '<div class="modal-row"><label>Wochentage</label>'+
     '<div style="display:flex;gap:4px;flex-wrap:wrap" id="qa-days">'+
-    DS.map((d,i)=>'<span class="dp" data-day="'+i+'" onclick="this.classList.toggle(\'op'+who+'\')" style="cursor:pointer">'+d+'</span>').join('')+
-    '<span class="dp" style="color:var(--shared);border-color:var(--shared);cursor:pointer" onclick="document.querySelectorAll(\'#qa-days .dp[data-day]\').forEach(x=>x.classList.add(\'op'+who+'\'))">Alle</span>'+
-    '</div></div>'+
-    '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
-    '<input type="checkbox" id="tm-important"'+(isImportant?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
-    '<span style="font-size:.82rem;font-weight:500;color:var(--red)">🚨 Wichtig</span>'+
-    '<span style="font-size:.74rem;color:var(--muted);margin-left:4px">— Task wird rot markiert</span>'+
-    '</label></div>'+
+    DS.map((d,i)=>'<span class="dp" data-day="'+i+'" onclick="this.classList.toggle(\''+dayClass+'\')" style="cursor:pointer">'+d+'</span>').join('')+
+    '<span class="dp" style="color:var(--shared);border-color:var(--shared);cursor:pointer" onclick="document.querySelectorAll(\'#qa-days .dp[data-day]\').forEach(x=>x.classList.add(\''+dayClass+'\'))">Alle</span>'+
+    '</div></div></div>'+
+    '<div id="qa-once" style="display:none">'+
+    '<div class="modal-row"><label>Datum</label>'+
+    '<input class="modal-in" type="date" id="qa-date" value="'+prefillDate+'"></div></div>'+
     '<div class="modal-row" style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Uhrzeit</label><input class="modal-in" type="time" id="qa-time"></div>'+
     '<div style="flex:1"><label>Erinnerung</label><select class="modal-in" id="qa-reminder">'+
     '<option value="">Keine</option><option value="0">Zur Uhrzeit</option><option value="5">5 Min</option><option value="15">15 Min</option><option value="30">30 Min</option></select></div>'+
-    '<div style="display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);cursor:pointer"><input type="checkbox" id="qa-prio" style="accent-color:var(--prio)"> Priorität</label></div>'+
     '</div>'+
-    '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
-    '<input type="checkbox" id="qa-important" style="accent-color:var(--red);width:16px;height:16px">'+
-    '<span style="font-size:.82rem;font-weight:500;color:var(--red)">🚨 Wichtig</span>'+
-    '</label></div>'+
+    '<div class="modal-row" style="display:flex;gap:16px">'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="checkbox" id="qa-prio" style="accent-color:var(--prio)"> Priorität</label>'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="checkbox" id="qa-important" style="accent-color:var(--red)"> <span style="color:var(--red)">🚨 Wichtig</span></label>'+
+    '</div>'+
     '<div class="modal-btns">'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
-    '<button class="mbtn mbtn-confirm" style="background:'+color+'" onclick="saveQuickAddTask(\''+who+'\')">✓ Hinzufügen</button>'+
+    '<button class="mbtn mbtn-confirm" style="background:'+color+'" onclick="saveQuickAddTask()">✓ Hinzufügen</button>'+
     '</div>'
   );
-  setTimeout(()=>document.getElementById('qa-name')?.focus(),50);
+  // If prefill date provided, switch to "once" mode
+  if(prefillDate) {
+    setTimeout(()=>{
+      document.querySelector('input[name="qa-type"][value="once"]')?.click();
+    },60);
+  }
+  setTimeout(()=>document.getElementById('qa-name')?.focus(),80);
 }
 
-function saveQuickAddTask(who) {
+function saveQuickAddTask() {
   const emoji=document.getElementById('qa-emoji')?.value.trim()||'⭐';
   const name=document.getElementById('qa-name')?.value.trim();
+  const who=document.getElementById('qa-who')?.value||'shared';
   const time=document.getElementById('qa-time')?.value||'';
   const reminder=document.getElementById('qa-reminder')?.value||'';
   const prio=document.getElementById('qa-prio')?.checked||false;
-  if(!name){showToast('Bitte Aufgabenname eingeben');return;}
   const important=document.getElementById('qa-important')?.checked||false;
-  const days=[];
-  document.querySelectorAll('#qa-days .dp[data-day]').forEach(el=>{
-    if(el.classList.contains('op'+who)) days.push(parseInt(el.dataset.day));
-  });
-  const finalDays=days.length?days:[0,1,2,3,4,5,6];
+  const isOnce=document.querySelector('input[name="qa-type"]:checked')?.value==='once';
+  if(!name){showToast('Bitte Name eingeben');return;}
+  let days=[0,1,2,3,4,5,6];
+  let onceDate='';
+  if(isOnce){
+    onceDate=document.getElementById('qa-date')?.value||'';
+    if(!onceDate){showToast('Bitte Datum wählen');return;}
+    const d=new Date(onceDate+'T12:00:00');
+    days=[(d.getDay()+6)%7];
+  } else {
+    const dayClass=who==='p1'?'op1':who==='p2'?'op2':'osh';
+    const sel=[];
+    document.querySelectorAll('#qa-days .dp[data-day]').forEach(el=>{
+      if(el.classList.contains(dayClass)) sel.push(parseInt(el.dataset.day));
+    });
+    if(sel.length) days=sel;
+  }
   const tid=who+Date.now();
-  HP.tasks[who].push({id:tid,emoji,name,days:finalDays,prio,important,status:'open',time,reminder});
-  if(time&&reminder!=='') scheduleTaskNotif({id:tid,emoji,name,days:finalDays,time,reminder});
+  HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,reminder,onceDate});
+  if(time&&reminder!=='') scheduleTaskNotif({id:tid,emoji,name,days,time,reminder});
   HP_save();closeModal();render();showToast(emoji+' '+name+' hinzugefügt');
 }
 
@@ -781,7 +811,11 @@ function renderMonth() {
   for(let day=1;day<=daysInMonth;day++){
     const date=new Date(base.getFullYear(),base.getMonth(),day);
     const di=(date.getDay()+6)%7, key=dk(date), isT=date.getTime()===today.getTime();
-    const dayT=tasks.filter(t=>t.days.includes(di));
+    // Include both recurring tasks AND once-tasks matching this date
+    const dayT=tasks.filter(t=>{
+      if(t.onceDate) return t.onceDate===key;
+      return t.days.includes(di);
+    });
     const meals=HP.meals[key]||{};
     const evHtml=[
       ...dayT.slice(0,2).map(t=>'<div class="mc-event e'+(t.who==='shared'?'sh':t.who)+'">'+t.emoji+' '+t.name+'</div>'),
@@ -795,8 +829,12 @@ function renderMonth() {
 function changeMonthView(d){monthViewOffset+=d;renderMonth();}
 function goMonthToday(){monthViewOffset=0;renderMonth();}
 function openDayDetail(key) {
-  const date=new Date(key+'T00:00:00'), di=(date.getDay()+6)%7;
-  const tasks=allTasks().filter(t=>t.days.includes(di));
+  // Fix: use noon time to avoid timezone off-by-one
+  const date=new Date(key+'T12:00:00'), di=(date.getDay()+6)%7;
+  const tasks=allTasks().filter(t=>{
+    if(t.onceDate) return t.onceDate===key;
+    return t.days.includes(di);
+  });
   const meals=HP.meals[key]||{};
   const label=date.toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long'});
   const tasksHtml=tasks.length
@@ -811,8 +849,10 @@ function openDayDetail(key) {
   showModal('<h3>'+label+'</h3>'+
     '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Aufgaben</div>'+tasksHtml+
     '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Menü</div>'+mealsHtml+
-    '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
-    '<button class="mbtn" style="background:var(--gbg);border:1px solid var(--green);color:var(--green)" onclick="exportDayICS(\''+key+'\');closeModal()">📅 In Kalender</button></div>');
+    '<div class="modal-btns" style="justify-content:space-between">'+
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
+    '<button class="mbtn" style="background:var(--p1bg);border:1px solid var(--p1);color:var(--p1)" onclick="closeModal();openQuickAddTask(\'shared\',\''+key+'\')">+ Termin</button>'+
+    '<button class="mbtn" style="background:var(--gbg);border:1px solid var(--green);color:var(--green)" onclick="exportDayICS(\''+key+'\');closeModal()">📅 Kalender</button></div>');
 }
 
 // ── PINBOARD ──────────────────────────────────
