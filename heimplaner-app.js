@@ -119,7 +119,8 @@ function renderTodayBanner() {
   const today=new Date(); today.setHours(0,0,0,0);
   const di=(today.getDay()+6)%7, tasks=allTasks();
   const todayKey=dk(today);
-  const dayT=tasks.filter(t=>t.onceDate?t.onceDate===todayKey:t.days.includes(di));
+  const dayEv=(HP.events||[]).filter(e=>e.date===todayKey);
+  const dayT=tasks.filter(t=>t.days.includes(di));
   const doneC=dayT.filter(t=>isDone(today,t.id)||getStatus(t.id)==='done').length;
   const prioOpen=dayT.filter(t=>t.prio&&!isDone(today,t.id)&&getStatus(t.id)!=='done').length;
   const chips=dayT.length
@@ -139,8 +140,7 @@ function renderTodayBanner() {
 function renderBlockedBanners() {
   const today=new Date(); today.setHours(0,0,0,0);
   const di=(today.getDay()+6)%7;
-  const todayKeyB=dk(today);
-  const blocked=allTasks().filter(t=>(t.onceDate?t.onceDate===todayKeyB:t.days.includes(di))&&getStatus(t.id)==='blocked');
+  const blocked=allTasks().filter(t=>!t.onceDate&&t.days.includes(di)&&getStatus(t.id)==='blocked');
   const el=document.getElementById('blocked-banners');
   if(el) el.innerHTML=blocked.map(t=>
     '<div class="blocked-banner" onclick="openTaskModal(\''+t.id+'\')">🔴 <b>'+t.emoji+' '+t.name+'</b> ist blockiert'+
@@ -155,10 +155,11 @@ function renderWeekGrid() {
   const dates=getWeekDates(weekOffset), tasks=allTasks();
   grid.innerHTML='';
   dates.forEach((date,di)=>{
-    const key2=dk(date);
-    const dayT=tasks.filter(t=>t.onceDate?t.onceDate===key2:t.days.includes(di));
+    const key=dk(date);
+    const dayT=tasks.filter(t=>t.days.includes(di));
+    const dayEv=(HP.events||[]).filter(e=>e.date===key);
     const doneT=dayT.filter(t=>isDone(date,t.id)||getStatus(t.id)==='done');
-    const pct=dayT.length?Math.round(doneT.length/dayT.length*100):0;
+    const pct=(dayT.length+dayEv.length)?Math.round(doneT.length/(dayT.length+dayEv.length)*100):0;
     const col=document.createElement('div');
     col.className='day-col'+(isToday(date)?' is-today':'')+(isPast(date)&&!isToday(date)?' is-past':'');
     col.innerHTML='<div class="day-head"><div class="dh-dow">'+DS[di]+'</div><div class="dh-num">'+date.getDate()+'</div>'+
@@ -166,7 +167,17 @@ function renderWeekGrid() {
       '<div class="day-tasks" id="wg-'+di+'"></div>';
     grid.appendChild(col);
     const tc=col.querySelector('#wg-'+di);
-    if(!dayT.length){tc.innerHTML='<span style="font-size:.66rem;color:var(--muted)">–</span>';return;}
+    if(!dayT.length&&!dayEv.length){tc.innerHTML='<span style="font-size:.66rem;color:var(--muted)">–</span>';return;}
+    // Show events first (einmalige Termine)
+    dayEv.forEach(e=>{
+      const chip=document.createElement('div');
+      chip.className='task-chip c'+e.who+' ev-once'+(e.important?' c-important':'');
+      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+e.emoji+' '+e.name+(e.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(e.time)+'</span>':'')+'</span>'+
+        '<span style="font-size:.6rem;opacity:.6;flex-shrink:0">📅</span>';
+      chip.addEventListener('click',()=>openDayDetail(key));
+      tc.appendChild(chip);
+    });
+    // Then recurring tasks
     [...dayT].sort((a,b)=>a.prio&&!b.prio?-1:!a.prio&&b.prio?1:0).forEach(t=>{
       const d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
       const si=st==='wip'?'🟡':st==='blocked'?'🔴':'';
@@ -185,7 +196,7 @@ function renderPersonView(who) {
   const dates=getWeekDates(weekOffset), today=new Date(); today.setHours(0,0,0,0);
   const tasks=allTasks(who), n=HP.names[who], color=who==='p1'?'var(--p1)':'var(--p2)';
   let tot=0,done=0;
-  dates.forEach((date,di)=>{const dKey=dk(date);const dt=tasks.filter(t=>t.onceDate?t.onceDate===dKey:t.days.includes(di));tot+=dt.length;dt.forEach(t=>{if(isDone(date,t.id)||getStatus(t.id)==='done')done++;});});
+  dates.forEach((date,di)=>{const dt=tasks.filter(t=>!t.onceDate&&t.days.includes(di));tot+=dt.length;dt.forEach(t=>{if(isDone(date,t.id)||getStatus(t.id)==='done')done++;});});
   const pct=tot?Math.round(done/tot*100):0;
   const hd=document.getElementById('pv-hd');
   if(hd) hd.innerHTML='<div class="pv-av pv-av-'+who+'">'+n.charAt(0).toUpperCase()+'</div>'+
@@ -196,7 +207,7 @@ function renderPersonView(who) {
     '<button onclick="openQuickAddTask(\''+who+'\')" style="margin-left:12px;background:var(--p1bg);border:1px solid var(--p1);border-radius:var(--rs);color:var(--p1);font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;padding:6px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Aufgabe</button>';
   const pvDays=document.getElementById('pv-days'); if(!pvDays) return; pvDays.innerHTML='';
   dates.forEach((date,di)=>{
-    const tl=isToday(date), key3=dk(date), dayT=tasks.filter(t=>t.onceDate?t.onceDate===key3:t.days.includes(di));
+    const tl=isToday(date), dayT=tasks.filter(t=>!t.onceDate&&t.days.includes(di));
     const sorted=[...dayT].sort((a,b)=>a.prio&&!b.prio?-1:!a.prio&&b.prio?1:0);
     const row=document.createElement('div'); row.className='pv-day-row';
     row.innerHTML='<div class="pvdl'+(tl?' tlbl':'')+'"><div class="pvd">'+DS[di]+(tl?' · Heute':'')+'</div>'+
@@ -218,40 +229,38 @@ function renderPersonView(who) {
   });
 }
 
-function openQuickAddTask(who, prefillDate='') {
-  const n = who==='p1'?HP.names.p1:who==='p2'?HP.names.p2:'Gemeinsam';
-  const color = who==='p1'?'var(--p1)':who==='p2'?'var(--p2)':'var(--shared)';
-  const dayClass = who==='p1'?'op1':who==='p2'?'op2':'osh';
+function openQuickAddTask(who='shared', prefillDate='') {
+  const colorP1=getColor('p1'), colorP2=getColor('p2'), colorSh=getColor('shared');
   showModal(
-    '<h3>+ Aufgabe / Termin</h3>'+
+    '<h3>+ Termin / Aufgabe</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label>'+
     '<div style="display:flex;gap:7px">'+
-    '<input class="modal-in" id="qa-emoji" placeholder="⭐" maxlength="2" style="width:48px;text-align:center">'+
-    '<input class="modal-in" id="qa-name" placeholder="Aufgabe oder Termin…" style="flex:1"></div></div>'+
+    '<input class="modal-in" id="qa-emoji" placeholder="📅" maxlength="2" style="width:48px;text-align:center">'+
+    '<input class="modal-in" id="qa-name" placeholder="z.B. Arzttermin, Sport…" style="flex:1"></div></div>'+
     '<div class="modal-row"><label>Für wen</label>'+
-    '<select class="modal-in" id="qa-who">'+
+    '<select class="modal-in" id="qa-who" onchange="updateQaDayClass()">'+
     '<option value="p1"'+(who==='p1'?' selected':'')+'>'+HP.names.p1+'</option>'+
     '<option value="p2"'+(who==='p2'?' selected':'')+'>'+HP.names.p2+'</option>'+
     '<option value="shared"'+(who==='shared'?' selected':'')+'>Gemeinsam</option>'+
     '</select></div>'+
     '<div class="modal-row"><label>Art</label>'+
-    '<div style="display:flex;gap:8px">'+
-    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="radio" name="qa-type" value="weekly" checked onchange="document.getElementById(\'qa-weekly\').style.display=\'\';document.getElementById(\'qa-once\').style.display=\'none\'"> Wöchentlich</label>'+
-    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="radio" name="qa-type" value="once" onchange="document.getElementById(\'qa-weekly\').style.display=\'none\';document.getElementById(\'qa-once\').style.display=\'\'"> Einmalig</label>'+
+    '<div style="display:flex;gap:12px">'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem">'+
+    '<input type="radio" name="qa-type" value="once"'+(prefillDate?' checked':' checked')+' onchange="document.getElementById(\'qa-weekly\').style.display=\'none\';document.getElementById(\'qa-once\').style.display=\'\'"> 📅 Einmaliger Termin</label>'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem">'+
+    '<input type="radio" name="qa-type" value="weekly" onchange="document.getElementById(\'qa-weekly\').style.display=\'\';document.getElementById(\'qa-once\').style.display=\'none\'"> 🔁 Wöchentlich</label>'+
     '</div></div>'+
-    '<div id="qa-weekly">'+
-    '<div class="modal-row"><label>Wochentage</label>'+
-    '<div style="display:flex;gap:4px;flex-wrap:wrap" id="qa-days">'+
-    DS.map((d,i)=>'<span class="dp" data-day="'+i+'" onclick="this.classList.toggle(\''+dayClass+'\')" style="cursor:pointer">'+d+'</span>').join('')+
-    '<span class="dp" style="color:var(--shared);border-color:var(--shared);cursor:pointer" onclick="document.querySelectorAll(\'#qa-days .dp[data-day]\').forEach(x=>x.classList.add(\''+dayClass+'\'))">Alle</span>'+
-    '</div></div></div>'+
-    '<div id="qa-once" style="display:none">'+
+    '<div id="qa-once">'+
     '<div class="modal-row"><label>Datum</label>'+
     '<input class="modal-in" type="date" id="qa-date" value="'+prefillDate+'"></div></div>'+
+    '<div id="qa-weekly" style="display:none">'+
+    '<div class="modal-row"><label>Wochentage</label>'+
+    '<div style="display:flex;gap:4px;flex-wrap:wrap" id="qa-days">'+
+    DS.map((d,i)=>'<span class="dp" data-day="'+i+'" onclick="toggleQaDay(this)" style="cursor:pointer">'+d+'</span>').join('')+
+    '<span class="dp" style="color:var(--shared);border-color:var(--shared);cursor:pointer" onclick="document.querySelectorAll(\'#qa-days .dp[data-day]\').forEach(x=>x.classList.add(\'qaSel\'))">Alle</span>'+
+    '</div></div></div>'+
     '<div class="modal-row" style="display:flex;gap:8px">'+
-    '<div style="flex:1"><label>Uhrzeit</label><input class="modal-in" type="time" id="qa-time"></div>'+
-    '<div style="flex:1"><label>Erinnerung</label><select class="modal-in" id="qa-reminder">'+
-    '<option value="">Keine</option><option value="0">Zur Uhrzeit</option><option value="5">5 Min</option><option value="15">15 Min</option><option value="30">30 Min</option></select></div>'+
+    '<div style="flex:1"><label>Uhrzeit (optional)</label><input class="modal-in" type="time" id="qa-time"></div>'+
     '</div>'+
     '<div class="modal-row" style="display:flex;gap:16px">'+
     '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="checkbox" id="qa-prio" style="accent-color:var(--prio)"> Priorität</label>'+
@@ -259,46 +268,52 @@ function openQuickAddTask(who, prefillDate='') {
     '</div>'+
     '<div class="modal-btns">'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
-    '<button class="mbtn mbtn-confirm" style="background:'+color+'" onclick="saveQuickAddTask()">✓ Hinzufügen</button>'+
+    '<button class="mbtn mbtn-confirm" onclick="saveQuickAddTask()">✓ Speichern</button>'+
     '</div>'
   );
-  // If prefill date provided, switch to "once" mode
-  if(prefillDate) {
-    setTimeout(()=>{
-      document.querySelector('input[name="qa-type"][value="once"]')?.click();
-    },60);
-  }
   setTimeout(()=>document.getElementById('qa-name')?.focus(),80);
 }
 
+function toggleQaDay(el){el.classList.toggle('qaSel');}
+function updateQaDayClass(){}  // placeholder
+
 function saveQuickAddTask() {
-  const emoji=document.getElementById('qa-emoji')?.value.trim()||'⭐';
+  const emoji=document.getElementById('qa-emoji')?.value.trim()||'📅';
   const name=document.getElementById('qa-name')?.value.trim();
   const who=document.getElementById('qa-who')?.value||'shared';
   const time=document.getElementById('qa-time')?.value||'';
-  const reminder=document.getElementById('qa-reminder')?.value||'';
   const prio=document.getElementById('qa-prio')?.checked||false;
   const important=document.getElementById('qa-important')?.checked||false;
   const isOnce=document.querySelector('input[name="qa-type"]:checked')?.value==='once';
   if(!name){showToast('Bitte Name eingeben');return;}
-  let days=[];
-  let onceDate='';
+
   if(isOnce){
-    onceDate=document.getElementById('qa-date')?.value||'';
-    if(!onceDate){showToast('Bitte Datum wählen');return;}
-    // days stays empty — only onceDate is used for filtering
+    // Save as event (einmaliger Termin)
+    const date=document.getElementById('qa-date')?.value||'';
+    if(!date){showToast('Bitte Datum wählen');return;}
+    if(!HP.events)HP.events=[];
+    HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,who,important,note:''});
+    HP_save();closeModal();render();
+    if(typeof renderMonth==='function'&&document.getElementById('view-month')&&!document.getElementById('view-month').classList.contains('hidden'))renderMonth();
+    showToast(emoji+' '+name+' am '+date+' eingetragen');
   } else {
-    const dayClass=who==='p1'?'op1':who==='p2'?'op2':'osh';
+    // Save as recurring task
     const sel=[];
     document.querySelectorAll('#qa-days .dp[data-day]').forEach(el=>{
-      if(el.classList.contains(dayClass)) sel.push(parseInt(el.dataset.day));
+      if(el.classList.contains('qaSel'))sel.push(parseInt(el.dataset.day));
     });
-    days=sel.length?sel:[0,1,2,3,4,5,6];
+    const days=sel.length?sel:[0,1,2,3,4,5,6];
+    const tid=who+Date.now();
+    HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,reminder:''});
+    HP_save();closeModal();render();showToast(emoji+' '+name+' hinzugefügt');
   }
-  const tid=who+Date.now();
-  HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,reminder,onceDate});
-  if(time&&reminder!=='') scheduleTaskNotif({id:tid,emoji,name,days,time,reminder});
-  HP_save();closeModal();render();showToast(emoji+' '+name+' hinzugefügt');
+}
+
+function deleteEvent(id){
+  HP.events=(HP.events||[]).filter(e=>e.id!==id);
+  HP_save();render();
+  if(typeof renderMonth==='function')renderMonth();
+  showToast('Termin gelöscht');
 }
 
 // ── SHOP ──────────────────────────────────────
@@ -813,16 +828,15 @@ function renderMonth() {
     date.setHours(12,0,0,0);
     const di=(date.getDay()+6)%7, key=dk(date), isT=dk(date)===dk(today);
     // Include both recurring tasks AND once-tasks matching this date
-    const dayT=tasks.filter(t=>{
-      if(t.onceDate) return t.onceDate===key;
-      return t.days.includes(di);
-    });
+    const dayT=tasks.filter(t=>!t.onceDate&&t.days.includes(di));
+    const dayEvents=(HP.events||[]).filter(e=>e.date===key);
     const meals=HP.meals[key]||{};
     const evHtml=[
-      ...dayT.slice(0,2).map(t=>'<div class="mc-event e'+(t.who==='shared'?'sh':t.who)+'">'+t.emoji+' '+t.name+'</div>'),
+      ...dayEvents.slice(0,2).map(e=>'<div class="mc-event e'+(e.who==='shared'?'sh':e.who)+' mc-event-once">'+e.emoji+' '+e.name+'</div>'),
+      ...dayT.slice(0,1).map(t=>'<div class="mc-event e'+(t.who==='shared'?'sh':t.who)+'">'+t.emoji+' '+t.name+'</div>'),
       ...Object.values(meals).slice(0,1).map(m=>'<div class="mc-event emeal">🍽️ '+m.name+'</div>')
     ].join('');
-    html+='<div class="month-cell'+(isT?' today':'')+((dayT.length||Object.keys(meals).length)?' has-events':'')+'" onclick="openDayDetail(\''+key+'\')">'+
+    html+='<div class="month-cell'+(isT?' today':'')+((dayT.length||dayEvents.length||Object.keys(meals).length)?' has-events':'')+'" onclick="openDayDetail(\''+key+'\')">'+
       '<div class="mc-num">'+day+'</div>'+evHtml+'</div>';
   }
   const mc=document.getElementById('month-cal'); if(mc) mc.innerHTML='<div class="month-grid">'+html+'</div>';
@@ -832,12 +846,17 @@ function goMonthToday(){monthViewOffset=0;renderMonth();}
 function openDayDetail(key) {
   // Fix: use noon time to avoid timezone off-by-one
   const date=new Date(key+'T12:00:00'), di=(date.getDay()+6)%7;
-  const tasks=allTasks().filter(t=>{
-    if(t.onceDate) return t.onceDate===key;
-    return t.days.includes(di);
-  });
+  const tasks=allTasks().filter(t=>!t.onceDate&&t.days.includes(di));
+  const events=(HP.events||[]).filter(e=>e.date===key);
   const meals=HP.meals[key]||{};
   const label=date.toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long'});
+  const eventsHtml=(events.length?events.map(e=>
+    '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.81rem">'+
+    '<span style="color:'+(e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+e.emoji+'</span>'+
+    '<span style="flex:1;font-weight:500">'+e.name+'</span>'+
+    (e.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+e.time+'</span>':'')+
+    '<button onclick="deleteEvent(\''+e.id+'\');closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Löschen">✕</button>'+
+    '</div>').join(''):'');
   const tasksHtml=tasks.length
     ? tasks.map(t=>'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.81rem">'+
         '<span style="color:'+(t.who==='p1'?'var(--p1)':t.who==='p2'?'var(--p2)':'var(--shared)')+'">'+t.emoji+'</span>'+
@@ -848,6 +867,7 @@ function openDayDetail(key) {
     '<span style="color:var(--muted);width:70px;flex-shrink:0">'+s+'</span>'+
     '<span>'+(meals[s]?meals[s].emoji+' '+meals[s].name:'—')+'</span></div>').join('');
   showModal('<h3>'+label+'</h3>'+
+    (events.length?'<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">📅 Einmalige Termine</div>'+eventsHtml:'') +
     '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Aufgaben</div>'+tasksHtml+
     '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Menü</div>'+mealsHtml+
     '<div class="modal-btns" style="justify-content:space-between">'+

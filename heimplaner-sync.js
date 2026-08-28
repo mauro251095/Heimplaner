@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════
 // HEIMPLANER SYNC – separate Datei
 // ═══════════════════════════════════════════════
@@ -129,6 +128,7 @@ function mergeData(remote) {
   if (!HP.taskStatus) HP.taskStatus = {};
   if (!HP.taskNotes) HP.taskNotes = {};
   if (!HP.colors) HP.colors = {};
+  if (!HP.events) HP.events = [];
   try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
   if (typeof render === 'function') render();
   if (typeof applyColors === 'function') applyColors();
