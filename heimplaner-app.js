@@ -883,7 +883,8 @@ function renderPinboard() {
   const NOTE_BG={yellow:'background:#2d2a00;border:1px solid rgba(251,191,36,.3);color:#fde68a',blue:'background:#0a1628;border:1px solid rgba(108,142,255,.3);color:#bfcfff',pink:'background:#2a0a14;border:1px solid rgba(255,126,179,.3);color:#ffcce5',green:'background:#082010;border:1px solid rgba(74,222,128,.3);color:#bbf7d0',purple:'background:#180a2a;border:1px solid rgba(167,139,250,.3);color:#ddd6fe'};
   const tasks=allTasks();
   el.innerHTML='<div class="pin-grid">'+notes.map(n=>{
-    const linked=n.linkedTaskId?tasks.find(t=>t.id===n.linkedTaskId):null;
+    const linked=n.linkedEventId?(HP.events||[]).find(e=>e.id===n.linkedEventId):
+      (n.linkedTaskId?allTasks().find(t=>t.id===n.linkedTaskId):null);
     return '<div class="pin-note" style="'+NOTE_BG[n.color||'yellow']+'" onclick="openEditNote(\''+n.id+'\')">'+
       '<div class="pin-pin">📌</div>'+
       '<button class="pin-del" onclick="event.stopPropagation();deleteNote(\''+n.id+'\')">✕</button>'+
@@ -897,19 +898,18 @@ function renderPinboard() {
 const NOTE_COLORS=['yellow','blue','pink','green','purple'];
 const NOTE_BG_PREVIEW={yellow:'#fde68a',blue:'#bfcfff',pink:'#ffcce5',green:'#bbf7d0',purple:'#ddd6fe'};
 function noteColorBtns(selected){return NOTE_COLORS.map(c=>'<span onclick="document.querySelectorAll(\'.nc-btn\').forEach(x=>x.style.borderColor=\'transparent\');this.style.borderColor=\'#fff\';document.getElementById(\'note-color\').value=\''+c+'\'" class="nc-btn" style="display:inline-block;width:22px;height:22px;border-radius:50%;cursor:pointer;background:'+NOTE_BG_PREVIEW[c]+';border:2px solid '+(selected===c?'#fff':'transparent')+';transition:all .15s"></span>').join('');}
-function buildNoteTaskSection(linkedTaskId) {
-  const tasks = allTasks();
-  const linked = tasks.find(t => t.id === linkedTaskId);
-  const taskOpts = '<option value="">— kein Termin —</option>' +
-    tasks.map(t => '<option value="' + t.id + '"' + (t.id === linkedTaskId ? ' selected' : '') + '>' +
-      t.emoji + ' ' + t.name + ' (' + (t.who === 'p1' ? HP.names.p1 : t.who === 'p2' ? HP.names.p2 : 'Gemeinsam') + ')</option>'
+function buildNoteTaskSection(linkedEventId) {
+  const events = HP.events || [];
+  const eventOpts = '<option value="">— kein Termin —</option>' +
+    events.map(e => '<option value="' + e.id + '"' + (e.id === linkedEventId ? ' selected' : '') + '>' +
+      e.emoji + ' ' + e.name + ' (' + e.date + ')</option>'
     ).join('');
-  return '<div class="modal-row"><label>Termin verknüpfen</label>' +
-    '<select class="modal-in" id="note-task-id">' + taskOpts + '</select></div>' +
+  return '<div class="modal-row"><label>Bestehenden Termin verknüpfen</label>' +
+    '<select class="modal-in" id="note-event-id">' + eventOpts + '</select></div>' +
     '<div class="modal-row"><label style="font-size:.7rem;color:var(--muted)">— oder neuen Termin erstellen —</label>' +
     '<div style="display:flex;gap:6px">' +
-    '<input class="modal-in" id="note-new-task-name" placeholder="Neuer Terminname…" style="flex:1">' +
-    '<input class="modal-in" type="date" id="note-new-task-date" style="width:140px">' +
+    '<input class="modal-in" id="note-new-event-name" placeholder="Terminname…" style="flex:1">' +
+    '<input class="modal-in" type="date" id="note-new-event-date" style="width:140px">' +
     '</div></div>';
 }
 
@@ -927,23 +927,25 @@ function openAddNote(){
 function saveNewNote(){
   const body=document.getElementById('note-body')?.value.trim(); if(!body){showToast('Bitte Text eingeben');return;}
   if(!HP.notes)HP.notes=[];
-  // Handle new task creation
-  const newTaskName = document.getElementById('note-new-task-name')?.value.trim();
-  const newTaskDate = document.getElementById('note-new-task-date')?.value;
-  let linkedTaskId = document.getElementById('note-task-id')?.value || '';
-  if(newTaskName) {
-    const tid = 'shared' + Date.now();
-    const days = newTaskDate ? [(new Date(newTaskDate+'T00:00:00').getDay()+6)%7] : [0,1,2,3,4,5,6];
-    HP.tasks.shared.push({id:tid,emoji:'📅',name:newTaskName,days,prio:false,important:false,status:'open',time:'',reminder:''});
-    linkedTaskId = tid;
-    showToast('📅 Termin "' + newTaskName + '" erstellt');
+  // Handle new event creation
+  const newEventName = document.getElementById('note-new-event-name')?.value.trim();
+  const newEventDate = document.getElementById('note-new-event-date')?.value;
+  let linkedEventId = document.getElementById('note-event-id')?.value || '';
+  if(newEventName && newEventDate) {
+    const eid = 'ev' + Date.now();
+    if(!HP.events) HP.events = [];
+    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:'',who:'shared',important:false,note:''});
+    linkedEventId = eid;
+    showToast('📅 Termin "' + newEventName + '" erstellt');
+  } else if(newEventName && !newEventDate) {
+    showToast('Bitte Datum für den neuen Termin wählen'); return;
   }
   HP.notes.unshift({
     id:'n'+Date.now(),
     title:document.getElementById('note-title')?.value.trim()||'',
     body, color:document.getElementById('note-color')?.value||'yellow',
     date:document.getElementById('note-date')?.value||'',
-    linkedTaskId: linkedTaskId||'',
+    linkedEventId: linkedEventId||'',
     created:new Date().toISOString()
   });
   HP_save();closeModal();renderPinboard();render();
@@ -956,7 +958,7 @@ function openEditNote(id){
     '<div class="modal-row"><label>Titel</label><input class="modal-in" id="note-title" value="'+(n.title||'')+'"></div>'+
     '<div class="modal-row"><label>Notiz</label><textarea class="modal-in" id="note-body" rows="4" style="resize:vertical;font-family:Inter,sans-serif">'+n.body+'</textarea></div>'+
     '<div class="modal-row"><label>Datum</label><input class="modal-in" type="date" id="note-date" value="'+(n.date||'')+'"></div>'+
-    buildNoteTaskSection(n.linkedTaskId||'')+
+    buildNoteTaskSection(n.linkedEventId||n.linkedTaskId||'')+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="deleteNote(\''+id+'\')">🗑</button>'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
@@ -969,18 +971,20 @@ function saveEditNote(id){
   n.body=document.getElementById('note-body')?.value.trim()||n.body;
   n.color=document.getElementById('note-color')?.value||n.color;
   n.date=document.getElementById('note-date')?.value||'';
-  // Handle new task
-  const newTaskName = document.getElementById('note-new-task-name')?.value.trim();
-  const newTaskDate = document.getElementById('note-new-task-date')?.value;
-  let linkedTaskId = document.getElementById('note-task-id')?.value || '';
-  if(newTaskName) {
-    const tid = 'shared' + Date.now();
-    const days = newTaskDate ? [(new Date(newTaskDate+'T00:00:00').getDay()+6)%7] : [0,1,2,3,4,5,6];
-    HP.tasks.shared.push({id:tid,emoji:'📅',name:newTaskName,days,prio:false,important:false,status:'open',time:'',reminder:''});
-    linkedTaskId = tid;
-    showToast('📅 Termin "' + newTaskName + '" erstellt');
+  // Handle new event
+  const newEventName = document.getElementById('note-new-event-name')?.value.trim();
+  const newEventDate = document.getElementById('note-new-event-date')?.value;
+  let linkedEventId = document.getElementById('note-event-id')?.value || '';
+  if(newEventName && newEventDate) {
+    const eid = 'ev' + Date.now();
+    if(!HP.events) HP.events = [];
+    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:'',who:'shared',important:false,note:''});
+    linkedEventId = eid;
+    showToast('📅 Termin "' + newEventName + '" erstellt');
+  } else if(newEventName && !newEventDate) {
+    showToast('Bitte Datum für den neuen Termin wählen'); return;
   }
-  n.linkedTaskId = linkedTaskId;
+  n.linkedEventId = linkedEventId;
   HP_save();closeModal();renderPinboard();render();
 }
 function deleteNote(id){HP.notes=(HP.notes||[]).filter(x=>x.id!==id);HP_save();closeModal();renderPinboard();}
