@@ -46,7 +46,7 @@ function setView(view, btn) {
   // extra init per view
   if(view==='month') renderMonth();
   else if(view==='pinboard') renderPinboard();
-  else if(view==='ai') { renderAiQuickBtns(); if(!aiHistory.length) addAiMsg('bot','Hallo! 👋 Ich bin dein Heimplaner-Assistent.\n\nIch kann dir helfen:\n• Tasks, Einkaufsartikel & Rezepte per Sprache oder Text hinzufügen\n• Menüvorschläge für die Woche machen\n• Fragen zum Haushalt beantworten\n\nWas darf ich für dich tun?'); }
+
   else if(view==='recipes') renderRecipes();
   render();
   // mobile nav sync
@@ -300,11 +300,12 @@ function makeShopItem(item) {
   div.innerHTML='<div class="si-name">'+item.name+'</div>'+
     '<div class="si-qty">'+[item.qty,item.unit].filter(Boolean).join(' ')+'</div>'+
     (item.taskId?'<div class="si-task">🔗 '+(item.taskName||'Projekt')+'</div>':'')+
-    '<div class="si-check">'+(item.bought?'✓':'')+'</div>';
+    '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">'+
+    '<div class="si-check" style="flex-shrink:0">'+(item.bought?'✓':'')+'</div>'+
+    '<button onclick="event.stopPropagation();deleteShopItem(''+item.id+'')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Löschen">✕</button>'+
+    '<button onclick="event.stopPropagation();openEditShopItemById(\'' + item.id + '\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Bearbeiten">✏️</button>'+
+    '</div>';
   div.addEventListener('click',()=>{item.bought=!item.bought;HP_save();renderShop();renderSidebarStats();});
-  let pt;
-  div.addEventListener('pointerdown',()=>{pt=setTimeout(()=>openEditShopItem(item),500);});
-  ['pointerup','pointercancel','pointermove'].forEach(e=>div.addEventListener(e,()=>clearTimeout(pt)));
   return div;
 }
 
@@ -324,6 +325,10 @@ function addShopItem(name,qty,unit,cat,taskId,taskName) {
   renderShop();renderSidebarStats();showToast(n+' hinzugefügt');
 }
 
+function openEditShopItemById(id) {
+  const item = HP.shop.find(i => i.id === id);
+  if(item) openEditShopItem(item);
+}
 function openEditShopItem(item) {
   const opts=CATS.map(c=>'<option value="'+c+'"'+(item.cat===c?' selected':'')+'>'+catEmoji(c)+' '+c+'</option>').join('');
   showModal('<h3>✏️ Artikel bearbeiten</h3>'+
@@ -617,11 +622,20 @@ function renderManage() {
 // ── ADD TASK ──────────────────────────────────
 function renamePerson(who) {
   const current = HP.names[who];
-  const color = who === 'p1' ? 'var(--p1)' : 'var(--p2)';
+  const currentColor = getColor(who);
+  const label = who === 'shared' ? 'Gemeinsam' : HP.names[who];
+  const swatches = COLOR_OPTIONS.map(c =>
+    '<span onclick="document.querySelectorAll(\'.rp-swatch\').forEach(x=>x.style.borderColor=\'transparent\');this.style.borderColor=\'#fff\';document.getElementById(\'rename-color\').value=\'' + c.val + '\'" ' +
+    'class="rp-swatch" style="display:inline-block;width:26px;height:26px;border-radius:50%;background:' + c.val + ';cursor:pointer;border:3px solid ' + (c.val === currentColor ? '#fff' : 'transparent') + ';transition:border .15s;margin:3px" title="' + c.name + '"></span>'
+  ).join('');
   showModal(
-    '<h3>✏️ Name ändern</h3>' +
-    '<div class="modal-row"><label>Neuer Name</label>' +
-    '<input class="modal-in" id="rename-input" value="' + current + '" style="border-color:' + color + '"></div>' +
+    '<h3>✏️ ' + label + ' anpassen</h3>' +
+    '<input type="hidden" id="rename-color" value="' + currentColor + '">' +
+    '<div class="modal-row"><label>Name</label>' +
+    '<input class="modal-in" id="rename-input" value="' + current + '" style="border-color:' + currentColor + '"></div>' +
+    (who !== 'shared' ? '' : '') +
+    '<div class="modal-row"><label>Farbe</label>' +
+    '<div style="display:flex;gap:2px;flex-wrap:wrap">' + swatches + '</div></div>' +
     '<div class="modal-btns">' +
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>' +
     '<button class="mbtn mbtn-confirm" onclick="savePersonName(\'' + who + '\')">✓ Speichern</button>' +
@@ -636,12 +650,19 @@ function renamePerson(who) {
 function savePersonName(who) {
   const inp = document.getElementById('rename-input');
   const name = inp?.value.trim();
+  const color = document.getElementById('rename-color')?.value;
   if (!name) { showToast('Bitte einen Namen eingeben'); return; }
   HP.names[who] = name;
+  if (color) {
+    if (!HP.colors) HP.colors = {...DEFAULT_COLORS};
+    HP.colors[who] = color;
+  }
   HP_save();
   closeModal();
+  applyColors();
   syncNames();
-  showToast('Name geändert zu ' + name);
+  render();
+  showToast('Gespeichert');
 }
 
 // ── ADD TASK DAY PILLS ────────────────────────
@@ -799,52 +820,107 @@ function renderPinboard() {
   const notes=HP.notes||[], el=document.getElementById('pin-board'); if(!el) return;
   if(!notes.length){el.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--muted)"><div style="font-size:2.5rem;margin-bottom:12px">📌</div><div>Noch keine Notizen.</div></div>';return;}
   const NOTE_BG={yellow:'background:#2d2a00;border:1px solid rgba(251,191,36,.3);color:#fde68a',blue:'background:#0a1628;border:1px solid rgba(108,142,255,.3);color:#bfcfff',pink:'background:#2a0a14;border:1px solid rgba(255,126,179,.3);color:#ffcce5',green:'background:#082010;border:1px solid rgba(74,222,128,.3);color:#bbf7d0',purple:'background:#180a2a;border:1px solid rgba(167,139,250,.3);color:#ddd6fe'};
-  el.innerHTML='<div class="pin-grid">'+notes.map(n=>
-    '<div class="pin-note" style="'+NOTE_BG[n.color||'yellow']+'" onclick="openEditNote(\''+n.id+'\')">'+
-    '<div class="pin-pin">📌</div>'+
-    '<button class="pin-del" onclick="event.stopPropagation();deleteNote(\''+n.id+'\')">✕</button>'+
-    (n.title?'<div class="pin-title">'+n.title+'</div>':'')+
-    '<div class="pin-body">'+n.body+'</div>'+
-    (n.date?'<div class="pin-date">📅 '+n.date+'</div>':'')+
-    '</div>').join('')+'</div>';
+  const tasks=allTasks();
+  el.innerHTML='<div class="pin-grid">'+notes.map(n=>{
+    const linked=n.linkedTaskId?tasks.find(t=>t.id===n.linkedTaskId):null;
+    return '<div class="pin-note" style="'+NOTE_BG[n.color||'yellow']+'" onclick="openEditNote(\''+n.id+'\')">'+
+      '<div class="pin-pin">📌</div>'+
+      '<button class="pin-del" onclick="event.stopPropagation();deleteNote(\''+n.id+'\')">✕</button>'+
+      (n.title?'<div class="pin-title">'+n.title+'</div>':'')+
+      '<div class="pin-body">'+n.body+'</div>'+
+      (n.date?'<div class="pin-date">📅 '+n.date+'</div>':'')+
+      (linked?'<div class="pin-date" style="margin-top:6px;opacity:.8">🔗 '+linked.emoji+' '+linked.name+'</div>':'')+
+      '</div>';
+  }).join('')+'</div>';
 }
 const NOTE_COLORS=['yellow','blue','pink','green','purple'];
 const NOTE_BG_PREVIEW={yellow:'#fde68a',blue:'#bfcfff',pink:'#ffcce5',green:'#bbf7d0',purple:'#ddd6fe'};
 function noteColorBtns(selected){return NOTE_COLORS.map(c=>'<span onclick="document.querySelectorAll(\'.nc-btn\').forEach(x=>x.style.borderColor=\'transparent\');this.style.borderColor=\'#fff\';document.getElementById(\'note-color\').value=\''+c+'\'" class="nc-btn" style="display:inline-block;width:22px;height:22px;border-radius:50%;cursor:pointer;background:'+NOTE_BG_PREVIEW[c]+';border:2px solid '+(selected===c?'#fff':'transparent')+';transition:all .15s"></span>').join('');}
+function buildNoteTaskSection(linkedTaskId) {
+  const tasks = allTasks();
+  const linked = tasks.find(t => t.id === linkedTaskId);
+  const taskOpts = '<option value="">— kein Termin —</option>' +
+    tasks.map(t => '<option value="' + t.id + '"' + (t.id === linkedTaskId ? ' selected' : '') + '>' +
+      t.emoji + ' ' + t.name + ' (' + (t.who === 'p1' ? HP.names.p1 : t.who === 'p2' ? HP.names.p2 : 'Gemeinsam') + ')</option>'
+    ).join('');
+  return '<div class="modal-row"><label>Termin verknüpfen</label>' +
+    '<select class="modal-in" id="note-task-id">' + taskOpts + '</select></div>' +
+    '<div class="modal-row"><label style="font-size:.7rem;color:var(--muted)">— oder neuen Termin erstellen —</label>' +
+    '<div style="display:flex;gap:6px">' +
+    '<input class="modal-in" id="note-new-task-name" placeholder="Neuer Terminname…" style="flex:1">' +
+    '<input class="modal-in" type="date" id="note-new-task-date" style="width:140px">' +
+    '</div></div>';
+}
+
 function openAddNote(){
   showModal('<h3>📌 Neue Notiz</h3><input type="hidden" id="note-color" value="yellow">'+
     '<div class="modal-row"><label>Farbe</label><div style="display:flex;gap:6px">'+noteColorBtns('yellow')+'</div></div>'+
     '<div class="modal-row"><label>Titel (optional)</label><input class="modal-in" id="note-title" placeholder="Titel…"></div>'+
-    '<div class="modal-row"><label>Notiz</label><textarea class="modal-in" id="note-body" rows="5" placeholder="Text…" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
+    '<div class="modal-row"><label>Notiz</label><textarea class="modal-in" id="note-body" rows="4" placeholder="Text…" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
     '<div class="modal-row"><label>Datum (optional)</label><input class="modal-in" type="date" id="note-date"></div>'+
+    buildNoteTaskSection(null)+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="saveNewNote()">✓ Speichern</button></div>');
 }
+
 function saveNewNote(){
   const body=document.getElementById('note-body')?.value.trim(); if(!body){showToast('Bitte Text eingeben');return;}
   if(!HP.notes)HP.notes=[];
-  HP.notes.unshift({id:'n'+Date.now(),title:document.getElementById('note-title')?.value.trim()||'',body,color:document.getElementById('note-color')?.value||'yellow',date:document.getElementById('note-date')?.value||'',created:new Date().toISOString()});
-  HP_save();closeModal();renderPinboard();
+  // Handle new task creation
+  const newTaskName = document.getElementById('note-new-task-name')?.value.trim();
+  const newTaskDate = document.getElementById('note-new-task-date')?.value;
+  let linkedTaskId = document.getElementById('note-task-id')?.value || '';
+  if(newTaskName) {
+    const tid = 'shared' + Date.now();
+    const days = newTaskDate ? [(new Date(newTaskDate+'T00:00:00').getDay()+6)%7] : [0,1,2,3,4,5,6];
+    HP.tasks.shared.push({id:tid,emoji:'📅',name:newTaskName,days,prio:false,important:false,status:'open',time:'',reminder:''});
+    linkedTaskId = tid;
+    showToast('📅 Termin "' + newTaskName + '" erstellt');
+  }
+  HP.notes.unshift({
+    id:'n'+Date.now(),
+    title:document.getElementById('note-title')?.value.trim()||'',
+    body, color:document.getElementById('note-color')?.value||'yellow',
+    date:document.getElementById('note-date')?.value||'',
+    linkedTaskId: linkedTaskId||'',
+    created:new Date().toISOString()
+  });
+  HP_save();closeModal();renderPinboard();render();
 }
+
 function openEditNote(id){
   const n=(HP.notes||[]).find(x=>x.id===id); if(!n) return;
   showModal('<h3>✏️ Notiz bearbeiten</h3><input type="hidden" id="note-color" value="'+n.color+'">'+
     '<div class="modal-row"><label>Farbe</label><div style="display:flex;gap:6px">'+noteColorBtns(n.color)+'</div></div>'+
     '<div class="modal-row"><label>Titel</label><input class="modal-in" id="note-title" value="'+(n.title||'')+'"></div>'+
-    '<div class="modal-row"><label>Notiz</label><textarea class="modal-in" id="note-body" rows="5" style="resize:vertical;font-family:Inter,sans-serif">'+n.body+'</textarea></div>'+
+    '<div class="modal-row"><label>Notiz</label><textarea class="modal-in" id="note-body" rows="4" style="resize:vertical;font-family:Inter,sans-serif">'+n.body+'</textarea></div>'+
     '<div class="modal-row"><label>Datum</label><input class="modal-in" type="date" id="note-date" value="'+(n.date||'')+'"></div>'+
+    buildNoteTaskSection(n.linkedTaskId||'')+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="deleteNote(\''+id+'\')">🗑</button>'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="saveEditNote(\''+id+'\')">✓ Speichern</button></div>');
 }
+
 function saveEditNote(id){
   const n=(HP.notes||[]).find(x=>x.id===id); if(!n){closeModal();return;}
   n.title=document.getElementById('note-title')?.value.trim()||'';
   n.body=document.getElementById('note-body')?.value.trim()||n.body;
   n.color=document.getElementById('note-color')?.value||n.color;
   n.date=document.getElementById('note-date')?.value||'';
-  HP_save();closeModal();renderPinboard();
+  // Handle new task
+  const newTaskName = document.getElementById('note-new-task-name')?.value.trim();
+  const newTaskDate = document.getElementById('note-new-task-date')?.value;
+  let linkedTaskId = document.getElementById('note-task-id')?.value || '';
+  if(newTaskName) {
+    const tid = 'shared' + Date.now();
+    const days = newTaskDate ? [(new Date(newTaskDate+'T00:00:00').getDay()+6)%7] : [0,1,2,3,4,5,6];
+    HP.tasks.shared.push({id:tid,emoji:'📅',name:newTaskName,days,prio:false,important:false,status:'open',time:'',reminder:''});
+    linkedTaskId = tid;
+    showToast('📅 Termin "' + newTaskName + '" erstellt');
+  }
+  n.linkedTaskId = linkedTaskId;
+  HP_save();closeModal();renderPinboard();render();
 }
 function deleteNote(id){HP.notes=(HP.notes||[]).filter(x=>x.id!==id);HP_save();closeModal();renderPinboard();}
 
@@ -1220,38 +1296,20 @@ async function importRecipeWithAI() {
   const btn = document.querySelector('#modal-ov .mbtn-confirm');
   if (btn) btn.disabled = true;
 
-  const prompt = `Analysiere diesen Rezepttext und gib ein JSON-Objekt zurück.
-Antworte NUR mit dem JSON, kein anderer Text, keine Markdown-Backticks.
-
-Format:
-{
-  "name": "Rezeptname",
-  "emoji": "passendes Emoji",
-  "cat": "Frühstück|Salate|Pasta|Hauptspeisen|Grill|Suppen|Snacks|Desserts",
-  "time": Zubereitungszeit in Minuten als Zahl,
-  "pers": Personenanzahl als Zahl,
-  "tags": ["tag1","tag2"],
-  "ing": [{"n":"Zutatname","q":"Menge","u":"Einheit"}],
-  "steps": ["Schritt 1...","Schritt 2..."]
-}
-
-Rezepttext:
-${text}`;
-
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/.netlify/functions/recipe-import', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
-        messages: [{role: 'user', content: prompt}]
-      })
+      headers: {
+        'Content-Type': 'application/json',
+        'x-app-password': syncPassword || localStorage.getItem('hp_sync_pw') || ''
+      },
+      body: JSON.stringify({ text })
     });
+
     const data = await res.json();
-    const raw = data.content?.map(c=>c.text||'').join('') || '';
-    const cleaned = raw.replace(/```json|```/g,'').trim();
-    const recipe = JSON.parse(cleaned);
+    if (!res.ok) throw new Error(data.error || 'Server-Fehler');
+
+    const recipe = data.recipe;
     if (!recipe.name || !recipe.ing) throw new Error('Ungültiges Format');
 
     recipe.id = 'cr' + Date.now();
