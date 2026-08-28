@@ -115,8 +115,10 @@ function mergeData(remote) {
   if (!HP.customRecipes) HP.customRecipes = [];
   if (!HP.taskStatus) HP.taskStatus = {};
   if (!HP.taskNotes) HP.taskNotes = {};
+  if (!HP.colors) HP.colors = {};
   try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
-  render();
+  if (typeof render === 'function') render();
+  if (typeof applyColors === 'function') applyColors();
 }
 
 function startSyncPolling() {
@@ -139,23 +141,22 @@ function startSyncPolling() {
   }, 15000);
 }
 
-// Beim Speichern automatisch synchronisieren
-const _hp_save_orig = HP_save;
-HP_save = function() {
-  try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
-  if (syncEnabled) {
-    clearTimeout(syncTimer);
-    syncTimer = setTimeout(async () => {
-      try {
-        setSyncStatus('⏳ Speichert…', 'var(--amber)');
-        await syncSave();
-      } catch(e) {
-        setSyncStatus('🔴 Sync-Fehler', 'var(--red)');
-      }
-    }, 2000);
-  }
-};
-
 document.addEventListener('DOMContentLoaded', () => {
+  // HP_save überschreiben damit Änderungen automatisch synchronisiert werden
+  const _orig = HP_save;
+  HP_save = function() {
+    try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
+    if (syncEnabled) {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(async () => {
+        try {
+          setSyncStatus('⏳ Speichert…', 'var(--amber)');
+          await syncSave();
+        } catch(e) {
+          setSyncStatus('🔴 Sync-Fehler', 'var(--red)');
+        }
+      }, 2000);
+    }
+  };
   setTimeout(initSync, 800);
 });
