@@ -302,8 +302,8 @@ function makeShopItem(item) {
     (item.taskId?'<div class="si-task">🔗 '+(item.taskName||'Projekt')+'</div>':'')+
     '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">'+
     '<div class="si-check" style="flex-shrink:0">'+(item.bought?'✓':'')+'</div>'+
-    '<button onclick="event.stopPropagation();deleteShopItem(''+item.id+'')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Löschen">✕</button>'+
-    '<button onclick="event.stopPropagation();openEditShopItemById(\'' + item.id + '\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Bearbeiten">✏️</button>'+
+    '<button onclick="event.stopPropagation();deleteShopItem(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Löschen">✕</button>'+
+    '<button onclick="event.stopPropagation();openEditShopItemById(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Bearbeiten">✏️</button>'+
     '</div>';
   div.addEventListener('click',()=>{item.bought=!item.bought;HP_save();renderShop();renderSidebarStats();});
   return div;

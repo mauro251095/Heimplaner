@@ -3,6 +3,18 @@
 // ═══════════════════════════════════════════════
 
 const SYNC_URL = '/.netlify/functions/sync';
+
+// Sichere Aufrufe - falls App-Funktionen noch nicht geladen sind
+function _toast(msg) {
+  if (typeof showToast === 'function') showToast(msg);
+  else console.log('[Sync]', msg);
+}
+function __showModal(html) {
+  if (typeof showModal === 'function') _showModal(html);
+}
+function __closeModal() {
+  if (typeof closeModal === 'function') _closeModal();
+}
 let syncPassword = localStorage.getItem('hp_sync_pw') || '';
 let syncEnabled = false;
 let syncTimer = null;
@@ -30,14 +42,14 @@ function setSyncStatus(status, color) {
 }
 
 function openSyncModal() {
-  showModal(
+  _showModal(
     '<h3>🔄 Synchronisation</h3>' +
     '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Gemeinsames Passwort für Mauro & Lena. Beide müssen dasselbe Passwort eingeben.</p>' +
     '<div class="modal-row"><label>Passwort</label>' +
     '<input class="modal-in" type="password" id="sync-pw-input" placeholder="Euer gemeinsames Passwort" value="' + syncPassword + '"></div>' +
     (syncEnabled ? '<div style="background:var(--gbg);border:1px solid var(--green);border-radius:var(--rs);padding:9px 12px;font-size:.78rem;color:var(--green);margin-bottom:10px">✅ Verbunden</div>' : '') +
     '<div class="modal-btns" style="justify-content:space-between">' +
-    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>' +
+    '<button class="mbtn mbtn-cancel" onclick="_closeModal()">Abbrechen</button>' +
     (syncEnabled ? '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="disconnectSync()">Trennen</button>' : '') +
     '<button class="mbtn mbtn-confirm" onclick="saveSyncPassword()">✓ Verbinden</button>' +
     '</div>'
@@ -47,10 +59,10 @@ function openSyncModal() {
 
 function saveSyncPassword() {
   const pw = document.getElementById('sync-pw-input')?.value.trim();
-  if (!pw) { showToast('Bitte Passwort eingeben'); return; }
+  if (!pw) { _toast('Bitte Passwort eingeben'); return; }
   syncPassword = pw;
   localStorage.setItem('hp_sync_pw', pw);
-  closeModal();
+  _closeModal();
   connectSync();
 }
 
@@ -60,8 +72,8 @@ function disconnectSync() {
   localStorage.removeItem('hp_sync_pw');
   clearInterval(syncPollTimer);
   setSyncStatus('⚪ Nicht verbunden', 'var(--muted)');
-  closeModal();
-  showToast('Synchronisation getrennt');
+  _closeModal();
+  _toast('Synchronisation getrennt');
 }
 
 async function connectSync() {
@@ -75,11 +87,11 @@ async function connectSync() {
     }
     syncEnabled = true;
     setSyncStatus('🟢 Synchron', 'var(--green)');
-    showToast('✅ Synchronisation aktiv');
+    _toast('✅ Synchronisation aktiv');
     startSyncPolling();
   } catch(e) {
     setSyncStatus('🔴 ' + e.message, 'var(--red)');
-    showToast('❌ Sync-Fehler: ' + e.message);
+    _toast('❌ Sync-Fehler: ' + e.message);
     syncEnabled = false;
   }
 }
@@ -133,7 +145,7 @@ function startSyncPolling() {
         lastSyncedAt = json.updated_at;
         mergeData(json.data);
         setSyncStatus('🟢 Aktualisiert', 'var(--green)');
-        showToast('🔄 Daten aktualisiert');
+        _toast('🔄 Daten aktualisiert');
       }
     } catch(e) {
       setSyncStatus('🟡 Offline', 'var(--amber)');
