@@ -369,7 +369,12 @@ function getWeekDates(off=0) {
   const m=getMonday(off);
   return Array.from({length:7},(_,i)=>{const d=new Date(m);d.setDate(m.getDate()+i);return d;});
 }
-function dk(d) { return d.toISOString().slice(0,10); }
+function dk(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
 function isToday(d) { const t=new Date();t.setHours(0,0,0,0);return d.getTime()===t.getTime(); }
 function isPast(d) { const t=new Date();t.setHours(0,0,0,0);return d<t; }
 function wkNum(d) {
