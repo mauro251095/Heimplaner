@@ -14,8 +14,11 @@ function parseUsers(raw) {
   const users = {};
   if (!raw) return users;
   raw.split(',').forEach(pair => {
-    const [name, pw] = pair.split(':');
-    if (name && pw) users[name.trim().toLowerCase()] = pw.trim();
+    const idx = pair.indexOf(':');
+    if (idx === -1) return;
+    const name = pair.substring(0, idx).trim().toLowerCase();
+    const pw = pair.substring(idx + 1).trim();
+    if (name && pw) users[name] = pw;
   });
   return users;
 }

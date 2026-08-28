@@ -139,7 +139,8 @@ function renderTodayBanner() {
 function renderBlockedBanners() {
   const today=new Date(); today.setHours(0,0,0,0);
   const di=(today.getDay()+6)%7;
-  const blocked=allTasks().filter(t=>t.days.includes(di)&&getStatus(t.id)==='blocked');
+  const todayKeyB=dk(today);
+  const blocked=allTasks().filter(t=>(t.onceDate?t.onceDate===todayKeyB:t.days.includes(di))&&getStatus(t.id)==='blocked');
   const el=document.getElementById('blocked-banners');
   if(el) el.innerHTML=blocked.map(t=>
     '<div class="blocked-banner" onclick="openTaskModal(\''+t.id+'\')">🔴 <b>'+t.emoji+' '+t.name+'</b> ist blockiert'+
@@ -184,7 +185,7 @@ function renderPersonView(who) {
   const dates=getWeekDates(weekOffset), today=new Date(); today.setHours(0,0,0,0);
   const tasks=allTasks(who), n=HP.names[who], color=who==='p1'?'var(--p1)':'var(--p2)';
   let tot=0,done=0;
-  dates.forEach((date,di)=>{const dt=tasks.filter(t=>t.days.includes(di));tot+=dt.length;dt.forEach(t=>{if(isDone(date,t.id)||getStatus(t.id)==='done')done++;});});
+  dates.forEach((date,di)=>{const dKey=dk(date);const dt=tasks.filter(t=>t.onceDate?t.onceDate===dKey:t.days.includes(di));tot+=dt.length;dt.forEach(t=>{if(isDone(date,t.id)||getStatus(t.id)==='done')done++;});});
   const pct=tot?Math.round(done/tot*100):0;
   const hd=document.getElementById('pv-hd');
   if(hd) hd.innerHTML='<div class="pv-av pv-av-'+who+'">'+n.charAt(0).toUpperCase()+'</div>'+
@@ -280,20 +281,19 @@ function saveQuickAddTask() {
   const important=document.getElementById('qa-important')?.checked||false;
   const isOnce=document.querySelector('input[name="qa-type"]:checked')?.value==='once';
   if(!name){showToast('Bitte Name eingeben');return;}
-  let days=[0,1,2,3,4,5,6];
+  let days=[];
   let onceDate='';
   if(isOnce){
     onceDate=document.getElementById('qa-date')?.value||'';
     if(!onceDate){showToast('Bitte Datum wählen');return;}
-    const d=new Date(onceDate+'T12:00:00');
-    days=[(d.getDay()+6)%7];
+    // days stays empty — only onceDate is used for filtering
   } else {
     const dayClass=who==='p1'?'op1':who==='p2'?'op2':'osh';
     const sel=[];
     document.querySelectorAll('#qa-days .dp[data-day]').forEach(el=>{
       if(el.classList.contains(dayClass)) sel.push(parseInt(el.dataset.day));
     });
-    if(sel.length) days=sel;
+    days=sel.length?sel:[0,1,2,3,4,5,6];
   }
   const tid=who+Date.now();
   HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,reminder,onceDate});
@@ -810,7 +810,8 @@ function renderMonth() {
   }
   for(let day=1;day<=daysInMonth;day++){
     const date=new Date(base.getFullYear(),base.getMonth(),day);
-    const di=(date.getDay()+6)%7, key=dk(date), isT=date.getTime()===today.getTime();
+    date.setHours(12,0,0,0);
+    const di=(date.getDay()+6)%7, key=dk(date), isT=dk(date)===dk(today);
     // Include both recurring tasks AND once-tasks matching this date
     const dayT=tasks.filter(t=>{
       if(t.onceDate) return t.onceDate===key;
