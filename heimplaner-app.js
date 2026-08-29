@@ -4,7 +4,7 @@
 
 let weekOffset=0, monthOffset=0, monthViewOffset=0;
 let curView='all', persView='p1', recipeFilter='Alle', pendingMealSlot=null;
-let aiHistory=[], speechRec=null, isMicActive=false, afSelectedDays=[];
+let speechRec=null, isMicActive=false, afSelectedDays=[];
 const schedTimers={};
 const NOTIF_OK=typeof window!=='undefined'&&'Notification' in window;
 
@@ -195,10 +195,9 @@ function renderWeekGrid() {
       const si=st==='wip'?'🟡':st==='blocked'?'🔴':'';
       const chip=document.createElement('div');
       chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
-      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(t.time)+'</span>':'')+'</span>'+
-        '<span class="chip-st">'+si+'</span>';
-      chip.addEventListener('click',()=>openTaskModal(t.id));
-      tc.appendChild(chip);
+      const cmt=(HP.taskComments||{})[t.id]||'';
+      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(t.time)+'</span>':'')+' </span>'+'<span class="chip-st">'+si+'</span>'+(cmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'');
+
     });
   });
 }
@@ -246,8 +245,15 @@ function openQuickAddTask(who='shared', prefillDate='') {
   showModal(
     '<h3>+ Termin / Aufgabe</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label>'+
+
+
     '<div style="display:flex;gap:7px">'+
-    '<input class="modal-in" id="qa-emoji" placeholder="📅" maxlength="2" style="width:48px;text-align:center">'+
+    '<select class="modal-in" id="qa-emoji" style="width:64px;text-align:center;font-size:1.1rem;padding:4px">'+
+    '<option value="📅">📅</option><option value="🏥">🏥</option><option value="🎉">🎉</option>'+
+    '<option value="🛒">🛒</option><option value="🏋️">🏋️</option><option value="📚">📚</option>'+
+    '<option value="🍽️">🍽️</option><option value="🚗">🚗</option><option value="✈️">✈️</option>'+
+    '<option value="💊">💊</option><option value="🏠">🏠</option><option value="⭐">⭐</option>'+
+    '</select>'+
     '<input class="modal-in" id="qa-name" placeholder="z.B. Arzttermin, Sport…" style="flex:1"></div></div>'+
     '<div class="modal-row"><label>Für wen</label>'+
     '<select class="modal-in" id="qa-who" onchange="updateQaDayClass()">'+
@@ -896,13 +902,19 @@ function openDayDetail(key) {
   const events=(HP.events||[]).filter(e=>e.date===key);
   const meals=HP.meals[key]||{};
   const label=date.toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long'});
-  const eventsHtml=(events.length?events.map(e=>
-    '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.81rem'+(e.important?';background:rgba(248,113,113,.08);border-radius:6px;padding:6px 8px':'')+'">'+
+  const eventsHtml=(events.length?events.map(e=>{
+    const linkedNote=(HP.notes||[]).find(n=>n.linkedEventId===e.id);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px'+(e.important?';background:rgba(248,113,113,.08)':'')+'">'+
     '<span style="color:'+(e.important?'var(--red)':e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+e.emoji+'</span>'+
-    '<span style="flex:1;font-weight:500">'+e.name+'</span>'+
+    '<div style="flex:1"><div style="font-weight:500">'+e.name+'</div>'+
+    (linkedNote?'<div style="font-size:.7rem;color:var(--muted);margin-top:2px;cursor:pointer" onclick="alert('+JSON.stringify((linkedNote.title?linkedNote.title+': ':'')+linkedNote.body)+')">📝 '+
+    (linkedNote.title||linkedNote.body.slice(0,30)+(linkedNote.body.length>30?'…':''))+'</div>':'')+
+    '</div>'+
     (e.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+e.time+'</span>':'')+
-    '<button onclick="deleteEvent(\''+e.id+'\');closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Löschen">✕</button>'+
-    '</div>').join(''):'');
+    '<button data-eid="'+e.id+'" onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Bearbeiten">✏️</button>'+
+    '<button data-eid="'+e.id+'" onclick="deleteEvent(this.dataset.eid);closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Löschen">✕</button>'+
+    '</div>';
+  }).join(''):'');
   const tasksHtml=tasks.length
     ? tasks.map(t=>'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.81rem">'+
         '<span style="color:'+(t.who==='p1'?'var(--p1)':t.who==='p2'?'var(--p2)':'var(--shared)')+'">'+t.emoji+'</span>'+
@@ -918,7 +930,7 @@ function openDayDetail(key) {
     '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Menü</div>'+mealsHtml+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
-    '<button class="mbtn" style="background:var(--p1bg);border:1px solid var(--p1);color:var(--p1)" onclick="closeModal();openQuickAddTask(\'shared\',\''+key+'\')">+ Termin</button>'+
+
     '<button class="mbtn" style="background:var(--gbg);border:1px solid var(--green);color:var(--green)" onclick="exportDayICS(\''+key+'\');closeModal()">📅 Kalender</button></div>');
 }
 
@@ -1351,31 +1363,10 @@ Antworte IMMER mit JSON wenn du eine Aktion ausführst:
 Mauro mag: simpel, klassisch, kein Seafood, keine Pilze. Zwiebeln/Knoblauch optional.
 Schweizer Begriffe (Poulet statt Hähnchen). Heute: ${new Date().toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}.`;
 
-function renderAiQuickBtns(){
-  const btns=[
-    {i:'🗓️',l:'Menü für diese Woche',m:'Schlage mir einen kompletten Menüplan für diese Woche vor.'},
-    {i:'🛒',l:'Einkaufsliste ergänzen',m:'Welche Grundzutaten sollten wir diese Woche einkaufen?'},
-    {i:'💡',l:'Task-Vorschläge',m:'Welche Haushalts-Aufgaben empfiehlst du für diese Woche?'},
-    {i:'🍽️',l:'Was kochen heute?',m:'Was können wir heute Abend simpel und klassisch kochen?'},
-  ];
-  const el=document.getElementById('ai-quick-btns');
-  if(el) el.innerHTML=btns.map(b=>'<button class="ai-quick-btn" onclick="sendAiMessage(\''+b.m.replace(/'/g,"&#39;")+'\')">'+(b.i)+' '+(b.l)+'</button>').join('');
-}
-function addAiMsg(role,text,actions=[]){
-  const chat=document.getElementById('ai-chat'); if(!chat) return;
-  const div=document.createElement('div'); div.className='ai-msg '+role;
-  const actHtml=actions.length?'<div class="ai-actions">'+actions.map(a=>'<button class="ai-action-btn" onclick="'+a.fn+'">'+a.label+'</button>').join('')+'</div>':'';
-  div.innerHTML='<div class="ai-avatar '+(role==='bot'?'bot':'usr')+'">'+(role==='bot'?'✨':'👤')+'</div>'+
-    '<div><div class="ai-bubble">'+text.replace(/\n/g,'<br>')+'</div>'+actHtml+'</div>';
-  chat.appendChild(div); chat.scrollTop=chat.scrollHeight;
-}
-function showAiTyping(){
-  const chat=document.getElementById('ai-chat'); if(!chat) return;
-  const div=document.createElement('div'); div.className='ai-msg bot'; div.id='ai-typing';
-  div.innerHTML='<div class="ai-avatar bot">✨</div><div class="ai-typing"><span></span><span></span><span></span></div>';
-  chat.appendChild(div); chat.scrollTop=chat.scrollHeight;
-}
-function removeAiTyping(){document.getElementById('ai-typing')?.remove();}
+
+
+
+
 function buildContext(){
   const tasks=allTasks(), shopOpen=HP.shop.filter(i=>!i.bought);
   const today=new Date(); today.setHours(0,0,0,0);
@@ -1385,33 +1376,8 @@ function buildContext(){
   getWeekDates(weekOffset).forEach((d,i)=>{const m=HP.meals[dk(d)]||{};if(Object.keys(m).length)weekMeals.push(DS[i]+': '+Object.values(m).map(x=>x.name).join(', '));});
   return ['Tasks: '+tasks.length,'Heute ('+DS[di]+'): '+todayT.map(t=>t.name).join(', '),'Einkauf offen: '+shopOpen.map(i=>i.name).join(', '),'Menü diese Woche: '+weekMeals.join(' | '),'Namen: p1='+HP.names.p1+', p2='+HP.names.p2].join('\n');
 }
-async function sendAiMessage(override=null){
-  const input=document.getElementById('ai-input');
-  const text=override||(input?input.value.trim():''); if(!text) return;
-  if(input)input.value='';
-  addAiMsg('user',text);
-  aiHistory.push({role:'user',content:text});
-  showAiTyping();
-  try{
-    const response=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:AI_SYSTEM,
-        messages:[{role:'user',content:'App-Kontext:\n'+buildContext()+'\n\nNachricht: '+text},...aiHistory.slice(1).slice(-8)]})
-    });
-    const data=await response.json(); removeAiTyping();
-    const raw=data.content?.map(c=>c.text||'').join('')||'Keine Antwort.';
-    aiHistory.push({role:'assistant',content:raw});
-    const match=raw.match(/\{[\s\S]*\}/);
-    if(match){try{const r=execAiAction(JSON.parse(match[0]));addAiMsg('bot',r.msg,r.actions||[]);}
-    catch(e){addAiMsg('bot',raw.replace(/\{[\s\S]*\}/,'').trim()||'Erledigt!');}}
-    else addAiMsg('bot',raw);
-  }catch(e){removeAiTyping();addAiMsg('bot','Fehler: '+e.message);}
-}
-function execAiAction(p){
-  if(p.actions&&Array.isArray(p.actions)){const msgs=p.actions.map(a=>execSingle(a).msg);HP_save();render();return{msg:msgs.join('\n')};}
-  const r=execSingle(p); HP_save();render(); return r;
-}
+async 
+
 function execSingle(a){
   if(a.action==='add_task'){
     const w=a.who||'shared';
@@ -1455,27 +1421,30 @@ function startSpeech(){try{speechRec.start();isMicActive=true;const b=document.g
 function stopSpeech(){try{speechRec?.stop();}catch(e){}isMicActive=false;const b=document.getElementById('ai-mic-btn');if(b){b.classList.remove('mic-active');b.textContent='🎤';}}
 
 // ── IMPORT / EXPORT ───────────────────────────
-function exportJSON(){
+
+
+
+// ── JSON BACKUP ──────────────────────────────────
+function exportJSON() {
   const blob=new Blob([JSON.stringify(HP,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download='heimplaner-backup-'+dk(new Date())+'.json';
-  a.click(); URL.revokeObjectURL(url); showToast('💾 Backup exportiert');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='heimplaner-backup-'+dk(new Date())+'.json'; a.click();
+  URL.revokeObjectURL(a.href);
 }
-function importJSON(e){
+function importJSON(e) {
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=ev=>{
-    try{
+    try {
       const d=JSON.parse(ev.target.result);
-      if(!d.tasks||!d.names)throw new Error('Ungültiges Format');
-      if(!confirm('Alle aktuellen Daten überschreiben?'))return;
-      Object.assign(HP,d);
-      if(!HP.notes)HP.notes=[];if(!HP.customRecipes)HP.customRecipes=[];
-      HP_save();render();showToast('✅ Daten importiert');
-    }catch(err){showToast('❌ Import-Fehler: '+err.message);}
+      if(!d.tasks||!d.names) throw new Error('Ungültiges Format');
+      Object.assign(HP,d); HP_save(); render();
+      showToast('✅ Daten importiert');
+    } catch(err) { showToast('❌ Fehler: '+err.message); }
   };
   reader.readAsText(file);
 }
+
 function exportICS(){
   const inclTasks=document.getElementById('exp-tasks')?.checked!==false;
   const inclMeals=document.getElementById('exp-meals')?.checked!==false;
@@ -1494,7 +1463,7 @@ function exportICS(){
     }
   }
   // One-time events
-  if(inclTasks){(HP.events||[]).forEach(ev=>{
+  if(inclEvents){(HP.events||[]).forEach(ev=>{
     if(!ev.time) return;
     const h=parseInt(ev.time.split(':')[0]), mi=parseInt(ev.time.split(':')[1]);
     const s=new Date(ev.date+'T12:00:00'); s.setHours(h,mi,0,0);
@@ -1554,12 +1523,7 @@ function buildAndDownloadICS(events, filename='heimplaner-kalender.ics'){
   a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
   showToast('📅 '+events.length+' Einträge als .ics exportiert');
 }
-function resetAllData(){
-  if(!confirm('Wirklich ALLE Daten löschen?'))return;
-  localStorage.removeItem(SK); location.reload();
-}
 
-// ── MOBILE DRAWER ─────────────────────────────
 function openMobDrawer(){
   const d=document.getElementById('mob-drawer'); if(d){d.classList.add('open'); syncMobDrawer();}
 }
@@ -1676,48 +1640,7 @@ function openRecipeImport() {
   setTimeout(() => document.getElementById('import-text')?.focus(), 50);
 }
 
-async function importRecipeWithAI() {
-  const text = document.getElementById('import-text')?.value.trim();
-  if (!text) { showToast('Bitte Rezepttext eingeben'); return; }
-  const statusEl = document.getElementById('import-status');
-  if (statusEl) statusEl.textContent = '⏳ KI analysiert Rezept…';
-  const btn = document.querySelector('#modal-ov .mbtn-confirm');
-  if (btn) btn.disabled = true;
-
-  try {
-    const res = await fetch('/.netlify/functions/recipe-import', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-app-password': syncPassword || localStorage.getItem('hp_sync_pw') || ''
-      },
-      body: JSON.stringify({ text })
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Server-Fehler');
-
-    const recipe = data.recipe;
-    if (!recipe.name || !recipe.ing) throw new Error('Ungültiges Format');
-
-    recipe.id = 'cr' + Date.now();
-    recipe.custom = true;
-    if (!HP.customRecipes) HP.customRecipes = [];
-    HP.customRecipes.push(recipe);
-    HP_save();
-    closeModal();
-    renderRecipes();
-    showToast('✅ ' + recipe.emoji + ' ' + recipe.name + ' importiert');
-  } catch(e) {
-    if (statusEl) statusEl.textContent = '❌ Fehler: ' + e.message + ' — bitte nochmal versuchen.';
-    if (btn) btn.disabled = false;
-  }
-}
-
-// ═══════════════════════════════════════════════
-// REZEPT-ANLEITUNG anzeigen
-// ═══════════════════════════════════════════════
-
+async 
 function openRecipeDetail(rid) {
   const r = allRecipes().find(x => x.id === rid);
   if (!r) return;

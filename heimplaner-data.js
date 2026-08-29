@@ -338,6 +338,8 @@ function loadState() {
       if (!d.colors) d.colors = {...DEFAULT_COLORS};
       if (!d.theme) d.theme = 'dark';
       if (!d.events) d.events = [];
+      if (!d.birthdays) d.birthdays = [];
+      if (!d.taskComments) d.taskComments = {};
       // ensure important field on all tasks
       ['p1','p2','shared'].forEach(w => {
         d.tasks[w] = d.tasks[w].map(t => ({important:false,...t}));

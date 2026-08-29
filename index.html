@@ -486,7 +486,7 @@ body { padding-top: env(safe-area-inset-top); }
       <button class="mob-nav-btn" data-view="recipes" onclick="setView('recipes',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
       <button class="mob-nav-btn" data-view="pinboard" onclick="setView('pinboard',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
       <button class="mob-nav-btn" data-view="manage" onclick="setView('manage',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Aufgaben &amp; Termine</button>
-      <button class="mob-nav-btn" data-view="birthdays" onclick="setView('birthdays',this);closeMobDrawerDirect()"><span class="dot" style="background:#fbbf24"></span>Geburtstage & Termine</button>
+      <button class="mob-nav-btn" data-view="birthdays" onclick="setView('birthdays',this);closeMobDrawerDirect()"><span class="dot" style="background:#fbbf24"></span>Geburtstage</button>
       <button class="mob-nav-btn" data-view="settings" onclick="setView('settings',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
     </div>
     <div class="mob-stats">
@@ -539,7 +539,7 @@ body { padding-top: env(safe-area-inset-top); }
     <button class="vbtn" data-view="pinboard" onclick="setView('pinboard',this)"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
     <span class="sec-lbl" style="margin-top:12px">Einstellungen</span>
     <button class="vbtn" data-view="manage" onclick="setView('manage',this)"><span class="dot" style="background:var(--muted)"></span>Aufgaben &amp; Termine</button>
-    <button class="vbtn" data-view="birthdays" onclick="setView('birthdays',this)"><span class="dot" style="background:#fbbf24"></span>Geburtstage & Termine</button>
+    <button class="vbtn" data-view="birthdays" onclick="setView('birthdays',this)"><span class="dot" style="background:#fbbf24"></span>Geburtstage</button>
     <button class="vbtn" data-view="settings" onclick="setView('settings',this)"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
   </div>
   </aside>
@@ -711,33 +711,23 @@ body { padding-top: env(safe-area-inset-top); }
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
-          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">📤 Daten exportieren</div>
-          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Alle Daten als JSON-Backup speichern</div>
-          <button class="af-add" style="width:100%;margin-bottom:8px" onclick="exportJSON()">💾 JSON exportieren</button>
-          <button class="af-add" style="width:100%;background:var(--green);color:#000" onclick="exportICS()">📅 Kalender (.ics) exportieren</button>
-        </div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
-          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">📥 Daten importieren</div>
-          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">JSON-Backup wiederherstellen</div>
-          <label style="display:block;width:100%;text-align:center;background:var(--surface);border:2px dashed var(--border);border-radius:var(--rs);padding:16px;cursor:pointer;font-size:.82rem;color:var(--muted)">
-            📂 JSON-Datei wählen
-            <input type="file" accept=".json" style="display:none" onchange="importJSON(event)">
-          </label>
-        </div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
-          <div style="font-size:.9rem;font-weight:600;margin-bottom:10px">📅 Kalender-Optionen</div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="exp-tasks" checked style="accent-color:var(--p1)"> Tasks mit Uhrzeit</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="exp-meals" checked style="accent-color:var(--p1)"> Menüplan-Einträge</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="exp-notes" checked style="accent-color:var(--p1)"> Pinnwand-Notizen mit Datum</label>
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">📅 Kalender exportieren</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Termine als .ics Datei exportieren</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="ics-tasks" checked style="accent-color:var(--today)"> Wöchentliche Aufgaben</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="ics-events" checked style="accent-color:var(--today)"> Einmalige Termine</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="ics-meals" checked style="accent-color:var(--today)"> Menüplan</label>
           <button class="af-add" style="width:100%;background:var(--shared);color:#000" onclick="exportICS()">📤 .ics exportieren</button>
         </div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
-          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">🗑 Daten zurücksetzen</div>
-          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Löscht alle gespeicherten Daten unwiderruflich</div>
-          <button onclick="resetAllData()" style="width:100%;background:var(--rbg);border:1px solid var(--red);color:var(--red);border-radius:var(--rs);padding:9px;font-family:Inter,sans-serif;font-size:.8rem;cursor:pointer">⚠️ Alle Daten löschen</button>
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">💾 Datensicherung</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Backup für Notfälle</div>
+          <button class="af-add" style="width:100%;margin-bottom:8px" onclick="exportJSON()">💾 JSON exportieren</button>
+          <label style="display:block;width:100%;text-align:center;background:var(--surface);border:2px dashed var(--border);border-radius:var(--rs);padding:10px;cursor:pointer;font-size:.8rem;color:var(--muted)">
+            📂 JSON importieren
+            <input type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+          </label>
         </div>
-      </div>
-    </div>
+      </div>    </div>
 
   </div><!-- /content -->
 </main>
