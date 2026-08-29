@@ -38,7 +38,7 @@ function setView(view, btn) {
   document.querySelectorAll('.vbtn,[data-view]').forEach(b=>{
     b.classList.toggle('active', b.dataset&&b.dataset.view===view);
   });
-  const views=['all','person','shop','meals','recipes','manage','month','pinboard','ai','settings'];
+  const views=['all','person','shop','meals','recipes','manage','month','pinboard','ai','settings','birthdays'];
   views.forEach(v=>document.getElementById('view-'+v)?.classList.add('hidden'));
   const target=document.getElementById('view-'+( view==='p1'||view==='p2'?'person':view ));
   if(target) target.classList.remove('hidden');
@@ -46,8 +46,10 @@ function setView(view, btn) {
   // extra init per view
   if(view==='month') renderMonth();
   else if(view==='pinboard') renderPinboard();
-
   else if(view==='recipes') renderRecipes();
+  else if(view==='manage') { render(); renderEventsList(); renderBirthdayList(); return; }
+  else if(view==='birthdays') { renderBirthdayList(); renderEventsList(); }
+  else if(view==='settings') renderColorSettings();
   render();
   // mobile nav sync
   document.querySelectorAll('.bn-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
@@ -825,7 +827,8 @@ function saveTaskDetails(tid) {
   if(comment) HP.taskComments[tid]=comment;
   else delete HP.taskComments[tid];
   const t=document.getElementById('tm-time')?.value||'', r=document.getElementById('tm-rem')?.value||'';
-  ['p1','p2','shared'].forEach(w=>{const task=HP.tasks[w].find(x=>x.id===tid);if(task){task.time=t;task.reminder=r;}});
+  const imp=document.getElementById('tm-important')?.checked||false;
+  ['p1','p2','shared'].forEach(w=>{const task=HP.tasks[w].find(x=>x.id===tid);if(task){task.time=t;task.reminder=r;task.important=imp;}});
   HP_save(); const task=allTasks().find(x=>x.id===tid);
   if(task&&t&&r!=='') scheduleTaskNotif({...task,time:t,reminder:r});
   render();
@@ -1033,6 +1036,97 @@ function saveEditNote(id){
 }
 function deleteNote(id){HP.notes=(HP.notes||[]).filter(x=>x.id!==id);HP_save();closeModal();renderPinboard();}
 
+
+// ═══════════════════════════════════════════════
+// EINMALIGE TERMINE - Event Management
+// ═══════════════════════════════════════════════
+
+function openAddEvent(prefillDate='') {
+  showModal(
+    '<h3>📅 Neuer Termin</h3>'+
+    '<div class="modal-row"><label>Emoji & Name</label>'+
+    '<div style="display:flex;gap:7px">'+
+    '<input class="modal-in" id="ev-emoji" placeholder="📅" maxlength="2" style="width:48px;text-align:center">'+
+    '<input class="modal-in" id="ev-name" placeholder="z.B. Arzttermin, Abendessen…" style="flex:1"></div></div>'+
+    '<div class="modal-row"><label>Datum</label>'+
+    '<input class="modal-in" type="date" id="ev-date" value="'+prefillDate+'"></div>'+
+    '<div class="modal-row"><label>Uhrzeit (optional)</label>'+
+    '<input class="modal-in" type="time" id="ev-time"></div>'+
+    '<div class="modal-row"><label>Für wen</label>'+
+    '<select class="modal-in" id="ev-who">'+
+    '<option value="p1">'+HP.names.p1+'</option>'+
+    '<option value="p2">'+HP.names.p2+'</option>'+
+    '<option value="shared" selected>Gemeinsam</option>'+
+    '</select></div>'+
+    '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+    '<input type="checkbox" id="ev-important" style="accent-color:var(--red);width:16px;height:16px">'+
+    '<span style="color:var(--red);font-weight:500">🚨 Wichtig</span></label></div>'+
+    '<div class="modal-btns">'+
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
+    '<button class="mbtn mbtn-confirm" onclick="saveNewEvent()">✓ Speichern</button>'+
+    '</div>'
+  );
+  setTimeout(()=>document.getElementById('ev-name')?.focus(),60);
+}
+
+function saveNewEvent() {
+  const emoji=document.getElementById('ev-emoji')?.value.trim()||'📅';
+  const name=document.getElementById('ev-name')?.value.trim();
+  const date=document.getElementById('ev-date')?.value;
+  const time=document.getElementById('ev-time')?.value||'';
+  const who=document.getElementById('ev-who')?.value||'shared';
+  const important=document.getElementById('ev-important')?.checked||false;
+  if(!name){showToast('Bitte Name eingeben');return;}
+  if(!date){showToast('Bitte Datum wählen');return;}
+  if(!HP.events) HP.events=[];
+  HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,who,important,note:''});
+  HP_save();closeModal();render();
+  if(typeof renderEventsList==='function') renderEventsList();
+  showToast(emoji+' '+name+' am '+date+' gespeichert');
+}
+
+function openEditEvent(id) {
+  const e=(HP.events||[]).find(x=>x.id===id); if(!e) return;
+  showModal(
+    '<h3>✏️ Termin bearbeiten</h3>'+
+    '<div class="modal-row"><label>Emoji & Name</label>'+
+    '<div style="display:flex;gap:7px">'+
+    '<input class="modal-in" id="ev-emoji" placeholder="📅" maxlength="2" value="'+e.emoji+'" style="width:48px;text-align:center">'+
+    '<input class="modal-in" id="ev-name" value="'+e.name+'" style="flex:1"></div></div>'+
+    '<div class="modal-row"><label>Datum</label>'+
+    '<input class="modal-in" type="date" id="ev-date" value="'+e.date+'"></div>'+
+    '<div class="modal-row"><label>Uhrzeit (optional)</label>'+
+    '<input class="modal-in" type="time" id="ev-time" value="'+(e.time||'')+'"></div>'+
+    '<div class="modal-row"><label>Für wen</label>'+
+    '<select class="modal-in" id="ev-who">'+
+    '<option value="p1"'+(e.who==='p1'?' selected':'')+'>'+HP.names.p1+'</option>'+
+    '<option value="p2"'+(e.who==='p2'?' selected':'')+'>'+HP.names.p2+'</option>'+
+    '<option value="shared"'+(e.who==='shared'?' selected':'')+'>Gemeinsam</option>'+
+    '</select></div>'+
+    '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+    '<input type="checkbox" id="ev-important"'+(e.important?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
+    '<span style="color:var(--red);font-weight:500">🚨 Wichtig</span></label></div>'+
+    '<div class="modal-btns" style="justify-content:space-between">'+
+    '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" data-eid="'+e.id+'" onclick="deleteEvent(this.dataset.eid)">🗑 Löschen</button>'+
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
+    '<button class="mbtn mbtn-confirm" data-eid="'+e.id+'" onclick="saveEditEvent(this.dataset.eid)">✓ Speichern</button>'+
+    '</div>'
+  );
+}
+
+function saveEditEvent(id) {
+  const e=(HP.events||[]).find(x=>x.id===id); if(!e){closeModal();return;}
+  e.emoji=document.getElementById('ev-emoji')?.value.trim()||e.emoji;
+  e.name=document.getElementById('ev-name')?.value.trim()||e.name;
+  e.date=document.getElementById('ev-date')?.value||e.date;
+  e.time=document.getElementById('ev-time')?.value||'';
+  e.who=document.getElementById('ev-who')?.value||e.who;
+  e.important=document.getElementById('ev-important')?.checked||false;
+  HP_save();closeModal();render();
+  if(typeof renderEventsList==='function') renderEventsList();
+  showToast('Termin gespeichert');
+}
+
 // ═══════════════════════════════════════════════
 // GEBURTSTAGE
 // ═══════════════════════════════════════════════
@@ -1066,6 +1160,9 @@ function renderBirthdayList() {
       '<button data-bid=' + JSON.stringify(b.id) + ' onclick="deleteBirthday(this.dataset.bid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.82rem;padding:3px 6px">✕</button>'+
     '</div>';
   }).join('');
+  // Also render in birthdays view
+  const el2b=document.getElementById('birthday-list-2');
+  if(el2b) el2b.innerHTML=el.innerHTML;
 }
 
 function getNextBirthday(dateStr) {
@@ -1397,6 +1494,14 @@ function exportICS(){
       });
     }
   }
+  // One-time events
+  if(inclTasks){(HP.events||[]).forEach(ev=>{
+    if(!ev.time) return;
+    const h=parseInt(ev.time.split(':')[0]), mi=parseInt(ev.time.split(':')[1]);
+    const s=new Date(ev.date+'T12:00:00'); s.setHours(h,mi,0,0);
+    const e=new Date(s); e.setHours(h,mi+60,0,0);
+    events.push({summary:ev.emoji+' '+ev.name,start:s,end:e,desc:'Heimplaner Termin'});
+  });}
   if(inclMeals){Object.entries(HP.meals||{}).forEach(([key,slots])=>{
     Object.entries(slots).forEach(([slot,m])=>{
       const d=new Date(key+'T00:00:00'), h=slot==='Frühstück'?8:slot==='Mittag'?12:19;
@@ -1412,20 +1517,30 @@ function exportICS(){
   buildAndDownloadICS(events);
 }
 function exportDayICS(key){
-  const date=new Date(key+'T00:00:00'), di=(date.getDay()+6)%7;
-  const events=[];
-  allTasks().filter(t=>t.days.includes(di)&&t.time).forEach(t=>{
+  const date=new Date(key+'T12:00:00'), di=(date.getDay()+6)%7;
+  const evs=[];
+  // Recurring tasks with time
+  allTasks().filter(t=>!t.onceDate&&t.days.includes(di)&&t.time).forEach(t=>{
     const[h,m]=t.time.split(':').map(Number), s=new Date(date); s.setHours(h,m,0,0);
     const e=new Date(s); e.setHours(h,m+30,0,0);
-    events.push({summary:t.emoji+' '+t.name,start:s,end:e,desc:'Heimplaner'});
+    evs.push({summary:t.emoji+' '+t.name,start:s,end:e,desc:'Heimplaner'});
   });
+  // One-time events on this day
+  (HP.events||[]).filter(ev=>ev.date===key).forEach(ev=>{
+    const h=ev.time?parseInt(ev.time.split(':')[0]):9;
+    const mi=ev.time?parseInt(ev.time.split(':')[1]):0;
+    const s=new Date(date); s.setHours(h,mi,0,0);
+    const e=new Date(s); e.setHours(h,mi+60,0,0);
+    evs.push({summary:ev.emoji+' '+ev.name,start:s,end:e,desc:'Heimplaner Termin'});
+  });
+  // Meals
   Object.entries(HP.meals[key]||{}).forEach(([slot,meal])=>{
     const h=slot==='Frühstück'?8:slot==='Mittag'?12:19, s=new Date(date); s.setHours(h,0,0,0);
     const e=new Date(s); e.setHours(h+1,0,0,0);
-    events.push({summary:'🍽️ '+slot+': '+meal.name,start:s,end:e,desc:'Heimplaner Menüplan'});
+    evs.push({summary:'🍽️ '+slot+': '+meal.name,start:s,end:e,desc:'Heimplaner Menüplan'});
   });
-  if(!events.length){showToast('Keine Einträge mit Uhrzeit');return;}
-  buildAndDownloadICS(events, key+'.ics');
+  if(!evs.length){showToast('Keine Einträge für diesen Tag');return;}
+  buildAndDownloadICS(evs, key+'.ics');
 }
 function buildAndDownloadICS(events, filename='heimplaner-kalender.ics'){
   const fmtDT=d=>d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';

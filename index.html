@@ -475,6 +475,7 @@ body { padding-top: env(safe-area-inset-top); }
       <button class="mob-nav-btn" data-view="recipes" onclick="setView('recipes',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
       <button class="mob-nav-btn" data-view="pinboard" onclick="setView('pinboard',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
       <button class="mob-nav-btn" data-view="manage" onclick="setView('manage',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Aufgaben verwalten</button>
+      <button class="mob-nav-btn" data-view="birthdays" onclick="setView('birthdays',this);closeMobDrawerDirect()"><span class="dot" style="background:#fbbf24"></span>Geburtstage & Termine</button>
       <button class="mob-nav-btn" data-view="settings" onclick="setView('settings',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
     </div>
     <div class="mob-stats">
@@ -527,6 +528,7 @@ body { padding-top: env(safe-area-inset-top); }
     <button class="vbtn" data-view="pinboard" onclick="setView('pinboard',this)"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
     <span class="sec-lbl" style="margin-top:12px">Einstellungen</span>
     <button class="vbtn" data-view="manage" onclick="setView('manage',this)"><span class="dot" style="background:var(--muted)"></span>Aufgaben verwalten</button>
+    <button class="vbtn" data-view="birthdays" onclick="setView('birthdays',this)"><span class="dot" style="background:#fbbf24"></span>Geburtstage & Termine</button>
     <button class="vbtn" data-view="settings" onclick="setView('settings',this)"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
   </div>
   </aside>
@@ -682,7 +684,30 @@ body { padding-top: env(safe-area-inset-top); }
         <button class="af-add" onclick="openAddNote()" style="margin-left:auto">+ Notiz</button>
       </div>
       <div id="pin-board"></div>
-    </div><!-- SETTINGS VIEW -->
+    </div>
+
+    <!-- BIRTHDAYS & EVENTS VIEW -->
+    <div id="view-birthdays" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">🎂 Geburtstage &amp; Termine</h2>
+      </div>
+      <div style="margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div class="sec-hd" style="margin-bottom:0">📅 Einmalige Termine</div>
+          <button class="af-add" onclick="openAddEvent()">+ Neuer Termin</button>
+        </div>
+        <div id="events-list-2"></div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div class="sec-hd" style="margin-bottom:0">🎂 Geburtstage</div>
+          <button class="af-add" onclick="openAddBirthday()">+ Geburtstag</button>
+        </div>
+        <div id="birthday-list-2"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
     <div id="view-settings" class="hidden">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
         <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">⚙️ Einstellungen</h2>
