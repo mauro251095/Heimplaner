@@ -340,6 +340,11 @@ function loadState() {
       if (!d.events) d.events = [];
       if (!d.birthdays) d.birthdays = [];
       if (!d.taskComments) d.taskComments = {};
+      if (!d.eventStatus) d.eventStatus = {};
+      if (!d.eventNotes) d.eventNotes = {};
+      if (!d.eventComments) d.eventComments = {};
+      if (!d.savedShopItems) d.savedShopItems = [];
+      if (!d.taskExceptions) d.taskExceptions = {};
       // ensure important field on all tasks
       ['p1','p2','shared'].forEach(w => {
         d.tasks[w] = d.tasks[w].map(t => ({important:false,...t}));
@@ -354,7 +359,9 @@ function loadState() {
     theme: 'dark',
     done: {}, taskStatus: {}, taskNotes: {},
     shop: [], meals: {}, notes: [], customRecipes: [],
-    events: [], birthdays: [], taskComments: {}
+    events: [], birthdays: [], taskComments: {},
+    eventStatus: {}, eventNotes: {}, eventComments: {},
+    savedShopItems: [], taskExceptions: {}
   };
 }
 
@@ -386,8 +393,16 @@ function wkNum(d) {
   return 1+Math.round(((dt-w1)/86400000-3+(w1.getDay()+6)%7)/7);
 }
 function isDone(date,tid) { const k=dk(date);return !!(HP.done[k]&&HP.done[k][tid]); }
+function taskOccursOn(t,dateKey) {
+  const di=(new Date(dateKey+'T12:00:00').getDay()+6)%7;
+  if(!t.days.includes(di)) return false;
+  if(HP.taskExceptions && HP.taskExceptions[t.id] && HP.taskExceptions[t.id][dateKey]) return false;
+  return true;
+}
 function getStatus(tid) { return HP.taskStatus[tid]||'open'; }
+function getEventStatus(eid) { return (HP.eventStatus||{})[eid]||'open'; }
 function fmtTime(t) { if(!t)return '';const[h,m]=t.split(':');return h+':'+m; }
+function fmtTimeRange(start,end) { if(!start)return ''; return end?fmtTime(start)+'–'+fmtTime(end):fmtTime(start); }
 function allTasks(filter=null) {
   let arr=[
     ...HP.tasks.p1.map(t=>({...t,who:'p1'})),
