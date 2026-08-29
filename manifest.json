@@ -2,7 +2,7 @@
   "name": "Heimplaner",
   "short_name": "Heimplaner",
   "description": "Euer persönlicher Haushaltsplaner",
-  "start_url": "/heimplaner.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#0d0f14",
   "theme_color": "#0d0f14",
@@ -25,18 +25,18 @@
   "shortcuts": [
     {
       "name": "Wochenplan",
-      "url": "/heimplaner.html?view=all",
+      "url": "index.html?view=all",
       "description": "Wochenübersicht öffnen"
     },
     {
       "name": "Einkaufsliste",
-      "url": "/heimplaner.html?view=shop",
+      "url": "index.html?view=shop",
       "description": "Einkaufsliste öffnen"
     },
     {
-      "name": "KI-Assistent",
-      "url": "/heimplaner.html?view=ai",
-      "description": "KI-Assistent öffnen"
+      "name": "Menüplan",
+      "url": "index.html?view=meals",
+      "description": "Menüplan öffnen"
     }
   ]
 }
