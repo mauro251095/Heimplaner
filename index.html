@@ -124,7 +124,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .hidden{display:none!important}
 
 /* ── TODAY BANNER ── */
-.today-banner{background:linear-gradient(135deg,rgba(245,166,35,.1),rgba(245,166,35,.03));border:1px solid rgba(245,166,35,.22);border-radius:var(--r);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
+.today-banner{background:linear-gradient(135deg,rgba(34,197,94,.1),rgba(34,197,94,.03));border:1px solid rgba(34,197,94,.28);border-radius:var(--r);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
 .tb-date{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--today);min-width:40px;text-align:center;line-height:1}
 .tb-dow{font-size:.68rem;color:var(--today);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
 .tb-stat{font-size:.78rem}.tb-stat b{color:var(--today)}
@@ -142,7 +142,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 /* ── WEEK GRID ── */
 .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
 .day-col{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;min-height:220px}
-.day-col.is-today{border-color:rgba(34,197,94,.38);box-shadow:0 0 0 1px rgba(34,197,94,.1),0 4px 16px rgba(34,197,94,.06)}
+.day-col.is-today{border-color:rgba(34,197,94,.55);box-shadow:0 0 0 2px rgba(34,197,94,.15),0 4px 20px rgba(34,197,94,.1);background:rgba(34,197,94,.02)}
 .day-col.is-past{opacity:.62}
 .day-head{padding:8px 8px 6px;border-bottom:1px solid var(--border);text-align:center}
 .dh-dow{font-size:.58rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:2px}
@@ -153,7 +153,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .day-tasks{flex:1;padding:6px}
 .task-chip{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:5px;margin-bottom:4px;font-size:.69rem;cursor:pointer;position:relative}
 .task-chip:hover{filter:brightness(1.2)}
-.task-chip.done{opacity:var(--done);text-decoration:line-through}
+.task-chip.done{opacity:var(--done);text-decoration:line-through;font-size:.62rem;padding:2px 5px}
 .task-chip.cp1{background:var(--p1bg);color:var(--p1)}
 .task-chip.cp2{background:var(--p2bg);color:var(--p2)}
 .task-chip.cshared{background:var(--shbg);color:var(--shared)}
@@ -267,11 +267,6 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .tm-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .tm-name{font-size:.79rem;font-weight:500}
 .tm-acts{display:flex;gap:4px;align-items:center}
-.tm-del,.prio-btn,.wichtig-btn{background:none;border:none;cursor:pointer;padding:2px 3px;border-radius:4px;font-size:.76rem}
-.tm-del{color:var(--muted)}.tm-del:hover{color:var(--red)}
-.prio-btn{color:var(--muted)}.prio-btn.on{color:var(--prio)}
-.wichtig-btn{color:var(--muted);font-weight:700;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:.7rem}
-.wichtig-btn.on{background:var(--rbg);border-color:var(--red);color:var(--red)}
 .day-pills{display:flex;gap:2px;flex-wrap:wrap}
 .dp{font-size:.58rem;padding:2px 5px;border-radius:99px;cursor:pointer;border:1px solid var(--border);color:var(--muted);user-select:none}
 .dp:hover{border-color:var(--muted);color:var(--text)}
@@ -300,6 +295,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .month-cell.other-month{opacity:.3}
 .month-cell.has-events{border-color:rgba(108,142,255,.3)}
 .mc-num{font-size:.8rem;font-weight:600;margin-bottom:4px;color:var(--muted)}
+.month-cell.today .mc-num::before{content:"● ";font-size:.5rem;vertical-align:middle;opacity:.7}
 .month-cell.today .mc-num{color:var(--today);font-weight:700}
 .mc-event{font-size:.63rem;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
 .mc-event.ep1{background:var(--p1bg);color:var(--p1)}
@@ -387,7 +383,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
   .dh-dow{font-size:.7rem;margin-bottom:0}
   .dh-num{font-size:1.1rem}
   .dh-prog{flex:1;margin-top:0}
-  .day-tasks{padding:8px 12px;display:flex;flex-wrap:wrap;gap:5px}
+  .day-tasks{padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px}
   .task-chip{margin-bottom:0;padding:6px 10px;border-radius:99px}
   .pv-day-row{grid-template-columns:60px 1fr;gap:7px}
   .shop-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
@@ -434,14 +430,29 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 @media(min-width:769px){
   .bottom-nav,.mob-hd-btn,.mob-drawer{display:none}
 }
-.sb-edit-btn{font-size:.75rem;opacity:0;transition:opacity .15s;padding:2px 4px;border-radius:4px;cursor:pointer;flex-shrink:0}
-.vbtn:hover .sb-edit-btn{opacity:.6}
-.sb-edit-btn:hover{opacity:1!important;background:var(--subtle)}
 /* ── SAFE AREA (iOS notch / home bar) ── */
 body { padding-top: env(safe-area-inset-top); }
 .topbar { padding-left: max(22px, env(safe-area-inset-left)); padding-right: max(22px, env(safe-area-inset-right)); }
 .bottom-nav { padding-bottom: max(env(safe-area-inset-bottom), 6px); }
 .sidebar { padding-bottom: env(safe-area-inset-bottom); }
+
+/* ── WICHTIG / IMPORTANT ── */
+.c-important{background:rgba(248,113,113,0.2)!important;color:var(--red)!important;border:1px solid rgba(248,113,113,0.4)!important}
+.c-important .chip-dot{background:var(--red)!important}
+.p-important{background:rgba(248,113,113,0.2)!important;color:var(--red)!important;border:1px solid rgba(248,113,113,0.4)!important;box-shadow:none!important}
+.tbc-important{background:rgba(248,113,113,0.15)!important;color:var(--red)!important;border:1px solid rgba(248,113,113,.35)!important}
+.chip-prio{display:none}
+.tbc-prio{opacity:.8}
+.pv-pill.is-prio{opacity:.9}
+.ev-once{border-left:3px solid var(--today)!important;font-style:italic}
+.c-birthday{background:rgba(251,191,36,0.15)!important;color:#fbbf24!important;border-left:3px solid #fbbf24!important;font-style:italic}
+.mc-birthday{background:rgba(251,191,36,0.2);color:#92400e;border-left:2px solid #fbbf24}
+.mc-event-important{background:rgba(248,113,113,0.2);color:var(--red);border-left:2px solid var(--red);font-weight:600}
+.tbc-event{background:rgba(34,197,94,0.15);color:var(--today);border:1px solid rgba(34,197,94,.3);font-style:italic}
+.task-chip.done{opacity:var(--done);text-decoration:line-through;font-size:.62rem;padding:2px 5px}
+.month-cell.today .mc-num::before{content:"● ";font-size:.5rem;vertical-align:middle;opacity:.7}
+.wichtig-btn{color:var(--muted);font-weight:700;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:.7rem}
+.wichtig-btn.on{background:var(--rbg);border-color:var(--red);color:var(--red)}
 </style>
 </head>
 <body>
@@ -474,7 +485,7 @@ body { padding-top: env(safe-area-inset-top); }
       <button class="mob-nav-btn" data-view="meals" onclick="setView('meals',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
       <button class="mob-nav-btn" data-view="recipes" onclick="setView('recipes',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
       <button class="mob-nav-btn" data-view="pinboard" onclick="setView('pinboard',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
-      <button class="mob-nav-btn" data-view="manage" onclick="setView('manage',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Aufgaben verwalten</button>
+      <button class="mob-nav-btn" data-view="manage" onclick="setView('manage',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Aufgaben &amp; Termine</button>
       <button class="mob-nav-btn" data-view="birthdays" onclick="setView('birthdays',this);closeMobDrawerDirect()"><span class="dot" style="background:#fbbf24"></span>Geburtstage & Termine</button>
       <button class="mob-nav-btn" data-view="settings" onclick="setView('settings',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
     </div>
@@ -527,7 +538,7 @@ body { padding-top: env(safe-area-inset-top); }
     <button class="vbtn" data-view="recipes" onclick="setView('recipes',this)"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
     <button class="vbtn" data-view="pinboard" onclick="setView('pinboard',this)"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
     <span class="sec-lbl" style="margin-top:12px">Einstellungen</span>
-    <button class="vbtn" data-view="manage" onclick="setView('manage',this)"><span class="dot" style="background:var(--muted)"></span>Aufgaben verwalten</button>
+    <button class="vbtn" data-view="manage" onclick="setView('manage',this)"><span class="dot" style="background:var(--muted)"></span>Aufgaben &amp; Termine</button>
     <button class="vbtn" data-view="birthdays" onclick="setView('birthdays',this)"><span class="dot" style="background:#fbbf24"></span>Geburtstage & Termine</button>
     <button class="vbtn" data-view="settings" onclick="setView('settings',this)"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
   </div>
@@ -656,14 +667,6 @@ body { padding-top: env(safe-area-inset-top); }
         <div id="events-list"></div>
       </div>
 
-      <!-- GEBURTSTAGE -->
-      <div style="margin-top:18px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <div class="sec-hd" style="margin-bottom:0">🎂 Geburtstage</div>
-          <button class="af-add" onclick="openAddBirthday()" style="margin-left:auto">+ Geburtstag</button>
-        </div>
-        <div id="birthday-list"></div>
-      </div>
     </div>
 
     <!-- MONTH VIEW -->
@@ -686,25 +689,13 @@ body { padding-top: env(safe-area-inset-top); }
       <div id="pin-board"></div>
     </div>
 
-    <!-- BIRTHDAYS & EVENTS VIEW -->
+    <!-- BIRTHDAYS VIEW -->
     <div id="view-birthdays" class="hidden">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
-        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">🎂 Geburtstage &amp; Termine</h2>
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">🎂 Geburtstage</h2>
+        <button class="af-add" onclick="openAddBirthday()" style="margin-left:auto">+ Geburtstag</button>
       </div>
-      <div style="margin-bottom:24px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <div class="sec-hd" style="margin-bottom:0">📅 Einmalige Termine</div>
-          <button class="af-add" onclick="openAddEvent()">+ Neuer Termin</button>
-        </div>
-        <div id="events-list-2"></div>
-      </div>
-      <div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <div class="sec-hd" style="margin-bottom:0">🎂 Geburtstage</div>
-          <button class="af-add" onclick="openAddBirthday()">+ Geburtstag</button>
-        </div>
-        <div id="birthday-list-2"></div>
-      </div>
+      <div id="birthday-list-2"></div>
     </div>
 
     <!-- SETTINGS VIEW -->

@@ -125,13 +125,13 @@ function renderTodayBanner() {
   const dayT=tasks.filter(t=>t.days.includes(di));
   const doneC=dayT.filter(t=>isDone(today,t.id)||getStatus(t.id)==='done').length;
   const prioOpen=dayT.filter(t=>t.prio&&!isDone(today,t.id)&&getStatus(t.id)!=='done').length;
-  const chips=dayT.length
-    ? dayT.map(t=>{
-        const d=isDone(today,t.id)||getStatus(t.id)==='done';
-        const si=getStatus(t.id)==='wip'?'🟡':getStatus(t.id)==='blocked'?'🔴':getStatus(t.id)==='done'?'✅':'';
-        return '<span class="tbc tbc-'+t.who+(d?' done':'')+(t.prio?' tbc-prio':'')+'" onclick="openTaskModal(\''+t.id+'\')">'+(t.prio?'● ':'')+t.emoji+' '+t.name+(si?' '+si:'')+'</span>';
-      }).join('')
-    : '<span style="font-size:.76rem;color:var(--muted)">Keine Aufgaben heute</span>';
+  const evChips=dayEv.map(e=>'<span class="tbc '+(e.important?'tbc-important':'tbc-'+e.who+' tbc-event')+'" onclick="openDayDetail(\''+todayKey+'\')">📅 '+e.emoji+' '+e.name+'</span>').join('');
+  const taskChips=dayT.map(t=>{
+    const d=isDone(today,t.id)||getStatus(t.id)==='done';
+    const si=getStatus(t.id)==='wip'?'🟡':getStatus(t.id)==='blocked'?'🔴':getStatus(t.id)==='done'?'✅':'';
+    return '<span class="tbc '+(t.important?'tbc-important':'tbc-'+t.who)+(d?' done':'')+(t.prio?' tbc-prio':'')+'" onclick="openTaskModal(\''+t.id+'\')">'+(t.prio?'● ':'')+t.emoji+' '+t.name+(si?' '+si:'')+'</span>';
+  }).join('');
+  const chips=(evChips+taskChips)||'<span style="font-size:.76rem;color:var(--muted)">Keine Aufgaben heute</span>';
   const el=document.getElementById('today-banner');
   if(el) el.innerHTML='<div class="tb-date">'+today.getDate()+'</div>'+
     '<div><div class="tb-dow">'+DL[di]+' · Heute</div>'+
@@ -183,7 +183,7 @@ function renderWeekGrid() {
     // Show events (einmalige Termine)
     dayEv.forEach(e=>{
       const chip=document.createElement('div');
-      chip.className='task-chip c'+e.who+' ev-once'+(e.important?' c-important':'');
+      chip.className='task-chip '+(e.important?'c-important':'c'+e.who+' ev-once');
       chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+e.emoji+' '+e.name+(e.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(e.time)+'</span>':'')+'</span>'+
         '<span style="font-size:.6rem;opacity:.6;flex-shrink:0">📅</span>';
       chip.addEventListener('click',()=>openDayDetail(key));
@@ -675,7 +675,6 @@ function renderManage() {
     });});
   });
   renderEventsList();
-  renderBirthdayList();
 }
 
 function renderEventsList() {
@@ -879,7 +878,7 @@ function renderMonth() {
     const dayBdaysM=(HP.birthdays||[]).filter(b=>b.date.slice(5)===mm+'-'+dd2);
     const meals=HP.meals[key]||{};
     const evHtml=[
-      ...dayEvents.slice(0,2).map(e=>'<div class="mc-event e'+(e.who==='shared'?'sh':e.who)+' mc-event-once">'+e.emoji+' '+e.name+'</div>'),
+      ...dayEvents.slice(0,2).map(e=>'<div class="mc-event '+(e.important?'mc-event-important':'e'+(e.who==='shared'?'sh':e.who)+' mc-event-once')+'">'+e.emoji+' '+e.name+'</div>'),
       ...dayT.slice(0,1).map(t=>'<div class="mc-event e'+(t.who==='shared'?'sh':t.who)+'">'+t.emoji+' '+t.name+'</div>'),
       ...Object.values(meals).slice(0,1).map(m=>'<div class="mc-event emeal">🍽️ '+m.name+'</div>')
     ].join('');
@@ -898,8 +897,8 @@ function openDayDetail(key) {
   const meals=HP.meals[key]||{};
   const label=date.toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long'});
   const eventsHtml=(events.length?events.map(e=>
-    '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.81rem">'+
-    '<span style="color:'+(e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+e.emoji+'</span>'+
+    '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.81rem'+(e.important?';background:rgba(248,113,113,.08);border-radius:6px;padding:6px 8px':'')+'">'+
+    '<span style="color:'+(e.important?'var(--red)':e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+e.emoji+'</span>'+
     '<span style="flex:1;font-weight:500">'+e.name+'</span>'+
     (e.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+e.time+'</span>':'')+
     '<button onclick="deleteEvent(\''+e.id+'\');closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Löschen">✕</button>'+
