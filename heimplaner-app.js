@@ -171,12 +171,13 @@ function renderWeekGrid() {
       '<div class="day-tasks" id="wg-'+di+'"></div>';
     grid.appendChild(col);
     const tc=col.querySelector('#wg-'+di);
-    if(!dayT.length&&!dayEv.length){tc.innerHTML='<span style="font-size:.66rem;color:var(--muted)">–</span>';return;}
+    if(!dayT.length&&!dayEv.length&&!dayBdays.length){tc.innerHTML='<span style="font-size:.66rem;color:var(--muted)">–</span>';return;}
     // Show birthdays first
     dayBdays.forEach(b=>{
       const chip=document.createElement('div');
       chip.className='task-chip c-birthday';
-      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">🎂 '+b.name+'</span>';
+      const bdAge=b.year?new Date().getFullYear()-parseInt(b.year):'';
+      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">🎂 '+b.name+(bdAge?' ('+bdAge+')':'')+' </span>';
       chip.style.cursor='default';
       tc.appendChild(chip);
     });
@@ -197,7 +198,8 @@ function renderWeekGrid() {
       chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
       const cmt=(HP.taskComments||{})[t.id]||'';
       chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(t.time)+'</span>':'')+' </span>'+'<span class="chip-st">'+si+'</span>'+(cmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'');
-
+      chip.addEventListener('click',()=>openTaskModal(t.id));
+      tc.appendChild(chip);
     });
   });
 }
@@ -1143,17 +1145,22 @@ function saveEditEvent(id) {
 // ═══════════════════════════════════════════════
 
 function renderBirthdayList() {
-  const el = document.getElementById('birthday-list'); if(!el) return;
+  const el = document.getElementById('birthday-list');
+  const el2b = document.getElementById('birthday-list-2');
+  if(!el && !el2b) return;
   const bdays = (HP.birthdays||[]).slice().sort((a,b)=>{
     const an=parseInt(a.date.slice(5)), bn=parseInt(b.date.slice(5));
     return an-bn;
   });
   if(!bdays.length){
-    el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Noch keine Geburtstage eingetragen.</div>';
+    const emptyHtml='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Noch keine Geburtstage eingetragen.</div>';
+    if(el) el.innerHTML=emptyHtml;
+    if(el2b) el2b.innerHTML=emptyHtml;
     return;
   }
   const today=dk(new Date());
-  el.innerHTML = bdays.map(b=>{
+  const html = bdays.map(b=>{
+    const bdAge=b.year?new Date().getFullYear()-parseInt(b.year):'';
     const nextDate = getNextBirthday(b.date);
     const daysLeft = Math.round((new Date(nextDate+'T12:00:00')-new Date())/86400000);
     const isToday2 = daysLeft<=0&&daysLeft>-1;
@@ -1171,9 +1178,8 @@ function renderBirthdayList() {
       '<button data-bid=' + JSON.stringify(b.id) + ' onclick="deleteBirthday(this.dataset.bid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.82rem;padding:3px 6px">✕</button>'+
     '</div>';
   }).join('');
-  // Also render in birthdays view
-  const el2b=document.getElementById('birthday-list-2');
-  if(el2b) el2b.innerHTML=el.innerHTML;
+  if(el) el.innerHTML = html;
+  if(el2b) el2b.innerHTML = html;
 }
 
 function getNextBirthday(dateStr) {
@@ -1446,14 +1452,20 @@ function importJSON(e) {
 }
 
 function exportICS(){
-  const inclTasks=document.getElementById('exp-tasks')?.checked!==false;
-  const inclMeals=document.getElementById('exp-meals')?.checked!==false;
-  const inclNotes=document.getElementById('exp-notes')?.checked!==false;
+  const inclTasks=document.getElementById('ics-tasks')?.checked!==false;
+  const inclEvents=document.getElementById('ics-events')?.checked!==false;
+  const inclMeals=document.getElementById('ics-meals')?.checked!==false;
+  const inclP1=document.getElementById('ics-p1')?.checked!==false;
+  const inclP2=document.getElementById('ics-p2')?.checked!==false;
+  const inclShared=document.getElementById('ics-shared')?.checked!==false;
+  const inclNotes=false;
   const events=[], now=new Date();
   if(inclTasks){
     for(let w=0;w<4;w++){
       getWeekDates(w).forEach((date,di)=>{
-        allTasks().filter(t=>t.days.includes(di)&&t.time).forEach(t=>{
+        allTasks().filter(t=>t.days.includes(di)&&t.time&&(
+        (t.who==='p1'&&inclP1)||(t.who==='p2'&&inclP2)||(t.who==='shared'&&inclShared)
+      )).forEach(t=>{
           const[h,m]=t.time.split(':').map(Number);
           const s=new Date(date); s.setHours(h,m,0,0);
           const e=new Date(s); e.setHours(h,m+30,0,0);
@@ -1463,7 +1475,9 @@ function exportICS(){
     }
   }
   // One-time events
-  if(inclEvents){(HP.events||[]).forEach(ev=>{
+  if(inclEvents){(HP.events||[]).filter(ev=>
+    (ev.who==='p1'&&inclP1)||(ev.who==='p2'&&inclP2)||(ev.who==='shared'&&inclShared)
+  ).forEach(ev=>{
     if(!ev.time) return;
     const h=parseInt(ev.time.split(':')[0]), mi=parseInt(ev.time.split(':')[1]);
     const s=new Date(ev.date+'T12:00:00'); s.setHours(h,mi,0,0);

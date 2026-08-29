@@ -713,9 +713,14 @@ body { padding-top: env(safe-area-inset-top); }
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
           <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">📅 Kalender exportieren</div>
           <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Termine als .ics Datei exportieren</div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="ics-tasks" checked style="accent-color:var(--today)"> Wöchentliche Aufgaben</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="ics-events" checked style="accent-color:var(--today)"> Einmalige Termine</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="ics-meals" checked style="accent-color:var(--today)"> Menüplan</label>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">Personen</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="ics-p1" checked style="accent-color:var(--p1)"> <span id="ics-p1-label">Mauro</span></label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="ics-p2" checked style="accent-color:var(--p2)"> <span id="ics-p2-label">Melissa</span></label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="ics-shared" checked style="accent-color:var(--shared)"> Gemeinsam</label>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">Inhalte</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="ics-tasks" checked style="accent-color:var(--today)"> Wöchentliche Aufgaben</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="ics-events" checked style="accent-color:var(--today)"> Einmalige Termine</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="ics-meals" checked style="accent-color:var(--today)"> Menüplan</label>
           <button class="af-add" style="width:100%;background:var(--shared);color:#000" onclick="exportICS()">📤 .ics exportieren</button>
         </div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
