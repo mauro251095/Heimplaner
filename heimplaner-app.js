@@ -113,7 +113,7 @@ function renderSidebarStats() {
 }
 
 // ── ALL VIEW ──────────────────────────────────
-function renderAllView() { renderTodayBanner(); renderBlockedBanners(); renderWeekGrid(); }
+function renderAllView() { renderTodayBanner(); renderBirthdayBanners(); renderBlockedBanners(); renderWeekGrid(); }
 
 function renderTodayBanner() {
   const today=new Date(); today.setHours(0,0,0,0);
@@ -158,6 +158,8 @@ function renderWeekGrid() {
     const key=dk(date);
     const dayT=tasks.filter(t=>t.days.includes(di));
     const dayEv=(HP.events||[]).filter(e=>e.date===key);
+    const m2=String(date.getMonth()+1).padStart(2,'0'),d2=String(date.getDate()).padStart(2,'0');
+    const dayBdays=(HP.birthdays||[]).filter(b=>b.date.slice(5)===m2+'-'+d2);
     const doneT=dayT.filter(t=>isDone(date,t.id)||getStatus(t.id)==='done');
     const pct=(dayT.length+dayEv.length)?Math.round(doneT.length/(dayT.length+dayEv.length)*100):0;
     const col=document.createElement('div');
@@ -168,7 +170,15 @@ function renderWeekGrid() {
     grid.appendChild(col);
     const tc=col.querySelector('#wg-'+di);
     if(!dayT.length&&!dayEv.length){tc.innerHTML='<span style="font-size:.66rem;color:var(--muted)">–</span>';return;}
-    // Show events first (einmalige Termine)
+    // Show birthdays first
+    dayBdays.forEach(b=>{
+      const chip=document.createElement('div');
+      chip.className='task-chip c-birthday';
+      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">🎂 '+b.name+'</span>';
+      chip.style.cursor='default';
+      tc.appendChild(chip);
+    });
+    // Show events (einmalige Termine)
     dayEv.forEach(e=>{
       const chip=document.createElement('div');
       chip.className='task-chip c'+e.who+' ev-once'+(e.important?' c-important':'');
@@ -184,7 +194,7 @@ function renderWeekGrid() {
       const chip=document.createElement('div');
       chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
       chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(t.time)+'</span>':'')+'</span>'+
-        '<span class="chip-st">'+si+'</span>'+(t.prio?'<span class="chip-prio">●</span>':'');
+        '<span class="chip-st">'+si+'</span>';
       chip.addEventListener('click',()=>openTaskModal(t.id));
       tc.appendChild(chip);
     });
@@ -220,7 +230,7 @@ function renderPersonView(who) {
       const d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
       const pill=document.createElement('div');
       pill.className='pv-pill '+(t.important?'p-important':(t.who==='shared'?'pshared':'p'+t.who[1]))+(d?' s-done':'')+(t.prio?' is-prio':'')+(st==='blocked'?' s-blocked':'');
-      pill.innerHTML=(t.prio?'<span style="font-size:.6rem;color:var(--prio)">●</span>':'')+t.emoji+' '+t.name+
+      pill.innerHTML=t.emoji+' '+t.name+
         (st==='wip'?'<span class="pst wip">🟡</span>':st==='blocked'?'<span class="pst blk">🔴</span>':'')+
         (t.who==='shared'?'<span style="font-size:.62rem;opacity:.55"> gem.</span>':'');
       pill.addEventListener('click',()=>openTaskModal(t.id));
@@ -645,7 +655,7 @@ function renderManage() {
       const card=document.createElement('div'); card.className='tm-card';
       const dps=DS.map((d,i)=>'<span class="dp '+(task.days.includes(i)?'o'+(who==='shared'?'sh':who):'')+'" data-tid="'+task.id+'" data-who="'+who+'" data-day="'+i+'">'+d+'</span>').join('');
       card.innerHTML='<div class="tm-top"><span class="tm-name">'+task.emoji+' '+task.name+(task.time?' <span style="font-size:.65rem;color:var(--muted)">⏰'+task.time+'</span>':'')+'</span>'+
-        '<div class="tm-acts"><button class="prio-btn'+(task.prio?' on':'')+'" data-tid="'+task.id+'" data-who="'+who+'">●</button>'+
+        '<div class="tm-acts"><button class="wichtig-btn'+(task.important?' on':'')+'" data-tid="'+task.id+'" data-who="'+who+'" title="Wichtig">!</button>'+
         '<button class="tm-del" data-tid="'+task.id+'" data-who="'+who+'">✕</button></div></div>'+
         '<div class="day-pills">'+dps+'</div>';
       el.appendChild(card);
@@ -655,13 +665,38 @@ function renderManage() {
       const i=t.days.indexOf(+p.dataset.day); if(i>-1)t.days.splice(i,1); else t.days.push(+p.dataset.day);
       HP_save();render();
     });});
-    el.querySelectorAll('.prio-btn').forEach(b=>{b.addEventListener('click',()=>{
-      const t=HP.tasks[b.dataset.who].find(t=>t.id===b.dataset.tid); if(t){t.prio=!t.prio;HP_save();render();}
+    el.querySelectorAll('.wichtig-btn').forEach(b=>{b.addEventListener('click',()=>{
+      const t=HP.tasks[b.dataset.who].find(t=>t.id===b.dataset.tid); if(t){t.important=!t.important;HP_save();render();}
     });});
     el.querySelectorAll('.tm-del').forEach(b=>{b.addEventListener('click',()=>{
       HP.tasks[b.dataset.who]=HP.tasks[b.dataset.who].filter(t=>t.id!==b.dataset.tid); HP_save();render();
     });});
   });
+  renderEventsList();
+  renderBirthdayList();
+}
+
+function renderEventsList() {
+  const el = document.getElementById('events-list'); if(!el) return;
+  const events = (HP.events||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  if(!events.length){
+    el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Noch keine einmaligen Termine.</div>';
+    return;
+  }
+  const today=dk(new Date());
+  el.innerHTML = events.map(e=>{
+    const whoLabel=e.who==='p1'?HP.names.p1:e.who==='p2'?HP.names.p2:'Gemeinsam';
+    const whoColor=e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)';
+    const isPast=e.date<today;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px'+(isPast?';opacity:.5':'')+'">'+
+      '<span style="font-size:1.1rem">'+e.emoji+'</span>'+
+      '<div style="flex:1"><div style="font-size:.82rem;font-weight:500">'+e.name+'</div>'+
+      '<div style="font-size:.7rem;color:var(--muted)">'+e.date+(e.time?' · ⏰'+e.time:'')+'</div></div>'+
+      '<span style="font-size:.7rem;color:'+whoColor+';font-weight:500">'+whoLabel+'</span>'+
+      '<button data-eid=' + JSON.stringify(e.id) + ' onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✏️</button>'+
+      '<button data-eid=' + JSON.stringify(e.id) + ' onclick="deleteEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✕</button>'+
+    '</div>';
+  }).join('');
 }
 
 // ── ADD TASK ──────────────────────────────────
@@ -758,8 +793,7 @@ function openTaskModal(tid) {
     '<div class="modal-row"><label>Status</label><div class="st-btns">'+stBtns+'</div></div>'+
     '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
     '<input type="checkbox" id="tm-important"'+(isImportant?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
-    '<span style="font-size:.82rem;font-weight:500;color:var(--red)">🚨 Wichtig</span>'+
-    '<span style="font-size:.74rem;color:var(--muted);margin-left:4px">— Task wird rot markiert</span>'+
+    '<span style="font-size:.82rem;font-weight:500;color:var(--red)">🚨 Wichtig — Task wird rot markiert</span>'+
     '</label></div>'+
     '<div class="modal-row" style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Uhrzeit</label><input class="modal-in" type="time" id="tm-time" value="'+(task.time||'')+'"></div>'+
@@ -770,6 +804,10 @@ function openTaskModal(tid) {
     '<label>Was fehlt / warum blockiert?</label>'+
     '<input class="modal-in" id="block-note" placeholder="z.B. Blumenerde fehlt…" value="'+note+'">'+
     '<button class="mbtn mbtn-confirm" style="margin-top:8px;width:100%;background:var(--shared)" onclick="addBlockedToShop(\''+tid+'\')">🛒 Zur Einkaufsliste</button></div>'+
+    '<div class="modal-row" id="comment-section">'+
+    '<label>💬 Kommentar</label>'+
+    '<textarea class="modal-in" id="task-comment" rows="2" placeholder="Notiz zum Task…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+((HP.taskComments||{})[tid]||'')+'</textarea>'+
+    '</div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="saveTaskDetails(\''+tid+'\');closeModal()">Speichern</button></div>');
 }
@@ -782,6 +820,10 @@ function setTaskStatus(tid,status,btn) {
 }
 function saveTaskDetails(tid) {
   const el=document.getElementById('block-note'); if(el) HP.taskNotes[tid]=el.value;
+  const comment=document.getElementById('task-comment')?.value||'';
+  if(!HP.taskComments) HP.taskComments={};
+  if(comment) HP.taskComments[tid]=comment;
+  else delete HP.taskComments[tid];
   const t=document.getElementById('tm-time')?.value||'', r=document.getElementById('tm-rem')?.value||'';
   ['p1','p2','shared'].forEach(w=>{const task=HP.tasks[w].find(x=>x.id===tid);if(task){task.time=t;task.reminder=r;}});
   HP_save(); const task=allTasks().find(x=>x.id===tid);
@@ -830,6 +872,8 @@ function renderMonth() {
     // Include both recurring tasks AND once-tasks matching this date
     const dayT=tasks.filter(t=>!t.onceDate&&t.days.includes(di));
     const dayEvents=(HP.events||[]).filter(e=>e.date===key);
+    const mm=String(date.getMonth()+1).padStart(2,'0'),dd2=String(date.getDate()).padStart(2,'0');
+    const dayBdaysM=(HP.birthdays||[]).filter(b=>b.date.slice(5)===mm+'-'+dd2);
     const meals=HP.meals[key]||{};
     const evHtml=[
       ...dayEvents.slice(0,2).map(e=>'<div class="mc-event e'+(e.who==='shared'?'sh':e.who)+' mc-event-once">'+e.emoji+' '+e.name+'</div>'),
@@ -989,6 +1033,130 @@ function saveEditNote(id){
 }
 function deleteNote(id){HP.notes=(HP.notes||[]).filter(x=>x.id!==id);HP_save();closeModal();renderPinboard();}
 
+// ═══════════════════════════════════════════════
+// GEBURTSTAGE
+// ═══════════════════════════════════════════════
+
+function renderBirthdayList() {
+  const el = document.getElementById('birthday-list'); if(!el) return;
+  const bdays = (HP.birthdays||[]).slice().sort((a,b)=>{
+    const an=parseInt(a.date.slice(5)), bn=parseInt(b.date.slice(5));
+    return an-bn;
+  });
+  if(!bdays.length){
+    el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Noch keine Geburtstage eingetragen.</div>';
+    return;
+  }
+  const today=dk(new Date());
+  el.innerHTML = bdays.map(b=>{
+    const nextDate = getNextBirthday(b.date);
+    const daysLeft = Math.round((new Date(nextDate+'T12:00:00')-new Date())/86400000);
+    const isToday2 = daysLeft<=0&&daysLeft>-1;
+    const isSoon = daysLeft<=7&&daysLeft>=0;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px'+(isToday2?';border-color:var(--today)':isSoon?';border-color:var(--amber)':'')+'">'+
+      '<span style="font-size:1.1rem">🎂</span>'+
+      '<div style="flex:1">'+
+        '<div style="font-size:.82rem;font-weight:500">'+b.name+'</div>'+
+        '<div style="font-size:.7rem;color:var(--muted)">'+b.date.slice(5).replace('-','.')+'.'+(b.year?' (Jg. '+b.year+')':'')+'</div>'+
+      '</div>'+
+      '<span style="font-size:.72rem;font-weight:600;color:'+(isToday2?'var(--today)':isSoon?'var(--amber)':'var(--muted)')+'">'+
+        (isToday2?'🎉 Heute!':daysLeft===1?'Morgen':daysLeft<=7?'in '+daysLeft+' Tagen':'in '+daysLeft+' Tagen')+
+      '</span>'+
+      '<button data-bid=' + JSON.stringify(b.id) + ' onclick="openEditBirthday(this.dataset.bid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.82rem;padding:3px 6px">✏️</button>'+
+      '<button data-bid=' + JSON.stringify(b.id) + ' onclick="deleteBirthday(this.dataset.bid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.82rem;padding:3px 6px">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+function getNextBirthday(dateStr) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [,m,d] = dateStr.split('-');
+  let next = new Date(today.getFullYear(),parseInt(m)-1,parseInt(d));
+  if(next < today) next.setFullYear(today.getFullYear()+1);
+  return dk(next);
+}
+
+function openAddBirthday() {
+  showModal(
+    '<h3>🎂 Geburtstag eintragen</h3>'+
+    '<div class="modal-row"><label>Name</label>'+
+    '<input class="modal-in" id="bd-name" placeholder="z.B. Oma Rosina"></div>'+
+    '<div class="modal-row"><label>Geburtstag (Tag & Monat)</label>'+
+    '<div style="display:flex;gap:8px">'+
+    '<input class="modal-in" type="number" id="bd-day" placeholder="Tag" min="1" max="31" style="width:80px">'+
+    '<input class="modal-in" type="number" id="bd-month" placeholder="Monat" min="1" max="12" style="width:80px">'+
+    '<input class="modal-in" type="number" id="bd-year" placeholder="Jahrgang (optional)" style="flex:1"></div></div>'+
+    '<div class="modal-btns">'+
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
+    '<button class="mbtn mbtn-confirm" onclick="saveNewBirthday()">✓ Speichern</button>'+
+    '</div>'
+  );
+  setTimeout(()=>document.getElementById('bd-name')?.focus(),60);
+}
+
+function saveNewBirthday() {
+  const name = document.getElementById('bd-name')?.value.trim();
+  const day = document.getElementById('bd-day')?.value.padStart(2,'0');
+  const month = document.getElementById('bd-month')?.value.padStart(2,'0');
+  const year = document.getElementById('bd-year')?.value.trim()||'';
+  if(!name||!day||!month){showToast('Bitte Name, Tag und Monat eingeben');return;}
+  if(!HP.birthdays) HP.birthdays=[];
+  HP.birthdays.push({id:'bd'+Date.now(),name,date:'0000-'+month+'-'+day,year});
+  HP_save();closeModal();renderBirthdayList();showToast('🎂 '+name+' gespeichert');
+}
+
+function openEditBirthday(id) {
+  const b=(HP.birthdays||[]).find(x=>x.id===id); if(!b) return;
+  const [,m,d]=b.date.split('-');
+  showModal(
+    '<h3>✏️ Geburtstag bearbeiten</h3>'+
+    '<div class="modal-row"><label>Name</label>'+
+    '<input class="modal-in" id="bd-name" value="'+b.name+'"></div>'+
+    '<div class="modal-row"><label>Geburtstag</label>'+
+    '<div style="display:flex;gap:8px">'+
+    '<input class="modal-in" type="number" id="bd-day" value="'+parseInt(d)+'" min="1" max="31" style="width:80px">'+
+    '<input class="modal-in" type="number" id="bd-month" value="'+parseInt(m)+'" min="1" max="12" style="width:80px">'+
+    '<input class="modal-in" type="number" id="bd-year" placeholder="Jahrgang" value="'+(b.year||'')+'" style="flex:1"></div></div>'+
+    '<div class="modal-btns" style="justify-content:space-between">'+
+    '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" data-bid=' + JSON.stringify(id) + ' onclick="deleteBirthday(this.dataset.bid)">🗑</button>'+
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
+    '<button class="mbtn mbtn-confirm" data-bid=' + JSON.stringify(id) + ' onclick="saveEditBirthday(this.dataset.bid)">✓ Speichern</button>'+
+    '</div>'
+  );
+}
+
+function saveEditBirthday(id) {
+  const b=(HP.birthdays||[]).find(x=>x.id===id); if(!b){closeModal();return;}
+  b.name=document.getElementById('bd-name')?.value.trim()||b.name;
+  const day=document.getElementById('bd-day')?.value.padStart(2,'0');
+  const month=document.getElementById('bd-month')?.value.padStart(2,'0');
+  b.date='0000-'+month+'-'+day;
+  b.year=document.getElementById('bd-year')?.value.trim()||'';
+  HP_save();closeModal();renderBirthdayList();showToast('Geburtstag gespeichert');
+}
+
+function deleteBirthday(id) {
+  HP.birthdays=(HP.birthdays||[]).filter(x=>x.id!==id);
+  HP_save();closeModal();renderBirthdayList();showToast('Gelöscht');
+}
+
+// Show birthday banners in today view
+function renderBirthdayBanners() {
+  const today=new Date();
+  const m=String(today.getMonth()+1).padStart(2,'0');
+  const d=String(today.getDate()).padStart(2,'0');
+  const todayMD=m+'-'+d;
+  const bdays=(HP.birthdays||[]).filter(b=>b.date.slice(5)===todayMD);
+  const el=document.getElementById('birthday-banners');
+  if(!el) return;
+  el.innerHTML=bdays.map(b=>{
+    const age=b.year?new Date().getFullYear()-parseInt(b.year):'';
+    return '<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:var(--r);padding:9px 14px;margin-bottom:8px;display:flex;align-items:center;gap:9px;font-size:.82rem">'+
+      '🎂 <b>'+b.name+'</b> hat heute Geburtstag!'+(age?' <span style="color:var(--muted)">('+age+' Jahre)</span>':'')+
+    '</div>';
+  }).join('');
+}
+
 // ── NOTIFICATIONS ─────────────────────────────
 async function requestNotifPermission(){
   if(!NOTIF_OK){showToast('Benachrichtigungen nicht verfügbar');return false;}
@@ -1018,7 +1186,48 @@ function scheduleTaskNotif(task){
     });
   }catch(e){}
 }
-function rescheduleAll(){if(NOTIF_OK){try{if(Notification.permission==='granted')allTasks().forEach(t=>{if(t.time&&t.reminder!=='')scheduleTaskNotif(t);});}catch(e){}}}
+function rescheduleAll(){
+  if(!NOTIF_OK) return;
+  try{
+    if(Notification.permission!=='granted') return;
+    allTasks().forEach(t=>{if(t.time&&t.reminder!=='')scheduleTaskNotif(t);});
+    scheduleEventNotifs();
+    scheduleBirthdayNotifs();
+  }catch(e){}
+}
+
+function scheduleEventNotifs() {
+  if(!NOTIF_OK||Notification.permission!=='granted') return;
+  (HP.events||[]).forEach(ev=>{
+    if(!ev.time||!ev.date) return;
+    const [h,m]=ev.time.split(':').map(Number);
+    const fire=new Date(ev.date+'T'+ev.time+':00');
+    const remind=new Date(fire.getTime()-15*60000); // 15 min before
+    const now=new Date();
+    if(remind<=now) return;
+    const ms=remind.getTime()-now.getTime();
+    const key='ev-'+ev.id;
+    clearTimeout(schedTimers[key]);
+    schedTimers[key]=setTimeout(()=>{
+      try{new Notification('📅 In 15 Min: '+ev.name,{body:ev.date+' um '+ev.time,tag:key,renotify:true});}catch(e){}
+    },ms);
+  });
+}
+
+function scheduleBirthdayNotifs() {
+  if(!NOTIF_OK||Notification.permission!=='granted') return;
+  (HP.birthdays||[]).forEach(b=>{
+    const next=getNextBirthday(b.date);
+    const fire=new Date(next+'T09:00:00');
+    const ms=fire.getTime()-new Date().getTime();
+    if(ms<=0) return;
+    const key='bd-'+b.id;
+    clearTimeout(schedTimers[key]);
+    schedTimers[key]=setTimeout(()=>{
+      try{new Notification('🎂 '+b.name+' hat heute Geburtstag!',{body:'',tag:key,renotify:true});}catch(e){}
+    },ms);
+  });
+}
 function maybeNotifBanner(){
   if(!NOTIF_OK)return;
   try{

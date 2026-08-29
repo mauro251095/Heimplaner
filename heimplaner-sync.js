@@ -129,6 +129,8 @@ function mergeData(remote) {
   if (!HP.taskNotes) HP.taskNotes = {};
   if (!HP.colors) HP.colors = {};
   if (!HP.events) HP.events = [];
+  if (!HP.birthdays) HP.birthdays = [];
+  if (!HP.taskComments) HP.taskComments = {};
   try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
   if (typeof render === 'function') render();
   if (typeof applyColors === 'function') applyColors();

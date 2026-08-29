@@ -352,7 +352,7 @@ function loadState() {
     theme: 'dark',
     done: {}, taskStatus: {}, taskNotes: {},
     shop: [], meals: {}, notes: [], customRecipes: [],
-    events: []
+    events: [], birthdays: [], taskComments: {}
   };
 }
 
