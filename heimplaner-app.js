@@ -125,7 +125,7 @@ function renderTodayBanner() {
   const dayT=tasks.filter(t=>taskOccursOn(t,todayKey));
   const doneC=dayT.filter(t=>isDone(today,t.id)||getStatus(t.id)==='done').length;
   const prioOpen=dayT.filter(t=>t.prio&&!isDone(today,t.id)&&getStatus(t.id)!=='done').length;
-  const evChips=dayEv.map(e=>'<span class="tbc '+(e.important?'tbc-important':'tbc-'+e.who+' tbc-event')+'" onclick="openDayDetail(\''+todayKey+'\')">📅 '+e.emoji+' '+e.name+'</span>').join('');
+  const evChips=dayEv.map(e=>'<span class="tbc '+(e.important?'tbc-important':'tbc-'+e.who+' tbc-event')+'" onclick="openEventModal(\''+e.id+'\')">📅 '+e.emoji+' '+e.name+'</span>').join('');
   const taskChips=dayT.map(t=>{
     const d=isDone(today,t.id)||getStatus(t.id)==='done';
     const si=getStatus(t.id)==='wip'?'🟡':getStatus(t.id)==='blocked'?'🔴':getStatus(t.id)==='done'?'✅':'';
@@ -133,7 +133,7 @@ function renderTodayBanner() {
   }).join('');
   const chips=(evChips+taskChips)||'<span style="font-size:.76rem;color:var(--muted)">Keine Aufgaben heute</span>';
   const el=document.getElementById('today-banner');
-  if(el) el.innerHTML='<div class="tb-date">'+today.getDate()+'</div>'+
+  if(el) el.innerHTML='<div class="tb-date" style="cursor:pointer" onclick="openDayDetail(\''+todayKey+'\')" title="Tagesübersicht (inkl. Menü)">'+today.getDate()+'</div>'+
     '<div><div class="tb-dow">'+DL[di]+' · Heute</div>'+
     '<div class="tb-stat"><b>'+doneC+'/'+dayT.length+'</b> erledigt'+(prioOpen?'<span style="color:var(--prio)"> · '+prioOpen+' Priorität'+(prioOpen>1?'en':'')+' offen</span>':'')+
     '</div></div><div class="tb-chips">'+chips+'</div>';
@@ -162,16 +162,17 @@ function renderWeekGrid() {
     const dayEv=(HP.events||[]).filter(e=>e.date===key);
     const m2=String(date.getMonth()+1).padStart(2,'0'),d2=String(date.getDate()).padStart(2,'0');
     const dayBdays=(HP.birthdays||[]).filter(b=>b.date.slice(5)===m2+'-'+d2);
+    const dayMeals=HP.meals[key]||{};
     const doneT=dayT.filter(t=>isDone(date,t.id)||getStatus(t.id)==='done');
     const pct=(dayT.length+dayEv.length)?Math.round(doneT.length/(dayT.length+dayEv.length)*100):0;
     const col=document.createElement('div');
     col.className='day-col'+(isToday(date)?' is-today':'')+(isPast(date)&&!isToday(date)?' is-past':'');
-    col.innerHTML='<div class="day-head"><div class="dh-dow">'+DS[di]+'</div><div class="dh-num">'+date.getDate()+'</div>'+
+    col.innerHTML='<div class="day-head" style="cursor:pointer" onclick="openDayDetail(\''+key+'\')" title="Tagesübersicht (inkl. Menü)"><div class="dh-dow">'+DS[di]+'</div><div class="dh-num">'+date.getDate()+'</div>'+
       '<div class="dh-prog"><div class="dh-prog-fill" style="width:'+pct+'%"></div></div></div>'+
       '<div class="day-tasks" id="wg-'+di+'"></div>';
     grid.appendChild(col);
     const tc=col.querySelector('#wg-'+di);
-    if(!dayT.length&&!dayEv.length&&!dayBdays.length){tc.innerHTML='<span style="font-size:.66rem;color:var(--muted)">–</span>';return;}
+    if(!dayT.length&&!dayEv.length&&!dayBdays.length&&!Object.keys(dayMeals).length){tc.innerHTML='<span style="font-size:.66rem;color:var(--muted)">–</span>';return;}
     // Show birthdays first
     dayBdays.forEach(b=>{
       const chip=document.createElement('div');
@@ -190,7 +191,7 @@ function renderWeekGrid() {
       chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+e.emoji+' '+e.name+(e.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(e.time)+'</span>':'')+'</span>'+
         '<span class="chip-st">'+esi+'</span>'+(ecmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'')+
         '<span style="font-size:.6rem;opacity:.6;flex-shrink:0">📅</span>';
-      chip.addEventListener('click',()=>openDayDetail(key));
+      chip.addEventListener('click',()=>openEventModal(e.id));
       tc.appendChild(chip);
     });
     // Then recurring tasks
@@ -202,6 +203,14 @@ function renderWeekGrid() {
       const cmt=(HP.taskComments||{})[t.id]||'';
       chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTimeRange(t.time,t.timeEnd)+'</span>':'')+' </span>'+'<span class="chip-st">'+si+'</span>'+(cmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'');
       chip.addEventListener('click',()=>openTaskModal(t.id,key));
+      tc.appendChild(chip);
+    });
+    // Then planned meals
+    Object.entries(dayMeals).forEach(([slot,m])=>{
+      const chip=document.createElement('div');
+      chip.className='task-chip c-meal';
+      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">🍽️ '+m.name+'</span><span style="font-size:.6rem;opacity:.6;flex-shrink:0">'+slot+'</span>';
+      chip.addEventListener('click',()=>openMealPicker(key,slot));
       tc.appendChild(chip);
     });
   });
@@ -865,7 +874,10 @@ function openTaskModal(tid,dateKey='') {
     '<label>💬 Kommentar</label>'+
     '<textarea class="modal-in" id="task-comment" rows="2" placeholder="Notiz zum Task…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+((HP.taskComments||{})[tid]||'')+'</textarea>'+
     '</div>'+
-    (dateKey?'<div class="modal-row"><button class="mbtn" style="width:100%;background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="deleteTaskOccurrence(\''+tid+'\',\''+dateKey+'\')">🗑 Nur den Termin am '+occLabel+' aus der Serie löschen</button></div>':'')+
+    '<div class="modal-row" style="display:flex;flex-direction:column;gap:6px;background:var(--rbg);border:1px solid var(--red);border-radius:var(--rs);padding:10px">'+
+    (dateKey?'<button class="mbtn" style="width:100%;background:none;border:1px solid var(--red);color:var(--red)" onclick="deleteTaskOccurrence(\''+tid+'\',\''+dateKey+'\')">🗑 Nur den Termin am '+occLabel+' aus der Serie löschen</button>':'')+
+    '<button class="mbtn" style="width:100%;background:var(--red);border:1px solid var(--red);color:#fff" onclick="deleteTaskSeries(\''+tid+'\')">🗑 Ganze Serie löschen</button>'+
+    '</div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="saveTaskDetails(\''+tid+'\');closeModal()">Speichern</button></div>');
 }
@@ -879,6 +891,18 @@ function deleteTaskOccurrence(tid,dateKey) {
   HP_save();closeModal();render();
   if(typeof renderMonth==='function') renderMonth();
   showToast('🗑 Einzelner Termin entfernt');
+}
+function deleteTaskSeries(tid) {
+  const task=allTasks().find(t=>t.id===tid); if(!task) return;
+  if(!confirm('Die komplette Serie "'+task.name+'" (alle Wochentage) löschen?\nDies kann nicht rückgängig gemacht werden.')) return;
+  ['p1','p2','shared'].forEach(w=>{HP.tasks[w]=HP.tasks[w].filter(t=>t.id!==tid);});
+  delete HP.taskStatus[tid];
+  delete HP.taskNotes[tid];
+  if(HP.taskComments) delete HP.taskComments[tid];
+  if(HP.taskExceptions) delete HP.taskExceptions[tid];
+  HP_save();closeModal();render();
+  if(typeof renderMonth==='function') renderMonth();
+  showToast('🗑 Serie "'+task.name+'" gelöscht');
 }
 function setTaskStatus(tid,status,btn) {
   HP.taskStatus[tid]=status;
@@ -945,7 +969,6 @@ function renderMonth() {
     const dayEvents=(HP.events||[]).filter(e=>e.date===key);
     const mm=String(date.getMonth()+1).padStart(2,'0'),dd2=String(date.getDate()).padStart(2,'0');
     const dayBdaysM=(HP.birthdays||[]).filter(b=>b.date.slice(5)===mm+'-'+dd2);
-    const meals=HP.meals[key]||{};
     const evHtml=[
       ...dayBdaysM.map(b=>'<div class="mc-event mc-birthday">🎂 '+b.name+'</div>'),
       ...dayEvents.map(e=>{
@@ -955,10 +978,9 @@ function renderMonth() {
       ...dayT.map(t=>{
         const tst=getStatus(t.id), tsi=tst==='wip'?' 🟡':tst==='blocked'?' 🔴':'';
         return '<div class="mc-event '+(t.important?'mc-event-important':'e'+(t.who==='shared'?'sh':t.who))+'">'+t.emoji+' '+t.name+tsi+'</div>';
-      }),
-      ...Object.values(meals).map(m=>'<div class="mc-event emeal">🍽️ '+m.name+'</div>')
+      })
     ].join('');
-    html+='<div class="month-cell'+(isT?' today':'')+((dayT.length||dayEvents.length||dayBdaysM.length||Object.keys(meals).length)?' has-events':'')+'" onclick="openDayDetail(\''+key+'\')">'+
+    html+='<div class="month-cell'+(isT?' today':'')+((dayT.length||dayEvents.length||dayBdaysM.length)?' has-events':'')+'" onclick="openDayDetail(\''+key+'\')">'+
       '<div class="mc-num">'+day+'</div>'+evHtml+'</div>';
   }
   const mc=document.getElementById('month-cal'); if(mc) mc.innerHTML='<div class="month-grid">'+html+'</div>';
@@ -1198,9 +1220,6 @@ function saveNewEvent() {
 
 function openEditEvent(id) {
   const e=(HP.events||[]).find(x=>x.id===id); if(!e) return;
-  const st=getEventStatus(id), note=(HP.eventNotes||{})[id]||'';
-  const stBtns=[['open','⬜ Offen'],['wip','🟡 In Arbeit'],['blocked','🔴 Blockiert'],['done','✅ Erledigt']]
-    .map(([s,l])=>'<button class="st-btn'+(st===s?' sel-'+s:'')+'" onclick="setEventStatus(\''+id+'\',\''+s+'\',this)">'+l+'</button>').join('');
   showModal(
     '<h3>✏️ Termin bearbeiten</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label>'+
@@ -1220,7 +1239,25 @@ function openEditEvent(id) {
     '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
     '<input type="checkbox" id="ev-important"'+(e.important?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
     '<span style="color:var(--red);font-weight:500">🚨 Wichtig</span></label></div>'+
+    '<div class="modal-btns" style="justify-content:space-between">'+
+    '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" data-eid="'+e.id+'" onclick="deleteEvent(this.dataset.eid)">🗑 Löschen</button>'+
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
+    '<button class="mbtn mbtn-confirm" data-eid="'+e.id+'" onclick="saveEditEvent(this.dataset.eid)">✓ Speichern</button>'+
+    '</div>'
+  );
+}
+
+function openEventModal(id) {
+  const e=(HP.events||[]).find(x=>x.id===id); if(!e) return;
+  const st=getEventStatus(id), note=(HP.eventNotes||{})[id]||'';
+  const stBtns=[['open','⬜ Offen'],['wip','🟡 In Arbeit'],['blocked','🔴 Blockiert'],['done','✅ Erledigt']]
+    .map(([s,l])=>'<button class="st-btn'+(st===s?' sel-'+s:'')+'" onclick="setEventStatus(\''+id+'\',\''+s+'\',this)">'+l+'</button>').join('');
+  showModal('<h3>'+e.emoji+' '+e.name+'</h3>'+
     '<div class="modal-row"><label>Status</label><div class="st-btns">'+stBtns+'</div></div>'+
+    '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+    '<input type="checkbox" id="ev-important"'+(e.important?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
+    '<span style="font-size:.82rem;font-weight:500;color:var(--red)">🚨 Wichtig — Termin wird rot markiert</span>'+
+    '</label></div>'+
     '<div class="modal-row" id="ev-block-sec" style="'+(st!=='blocked'?'display:none':'')+' ">'+
     '<label>Was fehlt / warum blockiert?</label>'+
     '<input class="modal-in" id="ev-block-note" placeholder="z.B. Termin fehlt noch…" value="'+note+'">'+
@@ -1230,11 +1267,22 @@ function openEditEvent(id) {
     '<textarea class="modal-in" id="ev-comment" rows="2" placeholder="Notiz zum Termin…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+((HP.eventComments||{})[id]||'')+'</textarea>'+
     '</div>'+
     '<div class="modal-btns" style="justify-content:space-between">'+
-    '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" data-eid="'+e.id+'" onclick="deleteEvent(this.dataset.eid)">🗑 Löschen</button>'+
-    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
-    '<button class="mbtn mbtn-confirm" data-eid="'+e.id+'" onclick="saveEditEvent(this.dataset.eid)">✓ Speichern</button>'+
+    '<button class="mbtn" style="background:var(--surface);border:1px solid var(--border)" onclick="openEditEvent(\''+id+'\')">✏️ Bearbeiten</button>'+
+    '<button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
+    '<button class="mbtn mbtn-confirm" onclick="saveEventModalDetails(\''+id+'\');closeModal()">Speichern</button>'+
     '</div>'
   );
+}
+
+function saveEventModalDetails(id) {
+  const e=(HP.events||[]).find(x=>x.id===id); if(!e) return;
+  e.important=document.getElementById('ev-important')?.checked||false;
+  const blockNote=document.getElementById('ev-block-note'); if(blockNote){if(!HP.eventNotes)HP.eventNotes={};HP.eventNotes[id]=blockNote.value;}
+  const comment=document.getElementById('ev-comment')?.value||'';
+  if(!HP.eventComments) HP.eventComments={};
+  if(comment) HP.eventComments[id]=comment; else delete HP.eventComments[id];
+  HP_save();render();
+  if(typeof renderEventsList==='function') renderEventsList();
 }
 
 function setEventStatus(id,status,btn) {
@@ -1280,10 +1328,6 @@ function saveEditEvent(id) {
   e.time=document.getElementById('ev-time')?.value||'';
   e.who=document.getElementById('ev-who')?.value||e.who;
   e.important=document.getElementById('ev-important')?.checked||false;
-  const blockNote=document.getElementById('ev-block-note'); if(blockNote){if(!HP.eventNotes)HP.eventNotes={};HP.eventNotes[id]=blockNote.value;}
-  const comment=document.getElementById('ev-comment')?.value||'';
-  if(!HP.eventComments) HP.eventComments={};
-  if(comment) HP.eventComments[id]=comment; else delete HP.eventComments[id];
   HP_save();closeModal();render();
   if(typeof renderEventsList==='function') renderEventsList();
   showToast('Termin gespeichert');
