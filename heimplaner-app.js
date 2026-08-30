@@ -1520,19 +1520,27 @@ async function requestNotifPermission(){
 }
 
 async function subscribeToPush(){
-  if(!NOTIF_OK||!('serviceWorker' in navigator)||!('PushManager' in window))return;
+  if(!NOTIF_OK||!('serviceWorker' in navigator)||!('PushManager' in window)){
+    showToast('⚠️ Push wird auf diesem Gerät/Browser nicht unterstützt');
+    return;
+  }
   try{
     if(Notification.permission!=='granted')return;
-    if(!syncPassword){showToast('Bitte zuerst Synchronisation einrichten');return;}
+    if(!syncPassword){showToast('⚠️ Bitte zuerst Synchronisation einrichten');return;}
     const reg=await navigator.serviceWorker.ready;
     let sub=await reg.pushManager.getSubscription();
     if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
-    await fetch('/.netlify/functions/push-subscribe',{
+    const res=await fetch('/.netlify/functions/push-subscribe',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-app-password':syncPassword},
       body:JSON.stringify({subscription:sub.toJSON()})
     });
-  }catch(e){console.warn('Push-Registrierung fehlgeschlagen:',e);}
+    if(!res.ok){showToast('⚠️ Push-Server-Fehler: '+res.status);return;}
+    showToast('🔔 Push-Erinnerungen aktiv');
+  }catch(e){
+    console.warn('Push-Registrierung fehlgeschlagen:',e);
+    showToast('⚠️ Push-Fehler: '+(e && e.message ? e.message : e));
+  }
 }
 
 function maybeNotifBanner(){
