@@ -291,7 +291,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 /* ── MONTH ── */
 .month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .month-dow{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:center;padding:4px 0 8px}
-.month-cell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:90px;padding:6px;cursor:pointer;transition:border-color .15s}
+.month-cell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);min-height:90px;min-width:0;padding:6px;cursor:pointer;transition:border-color .15s;overflow:hidden}
 .month-cell:hover{border-color:var(--p1)}
 .month-cell.today{border-color:rgba(245,166,35,.5);background:rgba(245,166,35,.04)}
 .month-cell.other-month{opacity:.3}
