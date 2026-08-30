@@ -36,7 +36,7 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ungültiges Abo' }) };
     }
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?on_conflict=endpoint`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
@@ -53,11 +53,13 @@ exports.handler = async (event) => {
 
     if (!res.ok) {
       const err = await res.text();
+      console.error('push-subscribe: Supabase insert failed', res.status, err);
       return { statusCode: 500, headers, body: JSON.stringify({ error: err }) };
     }
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (e) {
+    console.error('push-subscribe: unexpected error', e);
     return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };
   }
 };
