@@ -1539,10 +1539,12 @@ async function subscribeToPush(){
     const reg=await navigator.serviceWorker.ready;
     let sub=await reg.pushManager.getSubscription();
     if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
+    const loginUser=(typeof getLoggedInUser==='function'?getLoggedInUser():'')||'';
+    const who=loginUser.toLowerCase()==='mauro'?'p1':'p2';
     const res=await fetch('/.netlify/functions/push-subscribe',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-app-password':syncPassword},
-      body:JSON.stringify({subscription:sub.toJSON()})
+      body:JSON.stringify({subscription:sub.toJSON(),who})
     });
     if(!res.ok){showToast('⚠️ Push-Server-Fehler: '+res.status);return;}
     showToast('🔔 Push-Erinnerungen aktiv');

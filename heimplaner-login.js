@@ -6,23 +6,6 @@
 const LOGIN_KEY = 'hp_login_token';
 const LOGIN_EXPIRY_DAYS = 30;
 
-// Wird von Netlify als Umgebungsvariable gesetzt
-// Format: "mauro:passwort1,lena:passwort2"
-const USERS_RAW = window.__HP_USERS__ || '';
-
-function parseUsers(raw) {
-  const users = {};
-  if (!raw) return users;
-  raw.split(',').forEach(pair => {
-    const idx = pair.indexOf(':');
-    if (idx === -1) return;
-    const name = pair.substring(0, idx).trim().toLowerCase();
-    const pw = pair.substring(idx + 1).trim();
-    if (name && pw) users[name] = pw;
-  });
-  return users;
-}
-
 function checkLogin() {
   const stored = localStorage.getItem(LOGIN_KEY);
   if (!stored) return false;
@@ -38,10 +21,20 @@ function checkLogin() {
   }
 }
 
-function doLogin(username, password) {
-  const users = parseUsers(USERS_RAW);
-  const pw = users[username.toLowerCase()];
-  if (!pw || pw !== password) return false;
+async function doLogin(username, password) {
+  let ok = false;
+  try {
+    const res = await fetch('/.netlify/functions/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const json = await res.json();
+    ok = !!json.ok;
+  } catch (e) {
+    return false;
+  }
+  if (!ok) return false;
   const expiry = Date.now() + LOGIN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
   localStorage.setItem(LOGIN_KEY, JSON.stringify({ username, expiry }));
   return true;
@@ -104,7 +97,7 @@ function showLoginScreen() {
         <div id="login-error" style="display:none;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:9px 12px;font-size:.79rem;color:#f87171;margin-bottom:16px;text-align:center">
           ❌ Benutzername oder Passwort falsch
         </div>
-        <button onclick="attemptLogin()" style="width:100%;background:#6C8EFF;color:#fff;border:none;border-radius:8px;padding:12px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        <button id="login-submit-btn" onclick="attemptLogin()" style="width:100%;background:#6C8EFF;color:#fff;border:none;border-radius:8px;padding:12px;font-family:Inter,sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
           Einloggen →
         </button>
       </div>
@@ -117,17 +110,22 @@ function showLoginScreen() {
   setTimeout(() => document.getElementById('login-user')?.focus(), 100);
 }
 
-function attemptLogin() {
+async function attemptLogin() {
   const user = document.getElementById('login-user')?.value.trim();
   const pw = document.getElementById('login-pw')?.value;
   const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-submit-btn');
 
   if (!user || !pw) {
     if (errEl) { errEl.textContent = '⚠️ Bitte alle Felder ausfüllen'; errEl.style.display = 'block'; }
     return;
   }
 
-  if (doLogin(user, pw)) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Prüfe…'; }
+  const success = await doLogin(user, pw);
+  if (btn) { btn.disabled = false; btn.textContent = 'Einloggen →'; }
+
+  if (success) {
     // Erfolg — Login-Screen entfernen
     document.getElementById('login-overlay')?.remove();
     document.body.style.overflow = '';

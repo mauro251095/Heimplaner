@@ -10,7 +10,7 @@ const APP_PASSWORD = process.env.APP_PASSWORD;
 
 exports.handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://sage-salmiakki-4ab33e.netlify.app',
     'Access-Control-Allow-Headers': 'Content-Type, x-app-password',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json'
@@ -32,6 +32,7 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
     const sub = body.subscription;
+    const who = body.who === 'p1' || body.who === 'p2' ? body.who : null;
     if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ungültiges Abo' }) };
     }
@@ -47,7 +48,8 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         endpoint: sub.endpoint,
         p256dh: sub.keys.p256dh,
-        auth: sub.keys.auth
+        auth: sub.keys.auth,
+        who
       })
     });
 

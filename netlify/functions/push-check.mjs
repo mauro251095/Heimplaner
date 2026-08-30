@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════
 // NETLIFY SCHEDULED FUNCTION – Push-Erinnerungen
-// Läuft alle 5 Minuten, prüft Aufgaben/Termine/Geburtstage
-// auf fällige Erinnerungen und verschickt Web-Push an alle
-// registrierten Geräte.
+// Läuft jede Minute, prüft Aufgaben/Termine/Geburtstage auf fällige
+// Erinnerungen und verschickt Web-Push an die passenden Geräte.
+// Ein rückblickendes 5-Minuten-Fenster + Dedup-Tabelle sorgen dafür, dass
+// nichts verpasst wird und trotz überlappender Läufe nichts doppelt kommt.
 // ═══════════════════════════════════════════════
 
 import webpush from 'web-push';
@@ -83,7 +84,7 @@ export default async () => {
   if (!rows.length) return new Response('no data', { status: 200 });
   const HP = rows[0].data || {};
 
-  const subsRes = await sbFetch('push_subscriptions?select=id,endpoint,p256dh,auth');
+  const subsRes = await sbFetch('push_subscriptions?select=id,endpoint,p256dh,auth,who');
   const subs = await subsRes.json();
   if (!subs.length) return new Response('no subscribers', { status: 200 });
 
@@ -98,15 +99,15 @@ export default async () => {
 
   // Wöchentliche Aufgaben (heute + morgen prüfen, wegen möglichem Tageswechsel bei der Erinnerungszeit)
   const exceptions = HP.taskExceptions || {};
-  ['p1', 'p2', 'shared'].forEach(who => {
-    ((HP.tasks && HP.tasks[who]) || []).forEach(task => {
+  ['p1', 'p2', 'shared'].forEach(taskWho => {
+    ((HP.tasks && HP.tasks[taskWho]) || []).forEach(task => {
       if (!task.time || task.reminder === '' || task.reminder === undefined) return;
       const off = parseInt(task.reminder) || 0;
       [todayKey, tomorrowKey].forEach(dateKey => {
         if (!taskOccursOn(task, dateKey, exceptions)) return;
         const fire = zonedTimeToUtcMs(dateKey, task.time) - off * 60000;
         if (fire > windowStart && fire <= now) {
-          due.push({ title: `${task.emoji || '⭐'} ${reminderLabel(off)}: ${task.name}`, body: 'Heimplaner', tag: `${task.id}-${dateKey}` });
+          due.push({ who: taskWho, title: `${task.emoji || '⭐'} ${reminderLabel(off)}: ${task.name}`, body: 'Heimplaner', tag: `${task.id}-${dateKey}` });
         }
       });
     });
@@ -118,25 +119,37 @@ export default async () => {
     const off = (ev.reminder === undefined || ev.reminder === '') ? 15 : (parseInt(ev.reminder) || 0);
     const fire = zonedTimeToUtcMs(ev.date, ev.time) - off * 60000;
     if (fire > windowStart && fire <= now) {
-      due.push({ title: `📅 ${reminderLabel(off)}: ${ev.name}`, body: `${ev.date} um ${ev.time}`, tag: `ev-${ev.id}` });
+      due.push({ who: ev.who || 'shared', title: `📅 ${reminderLabel(off)}: ${ev.name}`, body: `${ev.date} um ${ev.time}`, tag: `ev-${ev.id}` });
     }
   });
 
-  // Geburtstage (immer 09:00)
+  // Geburtstage (immer 09:00, geht an alle)
   (HP.birthdays || []).forEach(b => {
     const nextKey = getNextBirthdayKey(b.date, todayKey);
     const fire = zonedTimeToUtcMs(nextKey, '09:00');
     if (fire > windowStart && fire <= now) {
-      due.push({ title: `🎂 ${b.name} hat heute Geburtstag!`, body: '', tag: `bd-${b.id}` });
+      due.push({ who: 'shared', title: `🎂 ${b.name} hat heute Geburtstag!`, body: '', tag: `bd-${b.id}` });
     }
   });
 
   if (!due.length) return new Response('nothing due', { status: 200 });
 
+  // Dedup: da sich die rückblickenden Zeitfenster aufeinanderfolgender Läufe
+  // überschneiden können, merken wir bereits verschickte Erinnerungen und
+  // überspringen sie beim nächsten Lauf.
+  const filterValue = 'in.(' + due.map(d => `"${d.tag}"`).join(',') + ')';
+  const sentRes = await sbFetch(`push_sent_log?tag=${encodeURIComponent(filterValue)}&select=tag`);
+  const alreadySent = new Set((await sentRes.json()).map(r => r.tag));
+  const toSend = due.filter(d => !alreadySent.has(d.tag));
+  if (!toSend.length) return new Response('nothing new (all deduped)', { status: 200 });
+
   let sent = 0;
   for (const sub of subs) {
     const pushSub = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
-    for (const item of due) {
+    for (const item of toSend) {
+      // Nur an die Person(en) senden, für die der Termin/die Aufgabe gilt.
+      // Unbekannte/fehlende Rolle (altes Abo, noch nicht neu registriert) -> sicherheitshalber trotzdem senden.
+      if (item.who !== 'shared' && sub.who && sub.who !== item.who) continue;
       try {
         await webpush.sendNotification(pushSub, JSON.stringify(item));
         sent++;
@@ -150,7 +163,13 @@ export default async () => {
     }
   }
 
-  return new Response(`sent ${sent} notification(s) for ${due.length} reminder(s)`, { status: 200 });
+  await sbFetch('push_sent_log', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(toSend.map(d => ({ tag: d.tag })))
+  });
+
+  return new Response(`sent ${sent} notification(s) for ${toSend.length} reminder(s)`, { status: 200 });
 };
 
-export const config = { schedule: '*/5 * * * *' };
+export const config = { schedule: '* * * * *' };

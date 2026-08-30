@@ -9,7 +9,7 @@ const APP_PASSWORD = process.env.APP_PASSWORD;
 
 exports.handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://sage-salmiakki-4ab33e.netlify.app',
     'Access-Control-Allow-Headers': 'Content-Type, x-app-password',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Content-Type': 'application/json'
