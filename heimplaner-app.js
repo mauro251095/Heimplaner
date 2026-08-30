@@ -342,6 +342,7 @@ function saveQuickAddTask() {
     HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,important,note:''});
     HP_save();closeModal();render();
     if(typeof renderMonth==='function'&&document.getElementById('view-month')&&!document.getElementById('view-month').classList.contains('hidden'))renderMonth();
+    if(typeof scheduleEventNotifs==='function') scheduleEventNotifs();
     showToast(emoji+' '+name+' am '+date+' eingetragen');
   } else {
     // Save as recurring task
@@ -361,6 +362,7 @@ function deleteEvent(id){
   if(HP.eventStatus) delete HP.eventStatus[id];
   if(HP.eventNotes) delete HP.eventNotes[id];
   if(HP.eventComments) delete HP.eventComments[id];
+  clearTimeout(schedTimers['ev-'+id]);
   HP_save();render();
   if(typeof renderMonth==='function')renderMonth();
   showToast('Termin gelöscht');
@@ -1189,6 +1191,11 @@ function confirmDeleteNote(id,alsoEvent){
 // EINMALIGE TERMINE - Event Management
 // ═══════════════════════════════════════════════
 
+const EVENT_REMINDER_OPTS=[['','Standard (15 Min vorher)'],['off','Keine'],['0','Zur Uhrzeit'],['5','5 Min vorher'],['15','15 Min vorher'],['30','30 Min vorher'],['60','1 Std vorher'],['240','4 Std vorher'],['480','8 Std vorher'],['720','12 Std vorher'],['1440','1 Tag vorher'],['10080','1 Woche vorher']];
+function eventReminderOptions(selected) {
+  return EVENT_REMINDER_OPTS.map(([v,l])=>'<option value="'+v+'"'+((selected||'')===v?' selected':'')+'>'+l+'</option>').join('');
+}
+
 function openAddEvent(prefillDate='') {
   showModal(
     '<h3>📅 Neuer Termin</h3>'+
@@ -1208,6 +1215,8 @@ function openAddEvent(prefillDate='') {
     '<option value="p2">'+HP.names.p2+'</option>'+
     '<option value="shared" selected>Gemeinsam</option>'+
     '</select></div>'+
+    '<div class="modal-row"><label>Erinnerung</label>'+
+    '<select class="modal-in" id="ev-reminder">'+eventReminderOptions('')+'</select></div>'+
     '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
     '<input type="checkbox" id="ev-important" style="accent-color:var(--red);width:16px;height:16px">'+
     '<span style="color:var(--red);font-weight:500">🚨 Wichtig</span></label></div>'+
@@ -1226,13 +1235,15 @@ function saveNewEvent() {
   const time=document.getElementById('ev-time')?.value||'';
   const timeEnd=document.getElementById('ev-time-end')?.value||'';
   const who=document.getElementById('ev-who')?.value||'shared';
+  const reminder=document.getElementById('ev-reminder')?.value||'';
   const important=document.getElementById('ev-important')?.checked||false;
   if(!name){showToast('Bitte Name eingeben');return;}
   if(!date){showToast('Bitte Datum wählen');return;}
   if(!HP.events) HP.events=[];
-  HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,important,note:''});
+  HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,reminder,important,note:''});
   HP_save();closeModal();render();
   if(typeof renderEventsList==='function') renderEventsList();
+  if(typeof scheduleEventNotifs==='function') scheduleEventNotifs();
   showToast(emoji+' '+name+' am '+date+' gespeichert');
 }
 
@@ -1256,6 +1267,8 @@ function openEditEvent(id) {
     '<option value="p2"'+(e.who==='p2'?' selected':'')+'>'+HP.names.p2+'</option>'+
     '<option value="shared"'+(e.who==='shared'?' selected':'')+'>Gemeinsam</option>'+
     '</select></div>'+
+    '<div class="modal-row"><label>Erinnerung</label>'+
+    '<select class="modal-in" id="ev-reminder">'+eventReminderOptions(e.reminder)+'</select></div>'+
     '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
     '<input type="checkbox" id="ev-important"'+(e.important?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
     '<span style="color:var(--red);font-weight:500">🚨 Wichtig</span></label></div>'+
@@ -1348,9 +1361,11 @@ function saveEditEvent(id) {
   e.time=document.getElementById('ev-time')?.value||'';
   e.timeEnd=document.getElementById('ev-time-end')?.value||'';
   e.who=document.getElementById('ev-who')?.value||e.who;
+  e.reminder=document.getElementById('ev-reminder')?.value||'';
   e.important=document.getElementById('ev-important')?.checked||false;
   HP_save();closeModal();render();
   if(typeof renderEventsList==='function') renderEventsList();
+  if(typeof scheduleEventNotifs==='function') scheduleEventNotifs();
   showToast('Termin gespeichert');
 }
 
@@ -1430,7 +1445,9 @@ function saveNewBirthday() {
   if(!name||!day||!month){showToast('Bitte Name, Tag und Monat eingeben');return;}
   if(!HP.birthdays) HP.birthdays=[];
   HP.birthdays.push({id:'bd'+Date.now(),name,date:'0000-'+month+'-'+day,year});
-  HP_save();closeModal();renderBirthdayList();showToast('🎂 '+name+' gespeichert');
+  HP_save();closeModal();renderBirthdayList();
+  if(typeof scheduleBirthdayNotifs==='function') scheduleBirthdayNotifs();
+  showToast('🎂 '+name+' gespeichert');
 }
 
 function openEditBirthday(id) {
@@ -1460,11 +1477,14 @@ function saveEditBirthday(id) {
   const month=document.getElementById('bd-month')?.value.padStart(2,'0');
   b.date='0000-'+month+'-'+day;
   b.year=document.getElementById('bd-year')?.value.trim()||'';
-  HP_save();closeModal();renderBirthdayList();showToast('Geburtstag gespeichert');
+  HP_save();closeModal();renderBirthdayList();
+  if(typeof scheduleBirthdayNotifs==='function') scheduleBirthdayNotifs();
+  showToast('Geburtstag gespeichert');
 }
 
 function deleteBirthday(id) {
   HP.birthdays=(HP.birthdays||[]).filter(x=>x.id!==id);
+  clearTimeout(schedTimers['bd-'+id]);
   HP_save();closeModal();renderBirthdayList();showToast('Gelöscht');
 }
 
@@ -1496,6 +1516,19 @@ async function requestNotifPermission(){
     return r==='granted';
   }catch(e){return false;}
 }
+const REMINDER_PREFIX={0:'Jetzt',5:'In 5 Min',15:'In 15 Min',30:'In 30 Min',60:'In 1 Std',240:'In 4 Std',480:'In 8 Std',720:'In 12 Std',1440:'In 1 Tag',10080:'In 1 Woche'};
+function reminderPrefix(off){ return REMINDER_PREFIX[off]||('In '+off+' Min'); }
+// setTimeout overflows past ~24.8 days (32-bit ms) and fires immediately — chain timers for far-future reminders (e.g. birthdays, "1 Woche vorher")
+const MAX_TIMEOUT_MS=2147483000;
+function scheduleAt(key, fireAt, fn){
+  clearTimeout(schedTimers[key]);
+  const step=()=>{
+    const remaining=fireAt-Date.now();
+    if(remaining<=0){ delete schedTimers[key]; fn(); return; }
+    schedTimers[key]=setTimeout(step, Math.min(remaining, MAX_TIMEOUT_MS));
+  };
+  step();
+}
 function scheduleTaskNotif(task){
   if(!NOTIF_OK||!task.time||task.reminder===''||task.reminder===undefined)return;
   try{
@@ -1505,12 +1538,11 @@ function scheduleTaskNotif(task){
     getWeekDates(weekOffset).forEach((date,di)=>{
       if(!taskOccursOn(task,dk(date)))return;
       const fire=new Date(date); fire.setHours(Math.floor(nm/60),nm%60,0,0);
-      const ms=fire.getTime()-Date.now(); if(ms<0)return;
+      if(fire.getTime()<Date.now())return;
       const key=task.id+'-'+dk(date);
-      clearTimeout(schedTimers[key]);
-      schedTimers[key]=setTimeout(()=>{
-        try{new Notification(task.emoji+' '+(off===0?'Jetzt: ':'In '+off+' Min: ')+task.name,{body:'Heimplaner',tag:key,renotify:true});}catch(e){}
-      },ms);
+      scheduleAt(key, fire.getTime(), ()=>{
+        try{new Notification(task.emoji+' '+reminderPrefix(off)+': '+task.name,{body:'Heimplaner',tag:key,renotify:true});}catch(e){}
+      });
     });
   }catch(e){}
 }
@@ -1527,33 +1559,27 @@ function rescheduleAll(){
 function scheduleEventNotifs() {
   if(!NOTIF_OK||Notification.permission!=='granted') return;
   (HP.events||[]).forEach(ev=>{
-    if(!ev.time||!ev.date) return;
-    const [h,m]=ev.time.split(':').map(Number);
-    const fire=new Date(ev.date+'T'+ev.time+':00');
-    const remind=new Date(fire.getTime()-15*60000); // 15 min before
-    const now=new Date();
-    if(remind<=now) return;
-    const ms=remind.getTime()-now.getTime();
     const key='ev-'+ev.id;
-    clearTimeout(schedTimers[key]);
-    schedTimers[key]=setTimeout(()=>{
-      try{new Notification('📅 In 15 Min: '+ev.name,{body:ev.date+' um '+ev.time,tag:key,renotify:true});}catch(e){}
-    },ms);
+    if(!ev.time||!ev.date||ev.reminder==='off'){ clearTimeout(schedTimers[key]); return; }
+    const off=(ev.reminder===undefined||ev.reminder==='')?15:(parseInt(ev.reminder)||0);
+    const fire=new Date(ev.date+'T'+ev.time+':00').getTime()-off*60000;
+    if(fire<Date.now()){ clearTimeout(schedTimers[key]); return; }
+    scheduleAt(key, fire, ()=>{
+      try{new Notification('📅 '+reminderPrefix(off)+': '+ev.name,{body:ev.date+' um '+ev.time,tag:key,renotify:true});}catch(e){}
+    });
   });
 }
 
 function scheduleBirthdayNotifs() {
   if(!NOTIF_OK||Notification.permission!=='granted') return;
   (HP.birthdays||[]).forEach(b=>{
-    const next=getNextBirthday(b.date);
-    const fire=new Date(next+'T09:00:00');
-    const ms=fire.getTime()-new Date().getTime();
-    if(ms<=0) return;
     const key='bd-'+b.id;
-    clearTimeout(schedTimers[key]);
-    schedTimers[key]=setTimeout(()=>{
+    const next=getNextBirthday(b.date);
+    const fire=new Date(next+'T09:00:00').getTime();
+    if(fire<Date.now()){ clearTimeout(schedTimers[key]); return; }
+    scheduleAt(key, fire, ()=>{
       try{new Notification('🎂 '+b.name+' hat heute Geburtstag!',{body:'',tag:key,renotify:true});}catch(e){}
-    },ms);
+    });
   });
 }
 function maybeNotifBanner(){
