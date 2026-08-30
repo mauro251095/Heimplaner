@@ -87,8 +87,10 @@ function renderWeekLabel() {
   const dates=getWeekDates(weekOffset);
   const fmt=d=>d.toLocaleDateString('de-CH',{day:'numeric',month:'short'});
   const el=document.getElementById('wk-lbl');
-  if(el) el.textContent='KW '+wkNum(dates[0])+' · '+fmt(dates[0])+' – '+fmt(dates[6])+' '+dates[6].getFullYear();
+  const isMobile=window.innerWidth<=768;
+  if(el) el.textContent='KW '+wkNum(dates[0])+' · '+fmt(dates[0])+' – '+fmt(dates[6])+(isMobile?'':' '+dates[6].getFullYear());
 }
+window.addEventListener('resize',()=>renderWeekLabel());
 
 function renderMiniMonth(calId='mini-cal', lblId='mm-label') {
   const now=new Date(), base=new Date(now.getFullYear(),now.getMonth()+monthOffset,1);
@@ -151,6 +153,18 @@ function renderBlockedBanners() {
   ).join('');
 }
 
+// Merge events + tasks into one chronologically ordered list (untimed items first, then ascending by start time)
+function mergeTimelineItems(events, tasks) {
+  return [...events.map(e=>({kind:'event',data:e})), ...tasks.map(t=>({kind:'task',data:t}))]
+    .sort((a,b)=>{
+      const at=a.data.time, bt=b.data.time;
+      if(!at&&!bt) return 0;
+      if(!at) return -1;
+      if(!bt) return 1;
+      return at.localeCompare(bt);
+    });
+}
+
 function renderWeekGrid() {
   const grid=document.getElementById('week-grid'); if(!grid) return;
   const today=new Date(); today.setHours(0,0,0,0);
@@ -182,27 +196,26 @@ function renderWeekGrid() {
       chip.style.cursor='default';
       tc.appendChild(chip);
     });
-    // Show events (einmalige Termine)
-    dayEv.forEach(e=>{
+    // Events + tasks, chronologically ordered (untimed first, then by start time)
+    const dayTPrio=[...dayT].sort((a,b)=>a.prio&&!b.prio?-1:!a.prio&&b.prio?1:0);
+    mergeTimelineItems(dayEv,dayTPrio).forEach(({kind,data})=>{
       const chip=document.createElement('div');
-      const est=getEventStatus(e.id), esi=est==='wip'?'🟡':est==='blocked'?'🔴':'';
-      const ecmt=(HP.eventComments||{})[e.id]||'';
-      chip.className='task-chip '+(e.important?'c-important':'c'+e.who+' ev-once')+' s-'+est+(est==='done'?' done':'');
-      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+e.emoji+' '+e.name+(e.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTime(e.time)+'</span>':'')+'</span>'+
-        '<span class="chip-st">'+esi+'</span>'+(ecmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'')+
-        '<span style="font-size:.6rem;opacity:.6;flex-shrink:0">📅</span>';
-      chip.addEventListener('click',()=>openEventModal(e.id));
-      tc.appendChild(chip);
-    });
-    // Then recurring tasks
-    [...dayT].sort((a,b)=>a.prio&&!b.prio?-1:!a.prio&&b.prio?1:0).forEach(t=>{
-      const d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
-      const si=st==='wip'?'🟡':st==='blocked'?'🔴':'';
-      const chip=document.createElement('div');
-      chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
-      const cmt=(HP.taskComments||{})[t.id]||'';
-      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTimeRange(t.time,t.timeEnd)+'</span>':'')+' </span>'+'<span class="chip-st">'+si+'</span>'+(cmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'');
-      chip.addEventListener('click',()=>openTaskModal(t.id,key));
+      if(kind==='event'){
+        const e=data, est=getEventStatus(e.id), esi=est==='wip'?'🟡':est==='blocked'?'🔴':'';
+        const ecmt=(HP.eventComments||{})[e.id]||'';
+        chip.className='task-chip '+(e.important?'c-important':'c'+e.who+' ev-once')+' s-'+est+(est==='done'?' done':'');
+        chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+e.emoji+' '+e.name+(e.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTimeRange(e.time,e.timeEnd)+'</span>':'')+'</span>'+
+          '<span class="chip-st">'+esi+'</span>'+(ecmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'')+
+          '<span style="font-size:.6rem;opacity:.6;flex-shrink:0">📅</span>';
+        chip.addEventListener('click',()=>openEventModal(e.id));
+      } else {
+        const t=data, d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
+        const si=st==='wip'?'🟡':st==='blocked'?'🔴':'';
+        chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
+        const cmt=(HP.taskComments||{})[t.id]||'';
+        chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTimeRange(t.time,t.timeEnd)+'</span>':'')+' </span>'+'<span class="chip-st">'+si+'</span>'+(cmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'');
+        chip.addEventListener('click',()=>openTaskModal(t.id,key));
+      }
       tc.appendChild(chip);
     });
     // Then planned meals
@@ -292,7 +305,8 @@ function openQuickAddTask(who='shared', prefillDate='') {
     '<span class="dp" style="color:var(--shared);border-color:var(--shared);cursor:pointer" onclick="document.querySelectorAll(\'#qa-days .dp[data-day]\').forEach(x=>x.classList.add(\'qaSel\'))">Alle</span>'+
     '</div></div></div>'+
     '<div class="modal-row" style="display:flex;gap:8px">'+
-    '<div style="flex:1"><label>Uhrzeit (optional)</label><input class="modal-in" type="time" id="qa-time"></div>'+
+    '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="qa-time"></div>'+
+    '<div style="flex:1"><label>Bis (optional)</label><input class="modal-in" type="time" id="qa-time-end"></div>'+
     '</div>'+
     '<div class="modal-row" style="display:flex;gap:16px">'+
     '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="checkbox" id="qa-prio" style="accent-color:var(--prio)"> Priorität</label>'+
@@ -314,6 +328,7 @@ function saveQuickAddTask() {
   const name=document.getElementById('qa-name')?.value.trim();
   const who=document.getElementById('qa-who')?.value||'shared';
   const time=document.getElementById('qa-time')?.value||'';
+  const timeEnd=document.getElementById('qa-time-end')?.value||'';
   const prio=document.getElementById('qa-prio')?.checked||false;
   const important=document.getElementById('qa-important')?.checked||false;
   const isOnce=document.querySelector('input[name="qa-type"]:checked')?.value==='once';
@@ -324,7 +339,7 @@ function saveQuickAddTask() {
     const date=document.getElementById('qa-date')?.value||'';
     if(!date){showToast('Bitte Datum wählen');return;}
     if(!HP.events)HP.events=[];
-    HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,who,important,note:''});
+    HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,important,note:''});
     HP_save();closeModal();render();
     if(typeof renderMonth==='function'&&document.getElementById('view-month')&&!document.getElementById('view-month').classList.contains('hidden'))renderMonth();
     showToast(emoji+' '+name+' am '+date+' eingetragen');
@@ -336,7 +351,7 @@ function saveQuickAddTask() {
     });
     const days=sel.length?sel:[0,1,2,3,4,5,6];
     const tid=who+Date.now();
-    HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,reminder:''});
+    HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,timeEnd,reminder:''});
     HP_save();closeModal();render();showToast(emoji+' '+name+' hinzugefügt');
   }
 }
@@ -384,7 +399,7 @@ function makeShopItem(item) {
     '<div class="si-check" style="flex-shrink:0">'+(item.bought?'✓':'')+'</div>'+
     '<button onclick="event.stopPropagation();deleteShopItem(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Löschen">✕</button>'+
     '<button onclick="event.stopPropagation();openEditShopItemById(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Bearbeiten">✏️</button>'+
-    '<button onclick="event.stopPropagation();saveShopItemTemplate(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Als Vorlage speichern">⭐</button>'+
+    '<button onclick="event.stopPropagation();saveShopItemTemplate(\''+item.id+'\')" style="background:none;border:none;color:var(--amber);cursor:pointer;font-size:1.15rem;line-height:1;padding:4px 6px;border-radius:4px;opacity:0.85" title="Zu Favoriten hinzufügen">⭐</button>'+
     '</div>';
   div.addEventListener('click',()=>{item.bought=!item.bought;HP_save();renderShop();renderSidebarStats();});
   return div;
@@ -395,8 +410,7 @@ function addShopItem(name,qty,unit,cat,taskId,taskName) {
   if(!n){showToast('Bitte Artikelname eingeben');return;}
   const q=qty||document.getElementById('shop-add-qty')?.value.trim()||'';
   const u=unit||document.getElementById('shop-add-unit')?.value.trim()||'';
-  const c=cat||document.getElementById('shop-add-cat')?.value||'';
-  if(!c){showToast('⚠️ Bitte Kategorie wählen');document.getElementById('shop-add-cat')?.focus();return;}
+  const c=cat||document.getElementById('shop-add-cat')?.value||'Sonstiges';
   const existing=HP.shop.find(i=>i.name.toLowerCase()===n.toLowerCase()&&!i.bought);
   if(existing&&!name){showDuplicateModal(existing,q,u);return;}
   if(existing&&name){existing.qty=existing.qty?existing.qty+'+'+q:q;HP_save();renderShop();renderSidebarStats();showToast(n+' Menge angepasst');return;}
@@ -412,7 +426,7 @@ function saveShopItemTemplate(id) {
   const existing=HP.savedShopItems.find(s=>s.name.toLowerCase()===item.name.toLowerCase());
   if(existing){existing.qty=item.qty;existing.unit=item.unit;existing.cat=item.cat;}
   else HP.savedShopItems.push({id:'ssi'+Date.now(),name:item.name,qty:item.qty,unit:item.unit,cat:item.cat});
-  HP_save();showToast('⭐ "'+item.name+'" gespeichert');
+  HP_save();showToast('⭐ "'+item.name+'" zu Favoriten hinzugefügt');
 }
 
 function openSavedShopItems() {
@@ -421,10 +435,10 @@ function openSavedShopItems() {
     ? saved.map(s=>'<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.83rem">'+
         '<span style="flex:1">'+catEmoji(s.cat)+' '+s.name+(s.qty||s.unit?' <span style="color:var(--muted);font-size:.75rem">('+[s.qty,s.unit].filter(Boolean).join(' ')+')</span>':'')+'</span>'+
         '<button class="mbtn mbtn-confirm" style="padding:4px 10px" onclick="addSavedItemToShop(\''+s.id+'\')">+ Hinzufügen</button>'+
-        '<button onclick="deleteSavedShopItem(\''+s.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 6px" title="Vorlage löschen">✕</button>'+
+        '<button onclick="deleteSavedShopItem(\''+s.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 6px" title="Favorit löschen">✕</button>'+
         '</div>').join('')
-    : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">Noch keine vorbereiteten Artikel. Speichere Artikel aus der Einkaufsliste mit ⭐.</div>';
-  showModal('<h3>📋 Vorbereitete Artikel</h3>'+rows+
+    : '<div style="font-size:.8rem;color:var(--muted);padding:10px 0">Noch keine Favoriten. Speichere Artikel aus der Einkaufsliste mit ⭐.</div>';
+  showModal('<h3>⭐ Favoriten</h3>'+rows+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button></div>');
 }
 
@@ -741,7 +755,7 @@ function renderManage() {
 
 function renderEventsList() {
   const el = document.getElementById('events-list'); if(!el) return;
-  const events = (HP.events||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const events = (HP.events||[]).slice().sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
   if(!events.length){
     el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Noch keine einmaligen Termine.</div>';
     return;
@@ -754,7 +768,7 @@ function renderEventsList() {
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px'+(isPast?';opacity:.5':'')+'">'+
       '<span style="font-size:1.1rem">'+e.emoji+'</span>'+
       '<div style="flex:1"><div style="font-size:.82rem;font-weight:500">'+e.name+'</div>'+
-      '<div style="font-size:.7rem;color:var(--muted)">'+e.date+(e.time?' · ⏰'+e.time:'')+'</div></div>'+
+      '<div style="font-size:.7rem;color:var(--muted)">'+e.date+(e.time?' · ⏰'+fmtTimeRange(e.time,e.timeEnd):'')+'</div></div>'+
       '<span style="font-size:.7rem;color:'+whoColor+';font-weight:500">'+whoLabel+'</span>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✏️</button>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="deleteEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✕</button>'+
@@ -971,12 +985,12 @@ function renderMonth() {
     const dayBdaysM=(HP.birthdays||[]).filter(b=>b.date.slice(5)===mm+'-'+dd2);
     const evHtml=[
       ...dayBdaysM.map(b=>'<div class="mc-event mc-birthday">🎂 '+b.name+'</div>'),
-      ...dayEvents.map(e=>{
-        const est=getEventStatus(e.id), esi=est==='wip'?' 🟡':est==='blocked'?' 🔴':'';
-        return '<div class="mc-event '+(e.important?'mc-event-important':'e'+(e.who==='shared'?'sh':e.who)+' mc-event-once')+'">'+e.emoji+' '+e.name+esi+'</div>';
-      }),
-      ...dayT.map(t=>{
-        const tst=getStatus(t.id), tsi=tst==='wip'?' 🟡':tst==='blocked'?' 🔴':'';
+      ...mergeTimelineItems(dayEvents,dayT).map(({kind,data})=>{
+        if(kind==='event'){
+          const e=data, est=getEventStatus(e.id), esi=est==='wip'?' 🟡':est==='blocked'?' 🔴':'';
+          return '<div class="mc-event '+(e.important?'mc-event-important':'e'+(e.who==='shared'?'sh':e.who)+' mc-event-once')+'">'+e.emoji+' '+e.name+esi+'</div>';
+        }
+        const t=data, tst=getStatus(t.id), tsi=tst==='wip'?' 🟡':tst==='blocked'?' 🔴':'';
         return '<div class="mc-event '+(t.important?'mc-event-important':'e'+(t.who==='shared'?'sh':t.who))+'">'+t.emoji+' '+t.name+tsi+'</div>';
       })
     ].join('');
@@ -994,31 +1008,32 @@ function openDayDetail(key) {
   const events=(HP.events||[]).filter(e=>e.date===key);
   const meals=HP.meals[key]||{};
   const label=date.toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long'});
-  const eventsHtml=(events.length?events.map(e=>{
-    const linkedNote=(HP.notes||[]).find(n=>n.linkedEventId===e.id);
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px'+(e.important?';background:rgba(248,113,113,.08)':'')+'">'+
-    '<span style="color:'+(e.important?'var(--red)':e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+e.emoji+'</span>'+
-    '<div style="flex:1"><div style="font-weight:500">'+e.name+'</div>'+
-    (linkedNote?'<div style="font-size:.7rem;color:var(--muted);margin-top:2px;cursor:pointer" onclick="alert('+JSON.stringify((linkedNote.title?linkedNote.title+': ':'')+linkedNote.body)+')">📝 '+
-    (linkedNote.title||linkedNote.body.slice(0,30)+(linkedNote.body.length>30?'…':''))+'</div>':'')+
-    '</div>'+
-    (e.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+e.time+'</span>':'')+
-    '<button data-eid="'+e.id+'" onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Bearbeiten">✏️</button>'+
-    '<button data-eid="'+e.id+'" onclick="deleteEvent(this.dataset.eid);closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Löschen">✕</button>'+
-    '</div>';
-  }).join(''):'');
-  const tasksHtml=tasks.length
-    ? tasks.map(t=>'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.81rem;cursor:pointer" onclick="closeModal();openTaskModal(\''+t.id+'\',\''+key+'\')">'+
+  const merged=mergeTimelineItems(events,tasks);
+  const itemsHtml=merged.length ? merged.map(({kind,data})=>{
+    if(kind==='event'){
+      const e=data, linkedNote=(HP.notes||[]).find(n=>n.linkedEventId===e.id);
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px'+(e.important?';background:rgba(248,113,113,.08)':'')+'">'+
+      '<span style="color:'+(e.important?'var(--red)':e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+e.emoji+'</span>'+
+      '<div style="flex:1"><div style="font-weight:500">'+e.name+'</div>'+
+      (linkedNote?'<div style="font-size:.7rem;color:var(--muted);margin-top:2px;cursor:pointer" onclick="alert('+JSON.stringify((linkedNote.title?linkedNote.title+': ':'')+linkedNote.body)+')">📝 '+
+      (linkedNote.title||linkedNote.body.slice(0,30)+(linkedNote.body.length>30?'…':''))+'</div>':'')+
+      '</div>'+
+      (e.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+fmtTimeRange(e.time,e.timeEnd)+'</span>':'')+
+      '<button data-eid="'+e.id+'" onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Bearbeiten">✏️</button>'+
+      '<button data-eid="'+e.id+'" onclick="deleteEvent(this.dataset.eid);closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Löschen">✕</button>'+
+      '</div>';
+    }
+    const t=data;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px;cursor:pointer" onclick="closeModal();openTaskModal(\''+t.id+'\',\''+key+'\')">'+
         '<span style="color:'+(t.who==='p1'?'var(--p1)':t.who==='p2'?'var(--p2)':'var(--shared)')+'">'+t.emoji+'</span>'+
         '<span style="flex:1">'+t.name+'</span>'+(t.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+fmtTimeRange(t.time,t.timeEnd)+'</span>':'')+
-        (isDone(date,t.id)?'<span style="color:var(--green)">✓</span>':'')+'</div>').join('')
-    : '<div style="font-size:.78rem;color:var(--muted);padding:6px 0">Keine Aufgaben</div>';
+        (isDone(date,t.id)?'<span style="color:var(--green)">✓</span>':'')+'</div>';
+  }).join('') : '<div style="font-size:.78rem;color:var(--muted);padding:6px 0">Keine Termine oder Aufgaben</div>';
   const mealsHtml=['Frühstück','Mittag','Abend'].map(s=>'<div style="display:flex;gap:8px;padding:4px 0;font-size:.79rem">'+
     '<span style="color:var(--muted);width:70px;flex-shrink:0">'+s+'</span>'+
     '<span>'+(meals[s]?meals[s].emoji+' '+meals[s].name:'—')+'</span></div>').join('');
   showModal('<h3>'+label+'</h3>'+
-    (events.length?'<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">📅 Einmalige Termine</div>'+eventsHtml:'') +
-    '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Aufgaben</div>'+tasksHtml+
+    '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Termine &amp; Aufgaben</div>'+itemsHtml+
     '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Menü</div>'+mealsHtml+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
@@ -1183,8 +1198,10 @@ function openAddEvent(prefillDate='') {
     '<input class="modal-in" id="ev-name" placeholder="z.B. Arzttermin, Abendessen…" style="flex:1"></div></div>'+
     '<div class="modal-row"><label>Datum</label>'+
     '<input class="modal-in" type="date" id="ev-date" value="'+prefillDate+'"></div>'+
-    '<div class="modal-row"><label>Uhrzeit (optional)</label>'+
-    '<input class="modal-in" type="time" id="ev-time"></div>'+
+    '<div class="modal-row"><div style="display:flex;gap:8px">'+
+    '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="ev-time"></div>'+
+    '<div style="flex:1"><label>Bis (optional)</label><input class="modal-in" type="time" id="ev-time-end"></div>'+
+    '</div></div>'+
     '<div class="modal-row"><label>Für wen</label>'+
     '<select class="modal-in" id="ev-who">'+
     '<option value="p1">'+HP.names.p1+'</option>'+
@@ -1207,12 +1224,13 @@ function saveNewEvent() {
   const name=document.getElementById('ev-name')?.value.trim();
   const date=document.getElementById('ev-date')?.value;
   const time=document.getElementById('ev-time')?.value||'';
+  const timeEnd=document.getElementById('ev-time-end')?.value||'';
   const who=document.getElementById('ev-who')?.value||'shared';
   const important=document.getElementById('ev-important')?.checked||false;
   if(!name){showToast('Bitte Name eingeben');return;}
   if(!date){showToast('Bitte Datum wählen');return;}
   if(!HP.events) HP.events=[];
-  HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,who,important,note:''});
+  HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,important,note:''});
   HP_save();closeModal();render();
   if(typeof renderEventsList==='function') renderEventsList();
   showToast(emoji+' '+name+' am '+date+' gespeichert');
@@ -1228,8 +1246,10 @@ function openEditEvent(id) {
     '<input class="modal-in" id="ev-name" value="'+e.name+'" style="flex:1"></div></div>'+
     '<div class="modal-row"><label>Datum</label>'+
     '<input class="modal-in" type="date" id="ev-date" value="'+e.date+'"></div>'+
-    '<div class="modal-row"><label>Uhrzeit (optional)</label>'+
-    '<input class="modal-in" type="time" id="ev-time" value="'+(e.time||'')+'"></div>'+
+    '<div class="modal-row"><div style="display:flex;gap:8px">'+
+    '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="ev-time" value="'+(e.time||'')+'"></div>'+
+    '<div style="flex:1"><label>Bis (optional)</label><input class="modal-in" type="time" id="ev-time-end" value="'+(e.timeEnd||'')+'"></div>'+
+    '</div></div>'+
     '<div class="modal-row"><label>Für wen</label>'+
     '<select class="modal-in" id="ev-who">'+
     '<option value="p1"'+(e.who==='p1'?' selected':'')+'>'+HP.names.p1+'</option>'+
@@ -1326,6 +1346,7 @@ function saveEditEvent(id) {
   e.name=document.getElementById('ev-name')?.value.trim()||e.name;
   e.date=document.getElementById('ev-date')?.value||e.date;
   e.time=document.getElementById('ev-time')?.value||'';
+  e.timeEnd=document.getElementById('ev-time-end')?.value||'';
   e.who=document.getElementById('ev-who')?.value||e.who;
   e.important=document.getElementById('ev-important')?.checked||false;
   HP_save();closeModal();render();

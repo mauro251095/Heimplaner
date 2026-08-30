@@ -23,8 +23,8 @@ function initSync() {
   syncBar.id = 'sync-bar';
   syncBar.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:.72rem;color:var(--muted)';
   syncBar.innerHTML =
-    '<span id="sync-status">⚪ Nicht verbunden</span>' +
-    '<button onclick="openSyncModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:Inter,sans-serif;font-size:.7rem;padding:3px 9px;cursor:pointer">🔄 Sync</button>';
+    '<span id="sync-status"><span class="sync-icon">⚪</span><span class="sync-label"> Nicht verbunden</span></span>' +
+    '<button onclick="openSyncModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:Inter,sans-serif;font-size:.7rem;padding:3px 9px;cursor:pointer"><span class="sync-btn-icon">🔄</span><span class="sync-btn-text"> Sync</span></button>';
   topbar.appendChild(syncBar);
 
   if (syncPassword) connectSync();
@@ -32,7 +32,12 @@ function initSync() {
 
 function setSyncStatus(status, color) {
   const el = document.getElementById('sync-status');
-  if (el) el.innerHTML = '<span style="color:' + color + '">' + status + '</span>';
+  if (!el) return;
+  const sp = status.indexOf(' ');
+  const icon = sp === -1 ? status : status.slice(0, sp);
+  const label = sp === -1 ? '' : status.slice(sp + 1);
+  el.innerHTML = '<span class="sync-icon" style="color:' + color + '">' + icon + '</span>' +
+    '<span class="sync-label" style="color:' + color + '"> ' + label + '</span>';
 }
 
 function openSyncModal() {
