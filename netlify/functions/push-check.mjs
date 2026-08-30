@@ -151,7 +151,9 @@ export default async () => {
       // Unbekannte/fehlende Rolle (altes Abo, noch nicht neu registriert) -> sicherheitshalber trotzdem senden.
       if (item.who !== 'shared' && sub.who && sub.who !== item.who) continue;
       try {
-        await webpush.sendNotification(pushSub, JSON.stringify(item));
+        // urgency:'high' -> bittet den Push-Dienst (v.a. Android/FCM) um sofortige
+        // Zustellung statt sie aus Akkuspar-Gründen zu verzögern.
+        await webpush.sendNotification(pushSub, JSON.stringify(item), { urgency: 'high' });
         sent++;
       } catch (e) {
         if (e.statusCode === 404 || e.statusCode === 410) {
