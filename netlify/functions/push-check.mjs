@@ -88,7 +88,10 @@ export default async () => {
   if (!subs.length) return new Response('no subscribers', { status: 200 });
 
   const now = Date.now();
-  const windowEnd = now + 5 * 60000;
+  // Rückblickendes Fenster: erfasst alles, was seit dem letzten Lauf fällig wurde.
+  // (Ein vorausschauendes Fenster verpasst Erinnerungen, sobald der Cron-Lauf
+  // auch nur ein paar Sekunden nach der eigentlichen Fälligkeit startet.)
+  const windowStart = now - 5 * 60000;
   const todayKey = zurichDateKey(new Date(now));
   const tomorrowKey = addDaysToKey(todayKey, 1);
   const due = [];
@@ -102,7 +105,7 @@ export default async () => {
       [todayKey, tomorrowKey].forEach(dateKey => {
         if (!taskOccursOn(task, dateKey, exceptions)) return;
         const fire = zonedTimeToUtcMs(dateKey, task.time) - off * 60000;
-        if (fire >= now && fire < windowEnd) {
+        if (fire > windowStart && fire <= now) {
           due.push({ title: `${task.emoji || '⭐'} ${reminderLabel(off)}: ${task.name}`, body: 'Heimplaner', tag: `${task.id}-${dateKey}` });
         }
       });
@@ -114,7 +117,7 @@ export default async () => {
     if (!ev.time || !ev.date || ev.reminder === 'off') return;
     const off = (ev.reminder === undefined || ev.reminder === '') ? 15 : (parseInt(ev.reminder) || 0);
     const fire = zonedTimeToUtcMs(ev.date, ev.time) - off * 60000;
-    if (fire >= now && fire < windowEnd) {
+    if (fire > windowStart && fire <= now) {
       due.push({ title: `📅 ${reminderLabel(off)}: ${ev.name}`, body: `${ev.date} um ${ev.time}`, tag: `ev-${ev.id}` });
     }
   });
@@ -123,7 +126,7 @@ export default async () => {
   (HP.birthdays || []).forEach(b => {
     const nextKey = getNextBirthdayKey(b.date, todayKey);
     const fire = zonedTimeToUtcMs(nextKey, '09:00');
-    if (fire >= now && fire < windowEnd) {
+    if (fire > windowStart && fire <= now) {
       due.push({ title: `🎂 ${b.name} hat heute Geburtstag!`, body: '', tag: `bd-${b.id}` });
     }
   });

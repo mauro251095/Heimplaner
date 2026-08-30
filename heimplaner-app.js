@@ -290,9 +290,9 @@ function openQuickAddTask(who='shared', prefillDate='') {
     '<div class="modal-row"><label>Art</label>'+
     '<div style="display:flex;gap:12px">'+
     '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem">'+
-    '<input type="radio" name="qa-type" value="once"'+(prefillDate?' checked':' checked')+' onchange="document.getElementById(\'qa-weekly\').style.display=\'none\';document.getElementById(\'qa-once\').style.display=\'\'"> 📅 Einmaliger Termin</label>'+
+    '<input type="radio" name="qa-type" value="once"'+(prefillDate?' checked':' checked')+' onchange="document.getElementById(\'qa-weekly\').style.display=\'none\';document.getElementById(\'qa-once\').style.display=\'\';document.getElementById(\'qa-reminder-weekly\').style.display=\'none\';document.getElementById(\'qa-reminder-once\').style.display=\'\'"> 📅 Einmaliger Termin</label>'+
     '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem">'+
-    '<input type="radio" name="qa-type" value="weekly" onchange="document.getElementById(\'qa-weekly\').style.display=\'\';document.getElementById(\'qa-once\').style.display=\'none\'"> 🔁 Wöchentlich</label>'+
+    '<input type="radio" name="qa-type" value="weekly" onchange="document.getElementById(\'qa-weekly\').style.display=\'\';document.getElementById(\'qa-once\').style.display=\'none\';document.getElementById(\'qa-reminder-weekly\').style.display=\'\';document.getElementById(\'qa-reminder-once\').style.display=\'none\'"> 🔁 Wöchentlich</label>'+
     '</div></div>'+
     '<div id="qa-once">'+
     '<div class="modal-row"><label>Datum</label>'+
@@ -306,6 +306,10 @@ function openQuickAddTask(who='shared', prefillDate='') {
     '<div class="modal-row" style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="qa-time"></div>'+
     '<div style="flex:1"><label>Bis (optional)</label><input class="modal-in" type="time" id="qa-time-end"></div>'+
+    '</div>'+
+    '<div class="modal-row">'+
+    '<div id="qa-reminder-once"><label>Erinnerung</label><select class="modal-in" id="qa-reminder-ev">'+eventReminderOptions('')+'</select></div>'+
+    '<div id="qa-reminder-weekly" style="display:none"><label>Erinnerung</label><select class="modal-in" id="qa-reminder-task">'+taskReminderOptions('')+'</select></div>'+
     '</div>'+
     '<div class="modal-row" style="display:flex;gap:16px">'+
     '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem"><input type="checkbox" id="qa-prio" style="accent-color:var(--prio)"> Priorität</label>'+
@@ -337,8 +341,9 @@ function saveQuickAddTask() {
     // Save as event (einmaliger Termin)
     const date=document.getElementById('qa-date')?.value||'';
     if(!date){showToast('Bitte Datum wählen');return;}
+    const reminder=document.getElementById('qa-reminder-ev')?.value||'';
     if(!HP.events)HP.events=[];
-    HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,important,note:''});
+    HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,reminder,important,note:''});
     HP_save();closeModal();render();
     if(typeof renderMonth==='function'&&document.getElementById('view-month')&&!document.getElementById('view-month').classList.contains('hidden'))renderMonth();
     showToast(emoji+' '+name+' am '+date+' eingetragen');
@@ -350,7 +355,8 @@ function saveQuickAddTask() {
     });
     const days=sel.length?sel:[0,1,2,3,4,5,6];
     const tid=who+Date.now();
-    HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,timeEnd,reminder:''});
+    const reminder=document.getElementById('qa-reminder-task')?.value||'';
+    HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,timeEnd,reminder});
     HP_save();closeModal();render();showToast(emoji+' '+name+' hinzugefügt');
   }
 }
@@ -859,6 +865,11 @@ function addTask(){
 }
 
 // ── TASK MODAL ────────────────────────────────
+const TASK_REMINDER_OPTS=[['','Keine'],['0','Zur Uhrzeit'],['5','5 Min vorher'],['15','15 Min vorher'],['30','30 Min vorher'],['60','1 Std vorher']];
+function taskReminderOptions(selected) {
+  return TASK_REMINDER_OPTS.map(([v,l])=>'<option value="'+v+'"'+((selected||'')===v?' selected':'')+'>'+l+'</option>').join('');
+}
+
 function openTaskModal(tid,dateKey='') {
   const task=allTasks().find(t=>t.id===tid); if(!task) return;
   const st=getStatus(tid), note=HP.taskNotes[tid]||'';
@@ -875,9 +886,7 @@ function openTaskModal(tid,dateKey='') {
     '<div class="modal-row" style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Von</label><input class="modal-in" type="time" id="tm-time" value="'+(task.time||'')+'"></div>'+
     '<div style="flex:1"><label>Bis</label><input class="modal-in" type="time" id="tm-time-end" value="'+(task.timeEnd||'')+'"></div>'+
-    '<div style="flex:1"><label>Erinnerung</label><select class="modal-in" id="tm-rem">'+
-    ['','0','5','15','30','60'].map((v,i)=>'<option value="'+v+'"'+(task.reminder===v?' selected':'')+'>'+['Keine','Zur Uhrzeit','5 Min vorher','15 Min vorher','30 Min vorher','1 Std vorher'][i]+'</option>').join('')+
-    '</select></div></div>'+
+    '<div style="flex:1"><label>Erinnerung</label><select class="modal-in" id="tm-rem">'+taskReminderOptions(task.reminder)+'</select></div></div>'+
     '<div class="modal-row" id="block-sec" style="'+(st!=='blocked'?'display:none':'')+' ">'+
     '<label>Was fehlt / warum blockiert?</label>'+
     '<input class="modal-in" id="block-note" placeholder="z.B. Blumenerde fehlt…" value="'+note+'">'+
