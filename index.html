@@ -493,7 +493,7 @@ body { padding-top: env(safe-area-inset-top); }
     </div>
     <div class="mob-nav-sec">
       <span class="mob-sec-lbl">Haushalt</span>
-      <button class="mob-nav-btn" data-view="household" onclick="setView('household',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>🧹 Haushalt</button>
+      <button class="mob-nav-btn" data-view="household" onclick="setView('household',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>Haushalt</button>
       <button class="mob-nav-btn" data-view="shop" onclick="setView('shop',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste</button>
       <button class="mob-nav-btn" data-view="meals" onclick="setView('meals',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
       <button class="mob-nav-btn" data-view="recipes" onclick="setView('recipes',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
@@ -543,7 +543,7 @@ body { padding-top: env(safe-area-inset-top); }
     <button class="vbtn active" data-view="all" onclick="setView('all',this)"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Wochenplaner</button>
     <button class="vbtn" data-view="month" onclick="setView('month',this)"><span class="dot" style="background:var(--p1)"></span>Monatsplaner</button>
     <span class="sec-lbl" style="margin-top:12px">Haushalt</span>
-    <button class="vbtn" data-view="household" onclick="setView('household',this)"><span class="dot" style="background:var(--shared)"></span>🧹 Haushalt</button>
+    <button class="vbtn" data-view="household" onclick="setView('household',this)"><span class="dot" style="background:var(--shared)"></span>Haushalt</button>
     <button class="vbtn" data-view="shop" onclick="setView('shop',this)"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste<span class="badge hidden" id="shop-badge">0</span></button>
     <button class="vbtn" data-view="meals" onclick="setView('meals',this)"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
     <button class="vbtn" data-view="recipes" onclick="setView('recipes',this)"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
@@ -642,12 +642,17 @@ body { padding-top: env(safe-area-inset-top); }
     <!-- MANAGE VIEW -->
     <div id="view-manage" class="hidden">
       <div class="sec-hd" style="margin-bottom:14px">Aufgaben verwalten</div>
-      <div class="tm-grid">
-        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p1)"></div><span id="tm-h-p1">Mauro</span></div><div class="tm-list" id="tm-p1"></div></div>
-        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p2)"></div><span id="tm-h-p2">Lena</span></div><div class="tm-list" id="tm-p2"></div></div>
-        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--shared)"></div><span>Gemeinsam</span></div><div class="tm-list" id="tm-shared"></div></div>
+
+      <!-- EINMALIGE TERMINE -->
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div class="sec-hd" style="margin-bottom:0">📅 Einmalige Termine</div>
+          <button class="af-add" onclick="openAddEvent()" style="margin-left:auto">+ Neuer Termin</button>
+        </div>
+        <div id="events-list"></div>
       </div>
-      <div class="add-form">
+
+      <div class="add-form" style="margin-top:18px">
         <div class="af-title">Neue Aufgabe</div>
         <div class="af-row" style="margin-bottom:8px">
           <div style="position:relative">
@@ -709,15 +714,11 @@ body { padding-top: env(safe-area-inset-top); }
         <button class="af-add" style="width:100%" onclick="addTask()">+ Aufgabe hinzufügen</button>
       </div>
 
-      <!-- EINMALIGE TERMINE -->
-      <div style="margin-top:18px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <div class="sec-hd" style="margin-bottom:0">📅 Einmalige Termine</div>
-          <button class="af-add" onclick="openAddEvent()" style="margin-left:auto">+ Neuer Termin</button>
-        </div>
-        <div id="events-list"></div>
+      <div class="tm-grid" style="margin-top:18px">
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p1)"></div><span id="tm-h-p1">Mauro</span></div><div class="tm-list" id="tm-p1"></div></div>
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p2)"></div><span id="tm-h-p2">Lena</span></div><div class="tm-list" id="tm-p2"></div></div>
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--shared)"></div><span>Gemeinsam</span></div><div class="tm-list" id="tm-shared"></div></div>
       </div>
-
     </div>
 
     <!-- MONTH VIEW -->

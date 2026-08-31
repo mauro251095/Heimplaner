@@ -926,7 +926,11 @@ function openTaskModal(tid,dateKey='') {
   const stBtns=[['open','⬜ Offen'],['wip','🟡 In Arbeit'],['blocked','🔴 Blockiert'],['done','✅ Erledigt']]
     .map(([s,l])=>'<button class="st-btn'+(st===s?' sel-'+s:'')+'" onclick="setTaskStatus(\''+tid+'\',\''+s+'\',this)">'+l+'</button>').join('');
   const occLabel=dateKey?new Date(dateKey+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'}):'';
-  showModal('<h3>'+task.emoji+' '+task.name+'</h3>'+
+  showModal('<h3>'+task.name+'</h3>'+
+    '<div class="modal-row"><label>Emoji</label>'+
+    '<div style="display:flex;gap:7px">'+emojiPickerBtnHTML('tm-emoji',task.emoji)+'</div>'+
+    emojiPickerMenuHTML('tm-emoji')+
+    '</div>'+
     '<div class="modal-row"><label>Status</label><div class="st-btns">'+stBtns+'</div></div>'+
     '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
     '<input type="checkbox" id="tm-important"'+(isImportant?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
@@ -990,7 +994,8 @@ function saveTaskDetails(tid) {
   const t=document.getElementById('tm-time')?.value||'', r=document.getElementById('tm-rem')?.value||'';
   const te=document.getElementById('tm-time-end')?.value||'';
   const imp=document.getElementById('tm-important')?.checked||false;
-  ['p1','p2','shared'].forEach(w=>{const task=HP.tasks[w].find(x=>x.id===tid);if(task){task.time=t;task.timeEnd=te;task.reminder=r;task.important=imp;}});
+  const emoji=document.getElementById('tm-emoji')?.value||'⭐';
+  ['p1','p2','shared'].forEach(w=>{const task=HP.tasks[w].find(x=>x.id===tid);if(task){task.time=t;task.timeEnd=te;task.reminder=r;task.important=imp;task.emoji=emoji;}});
   HP_save();
   render();
 }
