@@ -282,11 +282,15 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .af-in:focus{border-color:var(--p1)}
 .af-in::placeholder{color:var(--muted)}
 .af-in.txt{flex:1;min-width:120px}
-.af-in.ej{width:44px;text-align:center}
 .af-sel{background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;color:var(--text);font-family:'Inter',sans-serif;font-size:.79rem;outline:none}
 .af-sel option{background:var(--panel)}
 .af-add{background:var(--p1);color:#fff;border:none;border-radius:var(--rs);padding:6px 14px;font-family:'Inter',sans-serif;font-size:.79rem;font-weight:600;cursor:pointer}
 .af-add:hover{opacity:.85}
+.emoji-picker-btn{width:44px;height:32px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);font-size:1.05rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.emoji-picker-btn:hover{border-color:var(--muted)}
+.emoji-picker-menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:5px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);padding:8px;margin-top:6px}
+.emoji-opt{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;font-size:1.1rem;transition:background .15s}
+.emoji-opt:hover{background:var(--surface)}
 
 /* ── MONTH ── */
 .month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
@@ -489,6 +493,7 @@ body { padding-top: env(safe-area-inset-top); }
     </div>
     <div class="mob-nav-sec">
       <span class="mob-sec-lbl">Haushalt</span>
+      <button class="mob-nav-btn" data-view="household" onclick="setView('household',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>🧹 Haushalt</button>
       <button class="mob-nav-btn" data-view="shop" onclick="setView('shop',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste</button>
       <button class="mob-nav-btn" data-view="meals" onclick="setView('meals',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
       <button class="mob-nav-btn" data-view="recipes" onclick="setView('recipes',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
@@ -538,6 +543,7 @@ body { padding-top: env(safe-area-inset-top); }
     <button class="vbtn active" data-view="all" onclick="setView('all',this)"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Wochenplaner</button>
     <button class="vbtn" data-view="month" onclick="setView('month',this)"><span class="dot" style="background:var(--p1)"></span>Monatsplaner</button>
     <span class="sec-lbl" style="margin-top:12px">Haushalt</span>
+    <button class="vbtn" data-view="household" onclick="setView('household',this)"><span class="dot" style="background:var(--shared)"></span>🧹 Haushalt</button>
     <button class="vbtn" data-view="shop" onclick="setView('shop',this)"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste<span class="badge hidden" id="shop-badge">0</span></button>
     <button class="vbtn" data-view="meals" onclick="setView('meals',this)"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
     <button class="vbtn" data-view="recipes" onclick="setView('recipes',this)"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
@@ -604,6 +610,16 @@ body { padding-top: env(safe-area-inset-top); }
       </div>
     </div>
 
+    <!-- HOUSEHOLD VIEW -->
+    <div id="view-household" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">🧹 Haushalt</h2>
+        <button class="af-add" onclick="openAddEvent('',true)" style="margin-left:auto">+ Neue Aufgabe</button>
+      </div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Wiederkehrende Reinigungs- und Haushaltsaufgaben (z.B. Fenster jährlich, Staubwischen vierteljährlich) – erscheinen im Wochen-/Monatsplaner und werden 1 Woche im Voraus erinnert.</div>
+      <div id="household-list"></div>
+    </div>
+
     <!-- MEAL VIEW -->
     <div id="view-meals" class="hidden">
       <div class="sec-hd" style="margin-bottom:14px">Menüplan</div>
@@ -634,9 +650,35 @@ body { padding-top: env(safe-area-inset-top); }
       <div class="add-form">
         <div class="af-title">Neue Aufgabe</div>
         <div class="af-row" style="margin-bottom:8px">
-          <input class="af-in ej" id="af-emoji" placeholder="😊" maxlength="2">
+          <div style="position:relative">
+            <button type="button" class="emoji-picker-btn" id="af-emoji-btn" onclick="event.stopPropagation();toggleEmojiMenu('af-emoji')">⭐</button>
+            <input type="hidden" id="af-emoji" value="⭐">
+          </div>
           <input class="af-in txt" id="af-name" placeholder="Aufgabe…">
           <select class="af-sel" id="af-who"><option value="p1" id="af-op1">Mauro</option><option value="p2" id="af-op2">Lena</option><option value="shared">Gemeinsam</option></select>
+        </div>
+        <div class="emoji-picker-menu hidden" id="af-emoji-menu">
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🥪')">🥪</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🌺')">🌺</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🍽️')">🍽️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🎉')">🎉</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🎥')">🎥</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','📷')">📷</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🗓️')">🗓️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','📌')">📌</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🧹')">🧹</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🧼')">🧼</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🧽')">🧽</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🚿')">🚿</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🛒')">🛒</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','📚')">📚</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🗑️')">🗑️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','💬')">💬</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🚣🏽‍♀️')">🚣🏽‍♀️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','💪🏼')">💪🏼</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🧘🏽‍♀️')">🧘🏽‍♀️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🏋🏽‍♀️')">🏋🏽‍♀️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🏠')">🏠</span>
         </div>
         <div class="af-row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px">
           <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">

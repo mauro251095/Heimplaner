@@ -37,7 +37,7 @@ function setView(view, btn) {
   document.querySelectorAll('.vbtn,[data-view]').forEach(b=>{
     b.classList.toggle('active', b.dataset&&b.dataset.view===view);
   });
-  const views=['all','person','shop','meals','recipes','manage','month','pinboard','ai','settings','birthdays'];
+  const views=['all','person','shop','meals','recipes','manage','month','pinboard','ai','settings','birthdays','household'];
   views.forEach(v=>document.getElementById('view-'+v)?.classList.add('hidden'));
   const target=document.getElementById('view-'+( view==='p1'||view==='p2'?'person':view ));
   if(target) target.classList.remove('hidden');
@@ -48,6 +48,7 @@ function setView(view, btn) {
   else if(view==='recipes') renderRecipes();
   else if(view==='manage') { render(); renderEventsList(); renderBirthdayList(); return; }
   else if(view==='birthdays') { renderBirthdayList(); renderEventsList(); }
+  else if(view==='household') { renderHouseholdList(); return; }
   else if(view==='settings') renderColorSettings();
   render();
   // mobile nav sync
@@ -274,13 +275,10 @@ function openQuickAddTask(who='shared', prefillDate='') {
 
 
     '<div style="display:flex;gap:7px">'+
-    '<select class="modal-in" id="qa-emoji" style="width:64px;text-align:center;font-size:1.1rem;padding:4px">'+
-    '<option value="📅">📅</option><option value="🏥">🏥</option><option value="🎉">🎉</option>'+
-    '<option value="🛒">🛒</option><option value="🏋️">🏋️</option><option value="📚">📚</option>'+
-    '<option value="🍽️">🍽️</option><option value="🚗">🚗</option><option value="✈️">✈️</option>'+
-    '<option value="💊">💊</option><option value="🏠">🏠</option><option value="⭐">⭐</option>'+
-    '</select>'+
-    '<input class="modal-in" id="qa-name" placeholder="z.B. Arzttermin, Sport…" style="flex:1"></div></div>'+
+    emojiPickerBtnHTML('qa-emoji','📅')+
+    '<input class="modal-in" id="qa-name" placeholder="z.B. Arzttermin, Sport…" style="flex:1"></div>'+
+    emojiPickerMenuHTML('qa-emoji')+
+    '</div>'+
     '<div class="modal-row"><label>Für wen</label>'+
     '<select class="modal-in" id="qa-who" onchange="updateQaDayClass()">'+
     '<option value="p1"'+(who==='p1'?' selected':'')+'>'+HP.names.p1+'</option>'+
@@ -368,6 +366,7 @@ function deleteEvent(id){
   if(HP.eventComments) delete HP.eventComments[id];
   HP_save();render();
   if(typeof renderMonth==='function')renderMonth();
+  if(typeof renderHouseholdList==='function')renderHouseholdList();
   showToast('Termin gelöscht');
 }
 
@@ -760,7 +759,7 @@ function renderManage() {
 
 function renderEventsList() {
   const el = document.getElementById('events-list'); if(!el) return;
-  const events = (HP.events||[]).slice().sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
+  const events = (HP.events||[]).filter(e=>!e.chore).slice().sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
   if(!events.length){
     el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Noch keine einmaligen Termine.</div>';
     return;
@@ -775,6 +774,28 @@ function renderEventsList() {
       '<div style="flex:1"><div style="font-size:.82rem;font-weight:500">'+e.name+'</div>'+
       '<div style="font-size:.7rem;color:var(--muted)">'+e.date+(e.time?' · ⏰'+fmtTimeRange(e.time,e.timeEnd):'')+'</div></div>'+
       '<span style="font-size:.7rem;color:'+whoColor+';font-weight:500">'+whoLabel+'</span>'+
+      '<button data-eid=' + JSON.stringify(e.id) + ' onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✏️</button>'+
+      '<button data-eid=' + JSON.stringify(e.id) + ' onclick="deleteEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+function renderHouseholdList() {
+  const el = document.getElementById('household-list'); if(!el) return;
+  const chores = (HP.events||[]).filter(e=>e.chore).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  if(!chores.length){
+    el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Noch keine Haushaltsaufgaben.</div>';
+    return;
+  }
+  el.innerHTML = chores.map(e=>{
+    const whoLabel=e.who==='p1'?HP.names.p1:e.who==='p2'?HP.names.p2:'Gemeinsam';
+    const whoColor=e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px">'+
+      '<span style="font-size:1.1rem">'+e.emoji+'</span>'+
+      '<div style="flex:1"><div style="font-size:.82rem;font-weight:500">'+e.name+'</div>'+
+      '<div style="font-size:.7rem;color:var(--muted)">🔁 '+recurLabel(e.recur)+' · Fällig: '+e.date+(e.time?' · ⏰'+fmtTimeRange(e.time,e.timeEnd):'')+'</div></div>'+
+      '<span style="font-size:.7rem;color:'+whoColor+';font-weight:500">'+whoLabel+'</span>'+
+      '<button data-eid=' + JSON.stringify(e.id) + ' onclick="openEventModal(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">👁️</button>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✏️</button>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="deleteEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✕</button>'+
     '</div>';
@@ -827,6 +848,33 @@ function savePersonName(who) {
   showToast('Gespeichert');
 }
 
+// ── EMOJI PICKER ───────────────────────────────
+const TASK_EMOJIS=['🥪','🌺','🍽️','🎉','🎥','📷','🗓️','📌','🧹','🧼','🧽','🚿','🛒','📚','🗑️','💬','🚣🏽‍♀️','💪🏼','🧘🏽‍♀️','🏋🏽‍♀️','🏠'];
+function emojiPickerBtnHTML(prefix, current) {
+  const cur=current||'⭐';
+  return '<button type="button" class="emoji-picker-btn" id="'+prefix+'-btn" onclick="event.stopPropagation();toggleEmojiMenu(\''+prefix+'\')">'+cur+'</button>'+
+    '<input type="hidden" id="'+prefix+'" value="'+cur+'">';
+}
+function emojiPickerMenuHTML(prefix) {
+  return '<div class="emoji-picker-menu hidden" id="'+prefix+'-menu">'+
+    TASK_EMOJIS.map(em=>'<span class="emoji-opt" onclick="selectEmoji(\''+prefix+'\',\''+em+'\')">'+em+'</span>').join('')+
+    '</div>';
+}
+function toggleEmojiMenu(prefix) {
+  document.querySelectorAll('.emoji-picker-menu').forEach(m=>{if(m.id!==prefix+'-menu')m.classList.add('hidden');});
+  document.getElementById(prefix+'-menu')?.classList.toggle('hidden');
+}
+function selectEmoji(prefix, emoji) {
+  const input=document.getElementById(prefix); if(input) input.value=emoji;
+  const btn=document.getElementById(prefix+'-btn'); if(btn) btn.textContent=emoji;
+  document.getElementById(prefix+'-menu')?.classList.add('hidden');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.emoji-picker-btn')&&!e.target.closest('.emoji-picker-menu')){
+    document.querySelectorAll('.emoji-picker-menu').forEach(m=>m.classList.add('hidden'));
+  }
+});
+
 // ── ADD TASK DAY PILLS ────────────────────────
 function initDayPills() {
   afSelectedDays=[];
@@ -856,7 +904,8 @@ function addTask(){
   const days=afSelectedDays.length?[...afSelectedDays]:[0,1,2,3,4,5,6];
   const tid=who+Date.now();
   HP.tasks[who].push({id:tid,emoji,name,days,prio,status:'open',time,timeEnd,reminder});
-  ['af-name','af-emoji','af-time','af-time-end'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['af-name','af-time','af-time-end'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  selectEmoji('af-emoji','⭐');
   document.getElementById('af-prio').checked=false;
   document.getElementById('af-reminder').value='';
   afSelectedDays=[];
@@ -1200,15 +1249,26 @@ function eventReminderOptions(selected) {
   return EVENT_REMINDER_OPTS.map(([v,l])=>'<option value="'+v+'"'+((selected||'')===v?' selected':'')+'>'+l+'</option>').join('');
 }
 
-function openAddEvent(prefillDate='') {
+function choreRecurRow(current) {
+  return '<div class="modal-row"><label>Wiederholung</label>'+
+    '<select class="modal-in" id="ev-recur">'+
+    CHORE_INTERVALS.map(([k,l])=>'<option value="'+k+'"'+((current||'months:3')===k?' selected':'')+'>'+l+'</option>').join('')+
+    '</select></div>';
+}
+
+function openAddEvent(prefillDate='', chore=false) {
   showModal(
-    '<h3>📅 Neuer Termin</h3>'+
+    '<h3>'+(chore?'🧹 Neue Haushaltsaufgabe':'📅 Neuer Termin')+'</h3>'+
+    '<input type="hidden" id="ev-chore" value="'+(chore?'1':'0')+'">'+
     '<div class="modal-row"><label>Emoji & Name</label>'+
     '<div style="display:flex;gap:7px">'+
-    '<input class="modal-in" id="ev-emoji" placeholder="📅" maxlength="2" style="width:48px;text-align:center">'+
-    '<input class="modal-in" id="ev-name" placeholder="z.B. Arzttermin, Abendessen…" style="flex:1"></div></div>'+
-    '<div class="modal-row"><label>Datum</label>'+
+    emojiPickerBtnHTML('ev-emoji',chore?'🧹':'📅')+
+    '<input class="modal-in" id="ev-name" placeholder="'+(chore?'z.B. Fenster putzen…':'z.B. Arzttermin, Abendessen…')+'" style="flex:1"></div>'+
+    emojiPickerMenuHTML('ev-emoji')+
+    '</div>'+
+    '<div class="modal-row"><label>'+(chore?'Nächste Fälligkeit':'Datum')+'</label>'+
     '<input class="modal-in" type="date" id="ev-date" value="'+prefillDate+'"></div>'+
+    (chore?choreRecurRow(''):'')+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="ev-time"></div>'+
     '<div style="flex:1"><label>Bis (optional)</label><input class="modal-in" type="time" id="ev-time-end"></div>'+
@@ -1220,7 +1280,7 @@ function openAddEvent(prefillDate='') {
     '<option value="shared" selected>Gemeinsam</option>'+
     '</select></div>'+
     '<div class="modal-row"><label>Erinnerung</label>'+
-    '<select class="modal-in" id="ev-reminder">'+eventReminderOptions('')+'</select></div>'+
+    '<select class="modal-in" id="ev-reminder">'+eventReminderOptions(chore?'10080':'')+'</select></div>'+
     '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
     '<input type="checkbox" id="ev-important" style="accent-color:var(--red);width:16px;height:16px">'+
     '<span style="color:var(--red);font-weight:500">🚨 Wichtig</span></label></div>'+
@@ -1241,25 +1301,37 @@ function saveNewEvent() {
   const who=document.getElementById('ev-who')?.value||'shared';
   const reminder=document.getElementById('ev-reminder')?.value||'';
   const important=document.getElementById('ev-important')?.checked||false;
+  const isChore=document.getElementById('ev-chore')?.value==='1';
   if(!name){showToast('Bitte Name eingeben');return;}
   if(!date){showToast('Bitte Datum wählen');return;}
   if(!HP.events) HP.events=[];
-  HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,reminder,important,note:''});
+  const ev={id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,reminder,important,note:''};
+  if(isChore){
+    const [unit,value]=(document.getElementById('ev-recur')?.value||'months:3').split(':');
+    ev.chore=true; ev.recur={unit,value:parseInt(value)};
+  }
+  HP.events.push(ev);
   HP_save();closeModal();render();
   if(typeof renderEventsList==='function') renderEventsList();
+  if(isChore&&typeof renderHouseholdList==='function') renderHouseholdList();
   showToast(emoji+' '+name+' am '+date+' gespeichert');
 }
 
 function openEditEvent(id) {
   const e=(HP.events||[]).find(x=>x.id===id); if(!e) return;
+  const chore=!!e.chore;
   showModal(
-    '<h3>✏️ Termin bearbeiten</h3>'+
+    '<h3>'+(chore?'✏️ Haushaltsaufgabe bearbeiten':'✏️ Termin bearbeiten')+'</h3>'+
+    '<input type="hidden" id="ev-chore" value="'+(chore?'1':'0')+'">'+
     '<div class="modal-row"><label>Emoji & Name</label>'+
     '<div style="display:flex;gap:7px">'+
-    '<input class="modal-in" id="ev-emoji" placeholder="📅" maxlength="2" value="'+e.emoji+'" style="width:48px;text-align:center">'+
-    '<input class="modal-in" id="ev-name" value="'+e.name+'" style="flex:1"></div></div>'+
-    '<div class="modal-row"><label>Datum</label>'+
+    emojiPickerBtnHTML('ev-emoji',e.emoji)+
+    '<input class="modal-in" id="ev-name" value="'+e.name+'" style="flex:1"></div>'+
+    emojiPickerMenuHTML('ev-emoji')+
+    '</div>'+
+    '<div class="modal-row"><label>'+(chore?'Nächste Fälligkeit':'Datum')+'</label>'+
     '<input class="modal-in" type="date" id="ev-date" value="'+e.date+'"></div>'+
+    (chore?choreRecurRow(e.recur?e.recur.unit+':'+e.recur.value:''):'')+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="ev-time" value="'+(e.time||'')+'"></div>'+
     '<div style="flex:1"><label>Bis (optional)</label><input class="modal-in" type="time" id="ev-time-end" value="'+(e.timeEnd||'')+'"></div>'+
@@ -1322,6 +1394,16 @@ function saveEventModalDetails(id) {
 }
 
 function setEventStatus(id,status,btn) {
+  const e=(HP.events||[]).find(x=>x.id===id);
+  if(e && e.chore && e.recur && status==='done'){
+    e.date=advanceDateKey(e.date,e.recur.unit,e.recur.value);
+    if(HP.eventStatus) delete HP.eventStatus[id];
+    HP_save();closeModal();render();
+    if(typeof renderMonth==='function')renderMonth();
+    if(typeof renderHouseholdList==='function')renderHouseholdList();
+    showToast('✅ '+e.name+' erledigt — nächste Fälligkeit: '+e.date);
+    return;
+  }
   if(!HP.eventStatus) HP.eventStatus={};
   HP.eventStatus[id]=status;
   document.querySelectorAll('#modal-ov .st-btn').forEach(b=>b.className='st-btn');
@@ -1366,9 +1448,15 @@ function saveEditEvent(id) {
   e.who=document.getElementById('ev-who')?.value||e.who;
   e.reminder=document.getElementById('ev-reminder')?.value||'';
   e.important=document.getElementById('ev-important')?.checked||false;
+  if(e.chore){
+    const [unit,value]=(document.getElementById('ev-recur')?.value||'months:3').split(':');
+    e.recur={unit,value:parseInt(value)};
+  }
   HP_save();closeModal();render();
+  if(typeof renderMonth==='function')renderMonth();
   if(typeof renderEventsList==='function') renderEventsList();
-  showToast('Termin gespeichert');
+  if(typeof renderHouseholdList==='function') renderHouseholdList();
+  showToast(e.chore?'Haushaltsaufgabe gespeichert':'Termin gespeichert');
 }
 
 // ═══════════════════════════════════════════════

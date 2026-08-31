@@ -427,6 +427,31 @@ function guessCat(name) {
 }
 function catEmoji(c) { return CAT_EMOJI[c]||'📦'; }
 
+// ── Haushalt: wiederkehrende Termine ──────────────────
+const CHORE_INTERVALS = [
+  ['weeks:1','Wöchentlich'],['weeks:2','Alle 2 Wochen'],
+  ['months:1','Monatlich'],['months:3','Vierteljährlich'],
+  ['months:6','Halbjährlich'],['months:12','Jährlich']
+];
+function recurLabel(recur) {
+  if(!recur) return '';
+  const key=recur.unit+':'+recur.value;
+  const f=CHORE_INTERVALS.find(([k])=>k===key);
+  return f ? f[1] : recur.unit+' '+recur.value;
+}
+function advanceDateKey(dateKey, unit, value) {
+  const [y,m,d]=dateKey.split('-').map(Number);
+  if(unit==='weeks') {
+    const dt=new Date(Date.UTC(y,m-1,d));
+    dt.setUTCDate(dt.getUTCDate()+value*7);
+    return dt.toISOString().slice(0,10);
+  }
+  const total=(m-1)+value, ny=y+Math.floor(total/12), nm=(total%12)+1;
+  const lastDay=new Date(Date.UTC(ny,nm,0)).getUTCDate();
+  const nd=Math.min(d,lastDay);
+  return ny+'-'+String(nm).padStart(2,'0')+'-'+String(nd).padStart(2,'0');
+}
+
 // Farbe einer Person/Kategorie holen
 function getColor(who) {
   return (HP.colors && HP.colors[who]) || DEFAULT_COLORS[who] || '#6C8EFF';

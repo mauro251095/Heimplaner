@@ -119,7 +119,7 @@ export default async () => {
     const off = (ev.reminder === undefined || ev.reminder === '') ? 15 : (parseInt(ev.reminder) || 0);
     const fire = zonedTimeToUtcMs(ev.date, ev.time) - off * 60000;
     if (fire > windowStart && fire <= now) {
-      due.push({ who: ev.who || 'shared', title: `📅 ${reminderLabel(off)}: ${ev.name}`, body: `${ev.date} um ${ev.time}`, tag: `ev-${ev.id}` });
+      due.push({ who: ev.who || 'shared', title: `${ev.chore ? '🧹' : '📅'} ${reminderLabel(off)}: ${ev.name}`, body: `${ev.date} um ${ev.time}`, tag: `ev-${ev.id}-${ev.date}` });
     }
   });
 
