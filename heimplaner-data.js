@@ -292,6 +292,9 @@ const DL = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Son
 const CATS = ['Früchte & Gemüse','Kühlwaren','Fleisch & Fisch','Backwaren','Getränke','Haushalt','Tiefkühl','Vorrat','Sonstiges'];
 const CAT_EMOJI = {'Früchte & Gemüse':'🥦','Kühlwaren':'🧀','Fleisch & Fisch':'🥩','Backwaren':'🍞','Getränke':'🥤','Haushalt':'🧹','Tiefkühl':'❄️','Vorrat':'🥫','Sonstiges':'📦'};
 
+const BUDGET_CATS = ['Restaurant','Lieferservice','Events, Ausgang','Geschenke','Transport','Sonstiges'];
+const BUDGET_CAT_EMOJI = {'Restaurant':'🍽️','Lieferservice':'🛵','Events, Ausgang':'🎉','Geschenke':'🎁','Transport':'🚗','Sonstiges':'🧺'};
+
 // Verfügbare Farben für Personen/Kategorien
 const COLOR_OPTIONS = [
   {name:'Blau',    val:'#6C8EFF', bg:'rgba(108,142,255,0.12)'},
@@ -345,6 +348,8 @@ function loadState() {
       if (!d.eventComments) d.eventComments = {};
       if (!d.savedShopItems) d.savedShopItems = [];
       if (!d.taskExceptions) d.taskExceptions = {};
+      if (!d.budgetEntries) d.budgetEntries = [];
+      if (!d.budgetLimits) d.budgetLimits = {p1:{}, p2:{}};
       // ensure important field on all tasks
       ['p1','p2','shared'].forEach(w => {
         d.tasks[w] = d.tasks[w].map(t => ({important:false,...t}));
@@ -361,7 +366,8 @@ function loadState() {
     shop: [], meals: {}, notes: [], customRecipes: [],
     events: [], birthdays: [], taskComments: {},
     eventStatus: {}, eventNotes: {}, eventComments: {},
-    savedShopItems: [], taskExceptions: {}
+    savedShopItems: [], taskExceptions: {},
+    budgetEntries: [], budgetLimits: {p1:{}, p2:{}}
   };
 }
 
@@ -481,6 +487,32 @@ function getColorBg(who) {
   const val = getColor(who);
   const opt = COLOR_OPTIONS.find(c=>c.val===val);
   return opt ? opt.bg : 'rgba(108,142,255,0.12)';
+}
+
+// ── Budget ───────────────────────────────────
+function monthKey(dateStr) { return (dateStr||'').slice(0,7); }
+function currentMonthKey(off=0) {
+  const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()+off);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+const MONTH_NAMES=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+function monthLabel(mk) {
+  const [y,m]=mk.split('-').map(Number);
+  return MONTH_NAMES[m-1]+' '+y;
+}
+function fmtCHF(n) {
+  n=Math.round((n||0)*100)/100;
+  return Number.isInteger(n) ? n+'.-' : n.toFixed(2);
+}
+function budgetEntriesFor(person,mk) {
+  return (HP.budgetEntries||[]).filter(e=>e.person===person&&monthKey(e.date)===mk);
+}
+function budgetLimit(person,cat) {
+  return (HP.budgetLimits&&HP.budgetLimits[person]&&HP.budgetLimits[person][cat])||0;
+}
+function loggedInPersonKey() {
+  const u=(typeof getLoggedInUser==='function'&&getLoggedInUser()||'').toLowerCase();
+  return u==='melissa' ? 'p2' : 'p1';
 }
 
 // Initialise global state

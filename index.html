@@ -216,6 +216,52 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .clear-btn{background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);padding:5px 12px;font-family:'Inter',sans-serif;font-size:.72rem;cursor:pointer}
 .clear-btn:hover{color:var(--text);border-color:var(--muted)}
 .fav-btn{padding:8px 16px;font-size:.8rem;font-weight:600;border-color:var(--amber);color:var(--amber)}
+
+/* Budget */
+.budget-month-switch{display:flex;align-items:center;gap:10px;margin-left:auto;font-size:.83rem;color:var(--muted)}
+.budget-month-switch button{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);width:26px;height:26px;cursor:pointer;font-size:.78rem;line-height:1}
+.budget-month-switch button:hover{border-color:var(--p1)}
+.budget-tabs{display:none;gap:6px;margin-bottom:12px}
+.budget-tab{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px;font-family:'Inter',sans-serif;font-size:.8rem;color:var(--muted);cursor:pointer}
+.budget-tab.active{background:var(--panel);color:var(--text);font-weight:600;border-color:var(--p1)}
+.budget-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px}
+.budget-col-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bc-person-name{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600}
+.bc-gear{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;padding:5px 9px;font-size:.85rem}
+.bc-gear:hover{color:var(--text);border-color:var(--muted)}
+.budget-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 13px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
+.budget-card:hover{border-color:var(--p1)}
+.bc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.bc-title{font-size:.85rem;font-weight:500}
+.bc-chevron{color:var(--muted);font-size:.75rem;transition:transform .2s;flex-shrink:0}
+.budget-card.open .bc-chevron{transform:rotate(180deg)}
+.budget-progress{height:6px;background:var(--subtle);border-radius:99px;overflow:hidden;margin-bottom:6px}
+.budget-progress-fill{height:100%;border-radius:99px;transition:width .4s}
+.budget-progress-fill.ok{background:var(--green)}
+.budget-progress-fill.warn{background:var(--amber)}
+.budget-progress-fill.over{background:var(--red)}
+.budget-progress-fill.nolimit{background:var(--subtle2)}
+.bc-amounts{font-size:.76rem;color:var(--muted)}
+.budget-card-body{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);cursor:default}
+.budget-card.open .budget-card-body{display:block}
+.budget-entries{max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.budget-entry-row{display:grid;grid-template-columns:38px 1fr auto auto auto;gap:8px;align-items:center;font-size:.78rem;padding:5px 2px;border-radius:6px}
+.budget-entry-row:hover{background:var(--subtle)}
+.budget-entry-row .ber-date{color:var(--muted);font-size:.7rem}
+.budget-entry-row .ber-comment{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.budget-entry-row .ber-amount{font-weight:600;text-align:right;white-space:nowrap}
+.budget-entry-row button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.72rem;padding:2px 4px;opacity:.7}
+.budget-entry-row button:hover{opacity:1;color:var(--text)}
+.budget-empty{font-size:.76rem;color:var(--muted);padding:6px 2px}
+.budget-summary{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-top:6px;font-size:.78rem;display:flex;flex-direction:column;gap:6px;color:var(--muted)}
+.budget-summary b{color:var(--text)}
+.budget-summary .clear-btn{align-self:flex-start;margin-top:4px}
+.budget-yearstats-table{width:100%;border-collapse:collapse;font-size:.72rem;white-space:nowrap}
+.budget-yearstats-table th,.budget-yearstats-table td{padding:5px 7px}
+.budget-yearstats-table th{text-align:right;color:var(--muted);font-weight:500}
+.budget-yearstats-table th:first-child,.budget-yearstats-table td:first-child{text-align:left;white-space:normal}
+.budget-yearstats-table td{text-align:right}
+.budget-yearstats-table tr.byt-total{border-top:1px solid var(--border);font-weight:700}
 .fav-btn:hover{background:var(--abg);color:var(--amber)}
 
 /* ── MEALS ── */
@@ -398,6 +444,12 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
   .si-check{width:22px;height:22px;border-radius:6px;font-size:.8rem}
   .shop-add-bar{flex-direction:column}
   .shop-add-bar .af-in,.shop-add-bar .af-sel,.shop-add-bar .af-add,.shop-add-bar .clear-btn{width:100%}
+  .budget-tabs{display:flex}
+  .budget-cols{grid-template-columns:1fr}
+  .budget-col{display:none}
+  .budget-col.bcol-active{display:block}
+  #view-budget .shop-top{flex-wrap:wrap}
+  .budget-month-switch{margin-left:0;width:100%;justify-content:space-between;margin-top:8px}
   .meal-grid{grid-template-columns:1fr;gap:8px}
   .meal-day-hd{display:flex;align-items:center;gap:10px;padding:10px 14px}
   .meal-slots{display:flex;gap:8px;padding:10px 12px;overflow-x:auto;scrollbar-width:none}
@@ -495,6 +547,7 @@ body { padding-top: env(safe-area-inset-top); }
       <span class="mob-sec-lbl">Haushalt</span>
       <button class="mob-nav-btn" data-view="household" onclick="setView('household',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>Haushalt</button>
       <button class="mob-nav-btn" data-view="shop" onclick="setView('shop',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste</button>
+      <button class="mob-nav-btn" data-view="budget" onclick="setView('budget',this);closeMobDrawerDirect()"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Budget</button>
       <button class="mob-nav-btn" data-view="meals" onclick="setView('meals',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
       <button class="mob-nav-btn" data-view="recipes" onclick="setView('recipes',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
       <button class="mob-nav-btn" data-view="pinboard" onclick="setView('pinboard',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
@@ -545,6 +598,7 @@ body { padding-top: env(safe-area-inset-top); }
     <span class="sec-lbl" style="margin-top:12px">Haushalt</span>
     <button class="vbtn" data-view="household" onclick="setView('household',this)"><span class="dot" style="background:var(--shared)"></span>Haushalt</button>
     <button class="vbtn" data-view="shop" onclick="setView('shop',this)"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste<span class="badge hidden" id="shop-badge">0</span></button>
+    <button class="vbtn" data-view="budget" onclick="setView('budget',this)"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Budget</button>
     <button class="vbtn" data-view="meals" onclick="setView('meals',this)"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
     <button class="vbtn" data-view="recipes" onclick="setView('recipes',this)"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
     <button class="vbtn" data-view="pinboard" onclick="setView('pinboard',this)"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
@@ -607,6 +661,38 @@ body { padding-top: env(safe-area-inset-top); }
         <button class="af-add" onclick="addShopItem()">+ Hinzufügen</button>
         <button class="clear-btn fav-btn" onclick="openSavedShopItems()">⭐ Favoriten</button>
         <button class="clear-btn" onclick="clearBought()">✓ Erledigte entfernen</button>
+      </div>
+    </div>
+
+    <!-- BUDGET VIEW -->
+    <div id="view-budget" class="hidden">
+      <div class="shop-top">
+        <h2>Budget</h2>
+        <div class="budget-month-switch">
+          <button onclick="budgetMonthShift(-1)" title="Vorheriger Monat">◀</button>
+          <span id="budget-month-label"></span>
+          <button onclick="budgetMonthShift(1)" title="Nächster Monat">▶</button>
+        </div>
+      </div>
+      <div class="shop-add-bar">
+        <select class="af-sel" id="bg-add-person">
+          <option value="p1" data-sync="p1">Mauro</option>
+          <option value="p2" data-sync="p2">Melissa</option>
+          <option value="shared">Gemeinsam</option>
+        </select>
+        <select class="af-sel" id="bg-add-cat"></select>
+        <input class="af-in txt" id="bg-add-comment" placeholder="Kommentar (optional)">
+        <input class="af-in" id="bg-add-amount" type="text" inputmode="decimal" placeholder="Betrag CHF" style="width:110px">
+        <input class="af-in" id="bg-add-date" type="date" style="width:150px">
+        <button class="af-add" onclick="addBudgetEntry()">+ Hinzufügen</button>
+      </div>
+      <div class="budget-tabs" id="budget-tabs">
+        <button class="budget-tab" data-p="p1" onclick="setBudgetTab('p1')"><span data-sync="p1">Mauro</span></button>
+        <button class="budget-tab" data-p="p2" onclick="setBudgetTab('p2')"><span data-sync="p2">Melissa</span></button>
+      </div>
+      <div class="budget-cols">
+        <div class="budget-col" id="budget-col-p1" data-p="p1"></div>
+        <div class="budget-col" id="budget-col-p2" data-p="p2"></div>
       </div>
     </div>
 

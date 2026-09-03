@@ -119,9 +119,23 @@ async function syncSave() {
   setSyncStatus('🟢 Synchron', 'var(--green)');
 }
 
+// Union-merge zweier Budget-Buchungslisten nach id (lokal gewinnt bei gleicher id).
+// Bewusst nur für Budget-Einträge: verhindert, dass eine gleichzeitig auf dem
+// anderen Gerät gespeicherte Buchung durch den nächsten Full-Blob-Overwrite
+// verloren geht. Kein Tombstone-Handling für Löschungen (siehe CLAUDE.md-Absprache) —
+// das genügt für das reale Nutzungsmuster (zwei Personen, seltene echte Zeitkonflikte).
+function mergeArrayById(local, remote) {
+  const map = new Map();
+  (remote||[]).forEach(item=>map.set(item.id, item));
+  (local||[]).forEach(item=>map.set(item.id, item));
+  return Array.from(map.values());
+}
+
 function mergeData(remote) {
   if (!remote || typeof remote !== 'object') return;
+  const localBudget = HP.budgetEntries || [];
   Object.assign(HP, remote);
+  HP.budgetEntries = mergeArrayById(localBudget, remote.budgetEntries);
   if (!HP.notes) HP.notes = [];
   if (!HP.customRecipes) HP.customRecipes = [];
   if (!HP.taskStatus) HP.taskStatus = {};
@@ -135,9 +149,28 @@ function mergeData(remote) {
   if (!HP.eventComments) HP.eventComments = {};
   if (!HP.savedShopItems) HP.savedShopItems = [];
   if (!HP.taskExceptions) HP.taskExceptions = {};
+  if (!HP.budgetLimits) HP.budgetLimits = {p1:{}, p2:{}};
   try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
   if (typeof render === 'function') render();
   if (typeof applyColors === 'function') applyColors();
+}
+
+// Holt vor dem Speichern kurz den aktuellen Serverstand und mischt nur
+// HP.budgetEntries per ID ein — schliesst das Zeitfenster, in dem eine
+// zeitgleich auf dem anderen Gerät gespeicherte Buchung sonst durch den
+// nächsten Full-Blob-Overwrite verloren ginge. Bewusst auf diesen einen
+// Datentyp beschränkt (siehe CLAUDE.md-Absprache zu Sync-Konflikten).
+async function mergeBudgetBeforeSave() {
+  if (!syncPassword) return;
+  try {
+    const res = await fetch(SYNC_URL, { headers: { 'x-app-password': syncPassword } });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (json && json.data && json.data.budgetEntries) {
+      HP.budgetEntries = mergeArrayById(HP.budgetEntries, json.data.budgetEntries);
+      try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
+    }
+  } catch(e) { /* best effort – normaler Save läuft trotzdem weiter */ }
 }
 
 function startSyncPolling() {
@@ -170,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
       syncTimer = setTimeout(async () => {
         try {
           setSyncStatus('⏳ Speichert…', 'var(--amber)');
+          await mergeBudgetBeforeSave();
           await syncSave();
         } catch(e) {
           setSyncStatus('🔴 Sync-Fehler', 'var(--red)');
