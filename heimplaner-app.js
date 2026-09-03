@@ -212,7 +212,7 @@ function renderWeekGrid() {
         const t=data, d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
         const si=st==='wip'?'🟡':st==='blocked'?'🔴':'';
         chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
-        const cmt=(HP.taskComments||{})[t.id]||'';
+        const cmt=((HP.taskComments||{})[t.id]||{})[key]||'';
         chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTimeRange(t.time,t.timeEnd)+'</span>':'')+' </span>'+'<span class="chip-st">'+si+'</span>'+(cmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'');
         chip.addEventListener('click',()=>openTaskModal(t.id,key));
       }
@@ -946,14 +946,14 @@ function openTaskModal(tid,dateKey='') {
     '<button class="mbtn mbtn-confirm" style="margin-top:8px;width:100%;background:var(--shared)" onclick="addBlockedToShop(\''+tid+'\')">🛒 Zur Einkaufsliste</button></div>'+
     '<div class="modal-row" id="comment-section">'+
     '<label>💬 Kommentar</label>'+
-    '<textarea class="modal-in" id="task-comment" rows="2" placeholder="Notiz zum Task…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+((HP.taskComments||{})[tid]||'')+'</textarea>'+
+    '<textarea class="modal-in" id="task-comment" rows="2" placeholder="Notiz zum Task…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+(((HP.taskComments||{})[tid]||{})[dateKey]||'')+'</textarea>'+
     '</div>'+
     '<div class="modal-row" style="display:flex;flex-direction:column;gap:6px;background:var(--rbg);border:1px solid var(--red);border-radius:var(--rs);padding:10px">'+
     (dateKey?'<button class="mbtn" style="width:100%;background:none;border:1px solid var(--red);color:var(--red)" onclick="deleteTaskOccurrence(\''+tid+'\',\''+dateKey+'\')">🗑 Nur den Termin am '+occLabel+' aus der Serie löschen</button>':'')+
     '<button class="mbtn" style="width:100%;background:var(--red);border:1px solid var(--red);color:#fff" onclick="deleteTaskSeries(\''+tid+'\')">🗑 Ganze Serie löschen</button>'+
     '</div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button>'+
-    '<button class="mbtn mbtn-confirm" onclick="saveTaskDetails(\''+tid+'\');closeModal()">Speichern</button></div>');
+    '<button class="mbtn mbtn-confirm" onclick="saveTaskDetails(\''+tid+'\',\''+dateKey+'\');closeModal()">Speichern</button></div>');
 }
 function deleteTaskOccurrence(tid,dateKey) {
   const task=allTasks().find(t=>t.id===tid); if(!task) return;
@@ -962,6 +962,10 @@ function deleteTaskOccurrence(tid,dateKey) {
   if(!HP.taskExceptions) HP.taskExceptions={};
   if(!HP.taskExceptions[tid]) HP.taskExceptions[tid]={};
   HP.taskExceptions[tid][dateKey]=true;
+  if(HP.taskComments && HP.taskComments[tid]) {
+    delete HP.taskComments[tid][dateKey];
+    if(!Object.keys(HP.taskComments[tid]).length) delete HP.taskComments[tid];
+  }
   HP_save();closeModal();render();
   if(typeof renderMonth==='function') renderMonth();
   showToast('🗑 Einzelner Termin entfernt');
@@ -985,12 +989,14 @@ function setTaskStatus(tid,status,btn) {
   const bs=document.getElementById('block-sec'); if(bs) bs.style.display=status==='blocked'?'':'none';
   HP_save();
 }
-function saveTaskDetails(tid) {
+function saveTaskDetails(tid,dateKey='') {
   const el=document.getElementById('block-note'); if(el) HP.taskNotes[tid]=el.value;
   const comment=document.getElementById('task-comment')?.value||'';
   if(!HP.taskComments) HP.taskComments={};
-  if(comment) HP.taskComments[tid]=comment;
-  else delete HP.taskComments[tid];
+  if(!HP.taskComments[tid]) HP.taskComments[tid]={};
+  if(comment) HP.taskComments[tid][dateKey]=comment;
+  else delete HP.taskComments[tid][dateKey];
+  if(!Object.keys(HP.taskComments[tid]).length) delete HP.taskComments[tid];
   const t=document.getElementById('tm-time')?.value||'', r=document.getElementById('tm-rem')?.value||'';
   const te=document.getElementById('tm-time-end')?.value||'';
   const imp=document.getElementById('tm-important')?.checked||false;
@@ -1223,7 +1229,7 @@ function deleteNote(id){
       '<p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">Diese Notiz ist mit einem Termin verknüpft. Soll der Termin ebenfalls gelöscht werden?</p>'+
       '<div class="modal-btns" style="justify-content:space-between;flex-wrap:wrap;gap:8px">'+
       '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
-      '<button class="mbtn" onclick="confirmDeleteNote(\''+id+'\',false)">Nur Notiz löschen</button>'+
+      '<button class="mbtn" style="background:var(--subtle2);color:var(--text)" onclick="confirmDeleteNote(\''+id+'\',false)">Nur Notiz löschen</button>'+
       '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="confirmDeleteNote(\''+id+'\',true)">Notiz &amp; Termin löschen</button>'+
       '</div>');
     return;
@@ -1254,11 +1260,39 @@ function eventReminderOptions(selected) {
   return EVENT_REMINDER_OPTS.map(([v,l])=>'<option value="'+v+'"'+((selected||'')===v?' selected':'')+'>'+l+'</option>').join('');
 }
 
-function choreRecurRow(current) {
+function toggleChoreWeekdayRow() {
+  const unit=(document.getElementById('ev-recur')?.value||'').split(':')[0];
+  const cb=document.getElementById('ev-recur-weekday');
+  const cbRow=document.getElementById('ev-recur-weekday-cb-row');
+  const row=document.getElementById('ev-recur-weekday-row');
+  if(unit==='weeks') {
+    if(cb) cb.checked=false;
+    if(cbRow) cbRow.style.display='none';
+    if(row) row.style.display='none';
+  } else {
+    if(cbRow) cbRow.style.display='';
+    if(row) row.style.display=(cb&&cb.checked)?'flex':'none';
+  }
+}
+function choreRecurRow(recur) {
+  const unit=recur?recur.unit:'months', value=recur?recur.value:3, key=unit+':'+value;
+  const hasWeekday=!!(recur && recur.weekday!=null && recur.nth!=null);
+  const weekday=hasWeekday?recur.weekday:0, nth=hasWeekday?recur.nth:-1;
+  const NTH_OPTS=[[1,'1.'],[2,'2.'],[3,'3.'],[4,'4.'],[-1,'letzter']];
   return '<div class="modal-row"><label>Wiederholung</label>'+
-    '<select class="modal-in" id="ev-recur">'+
-    CHORE_INTERVALS.map(([k,l])=>'<option value="'+k+'"'+((current||'months:3')===k?' selected':'')+'>'+l+'</option>').join('')+
-    '</select></div>';
+    '<select class="modal-in" id="ev-recur" onchange="toggleChoreWeekdayRow()">'+
+    CHORE_INTERVALS.map(([k,l])=>'<option value="'+k+'"'+(key===k?' selected':'')+'>'+l+'</option>').join('')+
+    '</select></div>'+
+    '<div class="modal-row" id="ev-recur-weekday-cb-row" style="display:'+(unit==='weeks'?'none':'')+'"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+    '<input type="checkbox" id="ev-recur-weekday"'+(hasWeekday?' checked':'')+' onchange="toggleChoreWeekdayRow()" style="accent-color:var(--p1);width:16px;height:16px">'+
+    '<span style="font-size:.82rem">Auf bestimmten Wochentag legen (z.B. letzter Sonntag)</span></label></div>'+
+    '<div class="modal-row" id="ev-recur-weekday-row" style="display:'+(hasWeekday?'flex':'none')+';gap:8px">'+
+    '<div style="flex:1"><label>Wochentag</label><select class="modal-in" id="ev-recur-wd">'+
+    DL.map((l,i)=>'<option value="'+i+'"'+(weekday===i?' selected':'')+'>'+l+'</option>').join('')+
+    '</select></div>'+
+    '<div style="flex:1"><label>Welcher</label><select class="modal-in" id="ev-recur-nth">'+
+    NTH_OPTS.map(([v,l])=>'<option value="'+v+'"'+(nth===v?' selected':'')+'>'+l+'</option>').join('')+
+    '</select></div></div>';
 }
 
 function openAddEvent(prefillDate='', chore=false) {
@@ -1273,7 +1307,7 @@ function openAddEvent(prefillDate='', chore=false) {
     '</div>'+
     '<div class="modal-row"><label>'+(chore?'Nächste Fälligkeit':'Datum')+'</label>'+
     '<input class="modal-in" type="date" id="ev-date" value="'+prefillDate+'"></div>'+
-    (chore?choreRecurRow(''):'')+
+    (chore?choreRecurRow(null):'')+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="ev-time"></div>'+
     '<div style="flex:1"><label>Bis (optional)</label><input class="modal-in" type="time" id="ev-time-end"></div>'+
@@ -1294,7 +1328,7 @@ function openAddEvent(prefillDate='', chore=false) {
     '<button class="mbtn mbtn-confirm" onclick="saveNewEvent()">✓ Speichern</button>'+
     '</div>'
   );
-  setTimeout(()=>document.getElementById('ev-name')?.focus(),60);
+  setTimeout(()=>{document.getElementById('ev-name')?.focus(); if(chore) toggleChoreWeekdayRow();},60);
 }
 
 function saveNewEvent() {
@@ -1314,6 +1348,10 @@ function saveNewEvent() {
   if(isChore){
     const [unit,value]=(document.getElementById('ev-recur')?.value||'months:3').split(':');
     ev.chore=true; ev.recur={unit,value:parseInt(value)};
+    if(unit!=='weeks' && document.getElementById('ev-recur-weekday')?.checked){
+      ev.recur.weekday=parseInt(document.getElementById('ev-recur-wd')?.value||'0');
+      ev.recur.nth=parseInt(document.getElementById('ev-recur-nth')?.value||'-1');
+    }
   }
   HP.events.push(ev);
   HP_save();closeModal();render();
@@ -1336,7 +1374,7 @@ function openEditEvent(id) {
     '</div>'+
     '<div class="modal-row"><label>'+(chore?'Nächste Fälligkeit':'Datum')+'</label>'+
     '<input class="modal-in" type="date" id="ev-date" value="'+e.date+'"></div>'+
-    (chore?choreRecurRow(e.recur?e.recur.unit+':'+e.recur.value:''):'')+
+    (chore?choreRecurRow(e.recur||null):'')+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="ev-time" value="'+(e.time||'')+'"></div>'+
     '<div style="flex:1"><label>Bis (optional)</label><input class="modal-in" type="time" id="ev-time-end" value="'+(e.timeEnd||'')+'"></div>'+
@@ -1358,6 +1396,7 @@ function openEditEvent(id) {
     '<button class="mbtn mbtn-confirm" data-eid="'+e.id+'" onclick="saveEditEvent(this.dataset.eid)">✓ Speichern</button>'+
     '</div>'
   );
+  if(chore) setTimeout(toggleChoreWeekdayRow,60);
 }
 
 function openEventModal(id) {
@@ -1401,7 +1440,7 @@ function saveEventModalDetails(id) {
 function setEventStatus(id,status,btn) {
   const e=(HP.events||[]).find(x=>x.id===id);
   if(e && e.chore && e.recur && status==='done'){
-    e.date=advanceDateKey(e.date,e.recur.unit,e.recur.value);
+    e.date=advanceDateKey(e.date,e.recur.unit,e.recur.value,e.recur.weekday,e.recur.nth);
     if(HP.eventStatus) delete HP.eventStatus[id];
     HP_save();closeModal();render();
     if(typeof renderMonth==='function')renderMonth();
@@ -1456,6 +1495,10 @@ function saveEditEvent(id) {
   if(e.chore){
     const [unit,value]=(document.getElementById('ev-recur')?.value||'months:3').split(':');
     e.recur={unit,value:parseInt(value)};
+    if(unit!=='weeks' && document.getElementById('ev-recur-weekday')?.checked){
+      e.recur.weekday=parseInt(document.getElementById('ev-recur-wd')?.value||'0');
+      e.recur.nth=parseInt(document.getElementById('ev-recur-nth')?.value||'-1');
+    }
   }
   HP_save();closeModal();render();
   if(typeof renderMonth==='function')renderMonth();

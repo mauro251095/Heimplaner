@@ -8,6 +8,14 @@ Shared household management PWA, built for personal use by Mauro and Melissa (pa
 - Also deployed on Netlify: `sage-salmiakki-4ab33e.netlify.app`
 - Netlify serverless functions proxy to Supabase (project ref `yzgkfcdlrdaspwybpule`) for real-time sync
 - Secrets (Supabase keys, auth passwords) live in Netlify environment variables — never hardcode keys in client-side JS
+- **Production branch is `main`** — Netlify auto-deploys on every push to `main`
+
+## Git-Workflow
+
+- After a completed, meaningful change, commit automatically with a clear, descriptive commit message
+- Do **not** push to `main` without explicit confirmation from Mauro — always ask first
+- Since Netlify auto-deploys from `main`, a push goes live immediately — treat it accordingly
+- Keep commits scoped and readable (one logical change per commit where practical)
 
 ## File Structure
 
@@ -19,7 +27,7 @@ Five files, each with a defined responsibility:
 - `heimplaner-app.js` — UI logic, rendering, event handling
 - `heimplaner-sync.js` — Supabase sync via Netlify function proxy
 
-**CRITICAL — do not reorder:** `index.html` must always end with exactly these four script tags, in this order, directly before `</body>`:
+CRITICAL — do not reorder: `index.html` must always end with exactly these four script tags, in this order, directly before `</body>`:
 
 ```html
 <script src="heimplaner-login.js"></script>

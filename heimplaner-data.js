@@ -433,13 +433,31 @@ const CHORE_INTERVALS = [
   ['months:1','Monatlich'],['months:3','Vierteljährlich'],
   ['months:6','Halbjährlich'],['months:12','Jährlich']
 ];
+const NTH_LABELS={1:'1.',2:'2.',3:'3.',4:'4.','-1':'letzter'};
 function recurLabel(recur) {
   if(!recur) return '';
   const key=recur.unit+':'+recur.value;
   const f=CHORE_INTERVALS.find(([k])=>k===key);
-  return f ? f[1] : recur.unit+' '+recur.value;
+  const base=f ? f[1] : recur.unit+' '+recur.value;
+  if(recur.weekday!=null && recur.nth!=null) {
+    return base+' · '+(NTH_LABELS[recur.nth]||recur.nth)+' '+(DL[recur.weekday]||'');
+  }
+  return base;
 }
-function advanceDateKey(dateKey, unit, value) {
+// nth (1-4) or letzter (-1) Wochentag (0=Mo..6=So) eines Monats
+function nthWeekdayOfMonth(year, monthIndex0, weekday, nth) {
+  if(nth===-1) {
+    const last=new Date(Date.UTC(year,monthIndex0+1,0));
+    const lastDow=(last.getUTCDay()+6)%7;
+    last.setUTCDate(last.getUTCDate()-((lastDow-weekday+7)%7));
+    return last;
+  }
+  const first=new Date(Date.UTC(year,monthIndex0,1));
+  const firstDow=(first.getUTCDay()+6)%7;
+  const day=1+((weekday-firstDow+7)%7)+(nth-1)*7;
+  return new Date(Date.UTC(year,monthIndex0,day));
+}
+function advanceDateKey(dateKey, unit, value, weekday, nth) {
   const [y,m,d]=dateKey.split('-').map(Number);
   if(unit==='weeks') {
     const dt=new Date(Date.UTC(y,m-1,d));
@@ -447,6 +465,9 @@ function advanceDateKey(dateKey, unit, value) {
     return dt.toISOString().slice(0,10);
   }
   const total=(m-1)+value, ny=y+Math.floor(total/12), nm=(total%12)+1;
+  if(weekday!=null && nth!=null) {
+    return nthWeekdayOfMonth(ny,nm-1,weekday,nth).toISOString().slice(0,10);
+  }
   const lastDay=new Date(Date.UTC(ny,nm,0)).getUTCDate();
   const nd=Math.min(d,lastDay);
   return ny+'-'+String(nm).padStart(2,'0')+'-'+String(nd).padStart(2,'0');
