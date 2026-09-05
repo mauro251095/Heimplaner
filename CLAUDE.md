@@ -51,6 +51,7 @@ If you add a new JS file, decide deliberately where in this order it belongs (it
 - Writes are debounced 2 seconds after the last local change before syncing
 - Client polls every 15 seconds to pick up changes made on the other partner's device
 - When touching sync logic, preserve this debounce/poll timing unless explicitly asked to change it — it's tuned to avoid hammering Supabase while still feeling "live" between two devices
+- Deletions use tombstones (`HP.deleted[type][id] = timestamp`, set via `markDeleted()` in `heimplaner-data.js`) so a poll/merge never resurrects an item deleted on the other device. Every delete function must call `markDeleted()` before removing the item from its array. Sync-relevant arrays (events, notes, birthdays, shop, savedShopItems, customRecipes, budgetEntries, tasks) are merged by ID in `heimplaner-sync.js` (`mergeArrayById`/`mergeTaskLists`), not blindly overwritten — on an ID conflict remote wins (matches prior full-overwrite behavior), but tombstoned IDs are always excluded and new local-only items are preserved.
 
 ## UI Conventions
 
@@ -64,7 +65,9 @@ If you add a new JS file, decide deliberately where in this order it belongs (it
 
 ## Features
 
-Weekly planner, shopping list, meal planner with a recipe library (~50 summer recipes), monthly calendar, pinboard, and an AI assistant with voice input.
+Weekly planner, shopping list, meal planner with an editable recipe library (currently 34 recipes, incl. mealprep and bettybossi.ch imports), monthly calendar, pinboard, and an AI assistant with voice input.
+
+Recipes live in `HP.customRecipes` (synced, editable via pencil icon) — the old hardcoded `RECIPES` array in `heimplaner-data.js` is migrated into `customRecipes` once on load and now serves only as that migration seed. A copy-paste importer for bettybossi.ch recipes (`parseBettyBossiRecipe` in `heimplaner-app.js`) parses pasted recipe text client-side (no network calls) into the same format, with a preview/correction step before saving.
 
 ## Working Style
 
