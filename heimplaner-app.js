@@ -129,7 +129,7 @@ function renderTodayBanner() {
   const dayT=tasks.filter(t=>taskOccursOn(t,todayKey));
   const doneC=dayT.filter(t=>isDone(today,t.id)||getStatus(t.id)==='done').length;
   const prioOpen=dayT.filter(t=>t.prio&&!isDone(today,t.id)&&getStatus(t.id)!=='done').length;
-  const evChips=dayEv.map(e=>'<span class="tbc '+(e.important?'tbc-important':'tbc-'+e.who+' tbc-event')+'" onclick="openEventModal(\''+e.id+'\')">📅 '+e.emoji+' '+e.name+'</span>').join('');
+  const evChips=dayEv.map(e=>'<span class="tbc '+(e.important?'tbc-important':'tbc-'+e.who+' tbc-event')+'" onclick="openEventModal(\''+e.id+'\')">'+e.emoji+' '+e.name+'</span>').join('');
   const taskChips=dayT.map(t=>{
     const d=isDone(today,t.id)||getStatus(t.id)==='done';
     const si=getStatus(t.id)==='wip'?'🟡':getStatus(t.id)==='blocked'?'🔴':getStatus(t.id)==='done'?'✅':'';
