@@ -1,0 +1,32 @@
+name: Supabase Keep-Alive
+
+# Verhindert, dass das kostenlose Supabase-Projekt (yzgkfcdlrdaspwybpule) nach
+# 7 Tagen Inaktivität automatisch pausiert wird. Ruft dazu regelmässig die
+# bestehende Netlify-Sync-Funktion (GET) auf, die intern ein leichtes SELECT
+# gegen die Tabelle "heimplaner_sync" ausführt. Bewusst über den bestehenden
+# Netlify-Proxy statt direkt gegen Supabase: der mächtigere Supabase-Key bleibt
+# so ausschliesslich in den Netlify-Env-Vars, es muss kein zweites Secret mit
+# Supabase-Zugriff angelegt werden.
+
+on:
+  schedule:
+    - cron: '0 6 */3 * *'  # ca. alle 3 Tage, 06:00 UTC
+  workflow_dispatch: {}     # manueller Testlauf über die GitHub-Actions-UI
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase via Netlify-Funktion
+        env:
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "x-app-password: $APP_PASSWORD" \
+            "https://sage-salmiakki-4ab33e.netlify.app/.netlify/functions/sync")
+          if [ "$status" = "200" ]; then
+            echo "✅ Keep-alive erfolgreich (HTTP $status)"
+          else
+            echo "❌ Keep-alive fehlgeschlagen (HTTP $status)"
+            exit 1
+          fi
