@@ -205,10 +205,11 @@ function renderWeekGrid() {
       if(kind==='event'){
         const e=data, est=getEventStatus(e.id), esi=est==='wip'?'🟡':est==='blocked'?'🔴':'';
         const ecmt=(HP.eventComments||{})[e.id]||'';
+        const linkedNote=(HP.notes||[]).find(n=>n.linkedEventId===e.id);
         chip.className='task-chip '+(e.important?'c-important':'c'+e.who+' ev-once')+' s-'+est+(est==='done'?' done':'');
         chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+e.emoji+' '+e.name+(e.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTimeRange(e.time,e.timeEnd)+'</span>':'')+'</span>'+
           '<span class="chip-st">'+esi+'</span>'+(ecmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'')+
-          '<span style="font-size:.6rem;opacity:.6;flex-shrink:0">📅</span>';
+          (linkedNote?'<span style="font-size:.65rem;opacity:.7;flex-shrink:0;cursor:pointer" title="Verknüpfte Notiz öffnen" onclick="event.stopPropagation();openEditNote(\''+linkedNote.id+'\')">🔗</span>':'');
         chip.addEventListener('click',()=>openEventModal(e.id));
       } else {
         const t=data, d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
