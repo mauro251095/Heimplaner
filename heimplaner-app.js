@@ -1396,7 +1396,7 @@ function openDayDetail(key) {
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px'+(e.important?';background:rgba(248,113,113,.08)':'')+'">'+
       '<span style="color:'+(e.important?'var(--red)':e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+e.emoji+'</span>'+
       '<div style="flex:1"><div style="font-weight:500">'+e.name+'</div>'+
-      (linkedNote?'<div style="font-size:.7rem;color:var(--muted);margin-top:2px;cursor:pointer" onclick="alert('+JSON.stringify((linkedNote.title?linkedNote.title+': ':'')+linkedNote.body)+')">📝 '+
+      (linkedNote?'<div style="font-size:.7rem;color:var(--muted);margin-top:2px;cursor:pointer" onclick="event.stopPropagation();openEditNote(\''+linkedNote.id+'\')" title="Verknüpfte Notiz öffnen">🔗 '+
       (linkedNote.title||linkedNote.body.slice(0,30)+(linkedNote.body.length>30?'…':''))+'</div>':'')+
       '</div>'+
       (e.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+fmtTimeRange(e.time,e.timeEnd)+'</span>':'')+
