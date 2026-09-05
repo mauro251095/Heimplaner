@@ -362,6 +362,7 @@ function saveQuickAddTask() {
 }
 
 function deleteEvent(id){
+  markDeleted('events', id);
   HP.events=(HP.events||[]).filter(e=>e.id!==id);
   if(HP.eventStatus) delete HP.eventStatus[id];
   if(HP.eventNotes) delete HP.eventNotes[id];
@@ -455,6 +456,7 @@ function addSavedItemToShop(id) {
 }
 
 function deleteSavedShopItem(id) {
+  markDeleted('savedShopItems', id);
   HP.savedShopItems=(HP.savedShopItems||[]).filter(x=>x.id!==id);
   HP_save();openSavedShopItems();
 }
@@ -484,8 +486,8 @@ function saveEditShopItem(id) {
   item.cat=document.getElementById('ei-cat')?.value||item.cat;
   HP_save();closeModal();renderShop();showToast('Artikel aktualisiert');
 }
-function deleteShopItem(id){HP.shop=HP.shop.filter(i=>i.id!==id);HP_save();closeModal();renderShop();renderSidebarStats();showToast('Artikel gelöscht');}
-function clearBought(){HP.shop=HP.shop.filter(i=>!i.bought);HP_save();renderShop();renderSidebarStats();showToast('Erledigte Artikel entfernt');}
+function deleteShopItem(id){markDeleted('shop',id);HP.shop=HP.shop.filter(i=>i.id!==id);HP_save();closeModal();renderShop();renderSidebarStats();showToast('Artikel gelöscht');}
+function clearBought(){HP.shop.filter(i=>i.bought).forEach(i=>markDeleted('shop',i.id));HP.shop=HP.shop.filter(i=>!i.bought);HP_save();renderShop();renderSidebarStats();showToast('Erledigte Artikel entfernt');}
 function showDuplicateModal(existing,q,u) {
   showModal('<h3>🛒 Bereits auf der Liste</h3>'+
     '<div class="dup-warn">⚠️ <b>'+existing.name+'</b> ist bereits auf der Liste ('+[existing.qty,existing.unit].filter(Boolean).join(' ')+').</div>'+
@@ -568,8 +570,13 @@ function mkBudgetEntry(person,cat,amount,comment,date,groupId) {
 
 function deleteBudgetEntry(id) {
   const entry=(HP.budgetEntries||[]).find(e=>e.id===id); if(!entry) return;
-  if (entry.sharedGroupId) HP.budgetEntries=HP.budgetEntries.filter(e=>e.sharedGroupId!==entry.sharedGroupId);
-  else HP.budgetEntries=HP.budgetEntries.filter(e=>e.id!==id);
+  if (entry.sharedGroupId) {
+    HP.budgetEntries.filter(e=>e.sharedGroupId===entry.sharedGroupId).forEach(e=>markDeleted('budgetEntries',e.id));
+    HP.budgetEntries=HP.budgetEntries.filter(e=>e.sharedGroupId!==entry.sharedGroupId);
+  } else {
+    markDeleted('budgetEntries', id);
+    HP.budgetEntries=HP.budgetEntries.filter(e=>e.id!==id);
+  }
   HP_save(); closeModal(); renderBudget(); showToast('Buchung gelöscht');
 }
 
@@ -861,7 +868,8 @@ function renderRecipes() {
   const cats=['Alle',...new Set(all.map(r=>r.cat))];
   const fe=document.getElementById('recipe-filters');
   if(fe) fe.innerHTML=cats.map(c=>'<button class="rfbtn'+(c===recipeFilter?' active':'')+'" onclick="setRecipeFilter(\''+c+'\')">'+c+'</button>').join('')+
-    '<button class="rfbtn" style="background:var(--p2bg);border-color:var(--p2);color:var(--p2)" onclick="openAddCustomRecipe()">+ Eigenes Rezept</button>';
+    '<button class="rfbtn" style="background:var(--p2bg);border-color:var(--p2);color:var(--p2)" onclick="openAddCustomRecipe()">+ Eigenes Rezept</button>'+
+    '<button class="rfbtn" style="background:var(--surface);border-color:var(--border)" onclick="openImportRecipe()">📋 Rezept importieren</button>';
   const q=(document.getElementById('recipe-search')?.value||'').toLowerCase();
   const filtered=all.filter(r=>(recipeFilter==='Alle'||r.cat===recipeFilter)&&(!q||r.name.toLowerCase().includes(q)||r.tags.some(t=>t.includes(q))));
   const grid=document.getElementById('recipes-grid'); if(!grid) return; grid.innerHTML='';
@@ -874,6 +882,7 @@ function renderRecipes() {
       '<div class="rc-tags">'+r.tags.map(t=>'<span class="rc-tag">'+t+'</span>').join('')+'</div>'+
       '<button class="rc-addbtn" onclick="event.stopPropagation();openRecipeDetail(\''+r.id+'\')">🛒 Zutaten wählen</button>'+
       '<button class="rc-addbtn" style="margin-top:4px;background:var(--p2bg);border-color:var(--p2);color:var(--p2)" onclick="event.stopPropagation();'+(isPending?'assignMealFromRecipe(allRecipes().find(x=>x.id===\''+r.id+'\'))':'openMealPlanModal(\''+r.id+'\')')+'">'+(isPending?'✓ Für Menüplan wählen':'📅 Zum Menüplan')+'</button>'+
+      (r.custom?'<button class="rc-addbtn" style="margin-top:4px;background:var(--surface);border-color:var(--border)" onclick="event.stopPropagation();openEditCustomRecipe(\''+r.id+'\')">✏️ Bearbeiten</button>':'')+
       (r.custom?'<button class="rc-addbtn" style="margin-top:4px;background:var(--rbg);border-color:var(--red);color:var(--red)" onclick="event.stopPropagation();deleteCustomRecipe(\''+r.id+'\')">✕ Löschen</button>':'')+
       '</div>';
     card.addEventListener('click',()=>openRecipeDetail(r.id));
@@ -911,34 +920,126 @@ function confirmMealSlot(rid) {
   HP.meals[key][slot]={recipeId:r.id,name:r.name,emoji:r.emoji};
   HP_save();closeModal();showToast(r.emoji+' '+r.name+' zum Menüplan hinzugefügt');
 }
-function openAddCustomRecipe() {
+function customRecipeModalHTML(title, saveOnclick, prefill) {
   const cats=['Frühstück','Salate','Pasta','Hauptspeisen','Grill','Suppen','Snacks','Desserts'];
-  showModal('<h3>📖 Eigenes Rezept</h3>'+
+  const p=prefill||{};
+  const ingText=(p.ing||[]).map(i=>[i.n,i.q,i.u].filter(x=>x!==undefined&&x!=='').join(', ')).join('\n');
+  const stepsText=(p.steps||[]).join('\n');
+  return '<h3>'+title+'</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label><div style="display:flex;gap:7px">'+
-    '<input class="modal-in" id="cr-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center">'+
-    '<input class="modal-in" id="cr-name" placeholder="Name" style="flex:1"></div></div>'+
+    '<input class="modal-in" id="cr-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+(p.emoji||'')+'">'+
+    '<input class="modal-in" id="cr-name" placeholder="Name" style="flex:1" value="'+(p.name||'')+'"></div></div>'+
     '<div class="modal-row"><div style="display:flex;gap:7px">'+
-    '<div style="flex:1"><label>Zeit (Min)</label><input class="modal-in" id="cr-time" type="number" value="30"></div>'+
-    '<div style="flex:1"><label>Personen</label><input class="modal-in" id="cr-pers" type="number" value="2"></div>'+
-    '<div style="flex:1"><label>Kategorie</label><select class="modal-in" id="cr-cat">'+cats.map(c=>'<option>'+c+'</option>').join('')+'</select></div></div></div>'+
+    '<div style="flex:1"><label>Zeit (Min)</label><input class="modal-in" id="cr-time" type="number" value="'+(p.time!=null?p.time:30)+'"></div>'+
+    '<div style="flex:1"><label>Personen</label><input class="modal-in" id="cr-pers" type="number" value="'+(p.pers!=null?p.pers:2)+'"></div>'+
+    '<div style="flex:1"><label>Kategorie</label><select class="modal-in" id="cr-cat">'+cats.map(c=>'<option'+(p.cat===c?' selected':'')+'>'+c+'</option>').join('')+'</select></div></div></div>'+
     '<div class="modal-row"><label>Zutaten (Name, Menge, Einheit – eine pro Zeile)</label>'+
-    '<textarea class="modal-in" id="cr-ings" rows="5" placeholder="Pasta, 300, g&#10;Tomatensauce, 1, Dose" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
+    '<textarea class="modal-in" id="cr-ings" rows="5" placeholder="Pasta, 300, g&#10;Tomatensauce, 1, Dose" style="resize:vertical;font-family:Inter,sans-serif">'+ingText+'</textarea></div>'+
     '<div class="modal-row"><label>Ablauf (ein Schritt pro Zeile)</label>'+
-    '<textarea class="modal-in" id="cr-steps" rows="5" placeholder="Wasser aufkochen und Pasta darin kochen.&#10;Sauce erhitzen und mit der Pasta mischen." style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
+    '<textarea class="modal-in" id="cr-steps" rows="5" placeholder="Wasser aufkochen und Pasta darin kochen.&#10;Sauce erhitzen und mit der Pasta mischen." style="resize:vertical;font-family:Inter,sans-serif">'+stepsText+'</textarea></div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
-    '<button class="mbtn mbtn-confirm" onclick="saveCustomRecipe()">✓ Speichern</button></div>');
+    '<button class="mbtn mbtn-confirm" onclick="'+saveOnclick+'">✓ Speichern</button></div>';
 }
-function saveCustomRecipe() {
+function openAddCustomRecipe() {
+  showModal(customRecipeModalHTML('📖 Eigenes Rezept', 'saveCustomRecipe()'));
+}
+function openEditCustomRecipe(id) {
+  const r=(HP.customRecipes||[]).find(x=>x.id===id); if(!r) return;
+  showModal(customRecipeModalHTML('✏️ Rezept bearbeiten', "saveEditCustomRecipe('"+id+"')", r));
+}
+function readCustomRecipeForm() {
   const emoji=document.getElementById('cr-emoji')?.value.trim()||'🍽️';
   const name=document.getElementById('cr-name')?.value.trim();
-  if(!name){showToast('Bitte Namen eingeben');return;}
   const ing=(document.getElementById('cr-ings')?.value||'').split('\n').filter(l=>l.trim()).map(l=>{const p=l.split(',').map(x=>x.trim());return{n:p[0]||l,q:p[1]||'',u:p[2]||''};});
   const steps=(document.getElementById('cr-steps')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
-  if(!HP.customRecipes)HP.customRecipes=[];
-  HP.customRecipes.push({id:'cr'+Date.now(),emoji,name,cat:document.getElementById('cr-cat')?.value||'Hauptspeisen',time:parseInt(document.getElementById('cr-time')?.value)||30,pers:parseInt(document.getElementById('cr-pers')?.value)||2,tags:['eigenes'],ing,steps,custom:true});
-  HP_save();closeModal();renderRecipes();showToast(emoji+' '+name+' hinzugefügt');
+  const cat=document.getElementById('cr-cat')?.value||'Hauptspeisen';
+  const time=parseInt(document.getElementById('cr-time')?.value)||30;
+  const pers=parseInt(document.getElementById('cr-pers')?.value)||2;
+  if(!name){showToast('Bitte Namen eingeben');return null;}
+  if(!ing.length){showToast('Bitte mindestens eine Zutat eingeben');return null;}
+  if(!steps.length){showToast('Bitte mindestens einen Zubereitungsschritt eingeben');return null;}
+  return {emoji,name,ing,steps,cat,time,pers};
 }
-function deleteCustomRecipe(id){HP.customRecipes=(HP.customRecipes||[]).filter(r=>r.id!==id);HP_save();renderRecipes();showToast('Rezept gelöscht');}
+function saveCustomRecipe() {
+  const f=readCustomRecipeForm(); if(!f) return;
+  if(!HP.customRecipes)HP.customRecipes=[];
+  HP.customRecipes.push({id:'cr'+Date.now(),...f,tags:['eigenes'],custom:true});
+  HP_save();closeModal();renderRecipes();showToast(f.emoji+' '+f.name+' hinzugefügt');
+}
+
+// ── REZEPT-IMPORT (bettybossi.ch, reiner Text-Parser) ──────────
+// Kein KI-Aufruf, kein Netzwerk-Request: arbeitet ausschliesslich auf Text, den
+// die Nutzer:in selbst von der Seite kopiert und hier einfügt. bettybossi.ch
+// gruppiert Zutaten pro Zubereitungsschritt statt in einer Gesamtliste:
+// "N. ZutatName" / "Menge Einheit" (wiederholt) / Fliesstext-Absatz (der Schritt
+// selbst). Zeit & Portionenzahl stehen im kopierten Text nicht als Wert drin
+// (JS-Widget, wird bei einem reinen Copy-Paste nicht mitkopiert) — dafür in der
+// Vorschau Default-Werte, die von Hand geprüft/angepasst werden müssen.
+function looksLikeStepSentence(line) {
+  return line.length>25 && /[.!?]\s*$/.test(line.trim());
+}
+function parseQtyLine(line) {
+  const t=(line||'').trim();
+  if (!t) return {q:'', u:''};
+  if (/^wenig$/i.test(t)) return {q:'wenig', u:''};
+  const m=t.match(/^([\d.,]+(?:\s*[-–]\s*[\d.,]+)?)\s*(.*)$/);
+  if (m && m[1]) return {q:m[1].trim(), u:(m[2]||'').trim()||'Stk'};
+  return {q:'', u:t};
+}
+function parseBettyBossiRecipe(raw) {
+  const lines=(raw||'').split('\n').map(l=>l.replace(/\r/g,''));
+  const firstStepIdx=lines.findIndex(l=>/^\s*\d+\.\s/.test(l));
+  const name=(lines.slice(0, firstStepIdx>=0?firstStepIdx:lines.length).find(l=>l.trim())||'').trim();
+  const ing=[], steps=[];
+  if (firstStepIdx<0) return {name, ing, steps};
+  const markers=[];
+  lines.forEach((l,i)=>{ if(/^\s*\d+\.\s/.test(l)) markers.push(i); });
+  markers.forEach((start,mi)=>{
+    const end=mi+1<markers.length ? markers[mi+1] : lines.length;
+    const block=lines.slice(start,end);
+    block[0]=block[0].replace(/^\s*\d+\.\s*/,'');
+    let stepIdx=-1;
+    for (let i=block.length-1;i>=0;i--) { if (looksLikeStepSentence(block[i])) { stepIdx=i; break; } }
+    if (stepIdx===-1) { for (let i=block.length-1;i>=0;i--) { if (block[i].trim()) { stepIdx=i; break; } } }
+    const stepText=stepIdx>=0 ? block[stepIdx].trim() : '';
+    const ingLines=stepIdx>=0 ? block.slice(0,stepIdx) : block;
+    for (let i=0;i<ingLines.length;i+=2) {
+      const ingName=(ingLines[i]||'').trim(); if (!ingName) continue;
+      const qu=parseQtyLine(ingLines[i+1]);
+      ing.push({n:ingName, q:qu.q, u:qu.u});
+    }
+    if (stepText) steps.push(stepText);
+  });
+  return {name, ing, steps};
+}
+function openImportRecipe() {
+  showModal('<h3>📋 Rezept importieren</h3>'+
+    '<p style="font-size:.78rem;color:var(--muted);margin-bottom:10px">Rezepttext von bettybossi.ch markieren, kopieren und hier einfügen. Läuft komplett lokal im Browser, es wird keine Seite nachgeladen.</p>'+
+    '<div class="modal-row"><textarea class="modal-in" id="import-raw" rows="12" placeholder="Rezepttext hier einfügen…" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
+    '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
+    '<button class="mbtn mbtn-confirm" onclick="previewImportedRecipe()">→ Vorschau</button></div>');
+}
+function previewImportedRecipe() {
+  const raw=document.getElementById('import-raw')?.value||'';
+  const parsed=parseBettyBossiRecipe(raw);
+  if (!parsed.name && !parsed.ing.length && !parsed.steps.length) { showToast('Konnte nichts erkennen – bitte Text prüfen'); return; }
+  showModal(customRecipeModalHTML('📋 Vorschau – bitte prüfen & ergänzen', 'saveImportedRecipe()',
+    {emoji:'🍽️', name:parsed.name, cat:'Hauptspeisen', time:30, pers:4, ing:parsed.ing, steps:parsed.steps}));
+  showToast('Zeit & Personenzahl bitte prüfen – bettybossi.ch kopiert diese Werte nicht mit');
+}
+function saveImportedRecipe() {
+  const f=readCustomRecipeForm(); if(!f) return;
+  if(!HP.customRecipes)HP.customRecipes=[];
+  HP.customRecipes.push({id:'cr'+Date.now(),...f,tags:['eigenes','importiert'],custom:true});
+  HP_save();closeModal();renderRecipes();showToast(f.emoji+' '+f.name+' importiert');
+}
+function saveEditCustomRecipe(id) {
+  const r=(HP.customRecipes||[]).find(x=>x.id===id); if(!r){closeModal();return;}
+  const f=readCustomRecipeForm(); if(!f) return;
+  Object.assign(r,f);
+  HP_save();closeModal();renderRecipes();showToast('Rezept aktualisiert');
+}
+function deleteCustomRecipe(id){markDeleted('customRecipes',id);HP.customRecipes=(HP.customRecipes||[]).filter(r=>r.id!==id);HP_save();renderRecipes();showToast('Rezept gelöscht');}
 
 // ── MANAGE ────────────────────────────────────
 function renderManage() {
@@ -1186,6 +1287,7 @@ function deleteTaskOccurrence(tid,dateKey) {
 function deleteTaskSeries(tid) {
   const task=allTasks().find(t=>t.id===tid); if(!task) return;
   if(!confirm('Die komplette Serie "'+task.name+'" (alle Wochentage) löschen?\nDies kann nicht rückgängig gemacht werden.')) return;
+  markDeleted('tasks', tid);
   ['p1','p2','shared'].forEach(w=>{HP.tasks[w]=HP.tasks[w].filter(t=>t.id!==tid);});
   delete HP.taskStatus[tid];
   delete HP.taskNotes[tid];
@@ -1335,8 +1437,7 @@ function renderPinboard() {
       '<button class="pin-del" onclick="event.stopPropagation();deleteNote(\''+n.id+'\')">✕</button>'+
       (n.title?'<div class="pin-title">'+n.title+'</div>':'')+
       (n.body?'<div class="pin-body">'+n.body+'</div>':'')+
-      (dueDate?'<div class="pin-date">📅 Fällig: '+dueDate+'</div>':'')+
-      (linked?'<div class="pin-date" style="margin-top:'+(dueDate?'4px':'0')+';opacity:.8">🔗 '+linked.emoji+' '+linked.name+'</div>':'')+
+      (linked?'<div class="pin-date" style="opacity:.8">🔗 '+linked.emoji+' '+linked.name+(dueDate?' · Fällig: '+dueDate:'')+'</div>':'')+
       '</div>';
   }).join('')+'</div>';
 }
@@ -1452,11 +1553,13 @@ function deleteNote(id){
 function confirmDeleteNote(id,alsoEvent){
   const n=(HP.notes||[]).find(x=>x.id===id);
   if(alsoEvent && n && n.linkedEventId) {
+    markDeleted('events', n.linkedEventId);
     HP.events=(HP.events||[]).filter(e=>e.id!==n.linkedEventId);
     if(HP.eventStatus) delete HP.eventStatus[n.linkedEventId];
     if(HP.eventNotes) delete HP.eventNotes[n.linkedEventId];
     if(HP.eventComments) delete HP.eventComments[n.linkedEventId];
   }
+  markDeleted('notes', id);
   HP.notes=(HP.notes||[]).filter(x=>x.id!==id);
   HP_save();closeModal();renderPinboard();render();
   if(typeof renderMonth==='function')renderMonth();
@@ -1728,31 +1831,33 @@ function renderBirthdayList() {
   const el = document.getElementById('birthday-list');
   const el2b = document.getElementById('birthday-list-2');
   if(!el && !el2b) return;
-  const bdays = (HP.birthdays||[]).slice().sort((a,b)=>{
-    const an=parseInt(a.date.slice(5)), bn=parseInt(b.date.slice(5));
-    return an-bn;
-  });
+  // Neu berechnet bei jedem Rendern (nicht nur beim Speichern), damit die
+  // Liste mit der Zeit "mitwandert" (z.B. beim Öffnen der Ansicht am Folgetag).
+  const bdays = (HP.birthdays||[]).map(b=>{
+    const nextDate = getNextBirthday(b.date);
+    const daysLeft = Math.round((new Date(nextDate+'T12:00:00')-new Date())/86400000);
+    return {...b, nextDate, daysLeft};
+  }).sort((a,b)=>a.daysLeft-b.daysLeft);
   if(!bdays.length){
     const emptyHtml='<div style="font-size:.78rem;color:var(--muted);padding:8px 0">Noch keine Geburtstage eingetragen.</div>';
     if(el) el.innerHTML=emptyHtml;
     if(el2b) el2b.innerHTML=emptyHtml;
     return;
   }
-  const today=dk(new Date());
   const html = bdays.map(b=>{
-    const bdAge=b.year?new Date().getFullYear()-parseInt(b.year):'';
-    const nextDate = getNextBirthday(b.date);
-    const daysLeft = Math.round((new Date(nextDate+'T12:00:00')-new Date())/86400000);
-    const isToday2 = daysLeft<=0&&daysLeft>-1;
-    const isSoon = daysLeft<=7&&daysLeft>=0;
+    // Alter, das die Person am NÄCHSTEN Geburtstag erreicht (Jahr von nextDate, nicht das aktuelle Jahr).
+    const bdAge=b.year?parseInt(b.nextDate.slice(0,4))-parseInt(b.year):'';
+    const isToday2 = b.daysLeft<=0&&b.daysLeft>-1;
+    const isSoon = b.daysLeft<=7&&b.daysLeft>=0;
+    const [,mm,dd]=b.date.split('-');
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px'+(isToday2?';border-color:var(--today)':isSoon?';border-color:var(--amber)':'')+'">'+
       '<span style="font-size:1.1rem">🎂</span>'+
       '<div style="flex:1">'+
         '<div style="font-size:.82rem;font-weight:500">'+b.name+'</div>'+
-        '<div style="font-size:.7rem;color:var(--muted)">'+b.date.slice(5).replace('-','.')+'.'+(b.year?' (Jg. '+b.year+')':'')+'</div>'+
+        '<div style="font-size:.7rem;color:var(--muted)">'+dd+'.'+mm+'.'+(bdAge!==''?' (wird '+bdAge+')':'')+'</div>'+
       '</div>'+
       '<span style="font-size:.72rem;font-weight:600;color:'+(isToday2?'var(--today)':isSoon?'var(--amber)':'var(--muted)')+'">'+
-        (isToday2?'🎉 Heute!':daysLeft===1?'Morgen':daysLeft<=7?'in '+daysLeft+' Tagen':'in '+daysLeft+' Tagen')+
+        (isToday2?'🎉 Heute!':b.daysLeft===1?'Morgen':'in '+b.daysLeft+' Tagen')+
       '</span>'+
       '<button data-bid=' + JSON.stringify(b.id) + ' onclick="openEditBirthday(this.dataset.bid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.82rem;padding:3px 6px">✏️</button>'+
       '<button data-bid=' + JSON.stringify(b.id) + ' onclick="deleteBirthday(this.dataset.bid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.82rem;padding:3px 6px">✕</button>'+
@@ -1832,6 +1937,7 @@ function saveEditBirthday(id) {
 }
 
 function deleteBirthday(id) {
+  markDeleted('birthdays', id);
   HP.birthdays=(HP.birthdays||[]).filter(x=>x.id!==id);
   HP_save();closeModal();renderBirthdayList();showToast('Gelöscht');
 }
