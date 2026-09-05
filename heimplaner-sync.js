@@ -119,35 +119,66 @@ async function syncSave() {
   setSyncStatus('🟢 Synchron', 'var(--green)');
 }
 
-// Union-merge zweier Budget-Buchungslisten nach id (lokal gewinnt bei gleicher id).
-// Bewusst nur für Budget-Einträge: verhindert, dass eine gleichzeitig auf dem
-// anderen Gerät gespeicherte Buchung durch den nächsten Full-Blob-Overwrite
-// verloren geht. Kein Tombstone-Handling für Löschungen (siehe CLAUDE.md-Absprache) —
-// das genügt für das reale Nutzungsmuster (zwei Personen, seltene echte Zeitkonflikte).
-function mergeArrayById(local, remote) {
+// Datentypen, die als flache id-Arrays gemerged werden (nicht blind überschrieben).
+// 'tasks' ist gesondert unten behandelt (Objekt aus 3 Arrays: p1/p2/shared).
+const SYNCED_ARRAY_TYPES = ['events','notes','birthdays','shop','savedShopItems','customRecipes','budgetEntries'];
+
+// Union-merge zweier Listen nach id. Bei gleicher id gewinnt remote (= zuletzt
+// synchronisierter Stand) — entspricht dem bisherigen Verhalten bei einem vollen
+// Overwrite. Neu hinzugekommene, noch nicht synchronisierte lokale Einträge
+// bleiben aber erhalten (gehen bei einem reinen Overwrite sonst verloren),
+// und per deletedMap (Tombstones, siehe HP.deleted/markDeleted) getilgte IDs
+// werden aus dem Ergebnis entfernt, damit ein noch nicht aktualisierter
+// Gegenstand eine Löschung nicht wiederherstellt.
+function mergeArrayById(local, remote, deletedMap) {
   const map = new Map();
-  (remote||[]).forEach(item=>map.set(item.id, item));
   (local||[]).forEach(item=>map.set(item.id, item));
+  (remote||[]).forEach(item=>map.set(item.id, item));
+  if (deletedMap) Object.keys(deletedMap).forEach(id=>map.delete(id));
   return Array.from(map.values());
+}
+
+// Merged zwei Tombstone-Maps (id -> Lösch-Zeitstempel): Union der Keys, jeweils
+// der jüngere Zeitstempel gewinnt.
+function mergeDeletedMap(local, remote) {
+  const out = {...(local||{})};
+  Object.entries(remote||{}).forEach(([id,ts])=>{
+    if (!out[id] || ts > out[id]) out[id] = ts;
+  });
+  return out;
+}
+
+function mergeTaskLists(localTasks, remoteTasks, deletedTasks) {
+  const lt = localTasks || {p1:[],p2:[],shared:[]};
+  const rt = remoteTasks || {};
+  return {
+    p1: mergeArrayById(lt.p1, rt.p1, deletedTasks),
+    p2: mergeArrayById(lt.p2, rt.p2, deletedTasks),
+    shared: mergeArrayById(lt.shared, rt.shared, deletedTasks)
+  };
 }
 
 function mergeData(remote) {
   if (!remote || typeof remote !== 'object') return;
-  const localBudget = HP.budgetEntries || [];
+  const mergedDeleted = {};
+  SYNCED_ARRAY_TYPES.concat('tasks').forEach(t => {
+    mergedDeleted[t] = mergeDeletedMap((HP.deleted||{})[t], (remote.deleted||{})[t]);
+  });
+  const localSnapshot = {};
+  SYNCED_ARRAY_TYPES.forEach(t => { localSnapshot[t] = HP[t]; });
+  const localTasks = HP.tasks;
+
   Object.assign(HP, remote);
-  HP.budgetEntries = mergeArrayById(localBudget, remote.budgetEntries);
-  if (!HP.notes) HP.notes = [];
-  if (!HP.customRecipes) HP.customRecipes = [];
+  HP.deleted = mergedDeleted;
+  SYNCED_ARRAY_TYPES.forEach(t => { HP[t] = mergeArrayById(localSnapshot[t], remote[t], mergedDeleted[t]); });
+  HP.tasks = mergeTaskLists(localTasks, remote.tasks, mergedDeleted.tasks);
   if (!HP.taskStatus) HP.taskStatus = {};
   if (!HP.taskNotes) HP.taskNotes = {};
   if (!HP.colors) HP.colors = {};
-  if (!HP.events) HP.events = [];
-  if (!HP.birthdays) HP.birthdays = [];
   if (!HP.taskComments) HP.taskComments = {};
   if (!HP.eventStatus) HP.eventStatus = {};
   if (!HP.eventNotes) HP.eventNotes = {};
   if (!HP.eventComments) HP.eventComments = {};
-  if (!HP.savedShopItems) HP.savedShopItems = [];
   if (!HP.taskExceptions) HP.taskExceptions = {};
   if (!HP.budgetLimits) HP.budgetLimits = {p1:{}, p2:{}};
   try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
@@ -155,21 +186,26 @@ function mergeData(remote) {
   if (typeof applyColors === 'function') applyColors();
 }
 
-// Holt vor dem Speichern kurz den aktuellen Serverstand und mischt nur
-// HP.budgetEntries per ID ein — schliesst das Zeitfenster, in dem eine
-// zeitgleich auf dem anderen Gerät gespeicherte Buchung sonst durch den
-// nächsten Full-Blob-Overwrite verloren ginge. Bewusst auf diesen einen
-// Datentyp beschränkt (siehe CLAUDE.md-Absprache zu Sync-Konflikten).
-async function mergeBudgetBeforeSave() {
+// Holt vor dem Speichern kurz den aktuellen Serverstand und mischt alle
+// sync-relevanten Listen (inkl. Tombstones) ein — schliesst das Zeitfenster
+// (2-Sekunden-Debounce), in dem sonst z.B. eine gerade gelöschte Buchung oder
+// ein zeitgleich auf dem anderen Gerät neu angelegter Eintrag durch den
+// nächsten Full-Blob-Overwrite verloren gehen bzw. wiederhergestellt würde.
+async function mergeBeforeSave() {
   if (!syncPassword) return;
   try {
     const res = await fetch(SYNC_URL, { headers: { 'x-app-password': syncPassword } });
     if (!res.ok) return;
     const json = await res.json();
-    if (json && json.data && json.data.budgetEntries) {
-      HP.budgetEntries = mergeArrayById(HP.budgetEntries, json.data.budgetEntries);
-      try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
-    }
+    const remote = json && json.data; if (!remote) return;
+    const mergedDeleted = {};
+    SYNCED_ARRAY_TYPES.concat('tasks').forEach(t => {
+      mergedDeleted[t] = mergeDeletedMap((HP.deleted||{})[t], (remote.deleted||{})[t]);
+    });
+    HP.deleted = mergedDeleted;
+    SYNCED_ARRAY_TYPES.forEach(t => { HP[t] = mergeArrayById(HP[t], remote[t], mergedDeleted[t]); });
+    HP.tasks = mergeTaskLists(HP.tasks, remote.tasks, mergedDeleted.tasks);
+    try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
   } catch(e) { /* best effort – normaler Save läuft trotzdem weiter */ }
 }
 
@@ -203,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
       syncTimer = setTimeout(async () => {
         try {
           setSyncStatus('⏳ Speichert…', 'var(--amber)');
-          await mergeBudgetBeforeSave();
+          await mergeBeforeSave();
           await syncSave();
         } catch(e) {
           setSyncStatus('🔴 Sync-Fehler', 'var(--red)');
