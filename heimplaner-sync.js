@@ -125,15 +125,24 @@ const SYNCED_ARRAY_TYPES = ['events','notes','birthdays','shop','savedShopItems'
 
 // Union-merge zweier Listen nach id. Bei gleicher id gewinnt remote (= zuletzt
 // synchronisierter Stand) — entspricht dem bisherigen Verhalten bei einem vollen
-// Overwrite. Neu hinzugekommene, noch nicht synchronisierte lokale Einträge
-// bleiben aber erhalten (gehen bei einem reinen Overwrite sonst verloren),
-// und per deletedMap (Tombstones, siehe HP.deleted/markDeleted) getilgte IDs
-// werden aus dem Ergebnis entfernt, damit ein noch nicht aktualisierter
-// Gegenstand eine Löschung nicht wiederherstellt.
+// Overwrite. Ausnahme: tragen beide Seiten ein updatedAt (aktuell nur
+// budgetEntries), gewinnt die tatsächlich neuere Seite — verhindert, dass eine
+// gerade lokal bearbeitete, aber noch nicht hochgeladene Buchung durch den
+// still älteren Serverstand überschrieben wird (siehe mergeBeforeSave). Für
+// Typen ohne updatedAt bleibt "remote gewinnt" unverändert.
+// Neu hinzugekommene, noch nicht synchronisierte lokale Einträge bleiben
+// erhalten (gehen bei einem reinen Overwrite sonst verloren), und per
+// deletedMap (Tombstones, siehe HP.deleted/markDeleted) getilgte IDs werden
+// aus dem Ergebnis entfernt, damit ein noch nicht aktualisierter Gegenstand
+// eine Löschung nicht wiederherstellt.
 function mergeArrayById(local, remote, deletedMap) {
   const map = new Map();
   (local||[]).forEach(item=>map.set(item.id, item));
-  (remote||[]).forEach(item=>map.set(item.id, item));
+  (remote||[]).forEach(item=>{
+    const existing = map.get(item.id);
+    if (existing && existing.updatedAt != null && item.updatedAt != null && existing.updatedAt > item.updatedAt) return;
+    map.set(item.id, item);
+  });
   if (deletedMap) Object.keys(deletedMap).forEach(id=>map.delete(id));
   return Array.from(map.values());
 }

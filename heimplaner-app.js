@@ -1064,6 +1064,7 @@ function renderManage() {
       const t=HP.tasks[b.dataset.who].find(t=>t.id===b.dataset.tid); if(t){t.important=!t.important;HP_save();render();}
     });});
     el.querySelectorAll('.tm-del').forEach(b=>{b.addEventListener('click',()=>{
+      markDeleted('tasks', b.dataset.tid);
       HP.tasks[b.dataset.who]=HP.tasks[b.dataset.who].filter(t=>t.id!==b.dataset.tid);
       if(HP.taskExceptions) delete HP.taskExceptions[b.dataset.tid];
       HP_save();render();
