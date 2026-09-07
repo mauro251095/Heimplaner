@@ -123,13 +123,16 @@ async function syncSave() {
 // 'tasks' ist gesondert unten behandelt (Objekt aus 3 Arrays: p1/p2/shared).
 const SYNCED_ARRAY_TYPES = ['events','notes','birthdays','shop','savedShopItems','customRecipes','budgetEntries'];
 
-// Union-merge zweier Listen nach id. Bei gleicher id gewinnt remote (= zuletzt
-// synchronisierter Stand) — entspricht dem bisherigen Verhalten bei einem vollen
-// Overwrite. Ausnahme: tragen beide Seiten ein updatedAt (aktuell nur
-// budgetEntries), gewinnt die tatsächlich neuere Seite — verhindert, dass eine
-// gerade lokal bearbeitete, aber noch nicht hochgeladene Buchung durch den
-// still älteren Serverstand überschrieben wird (siehe mergeBeforeSave). Für
-// Typen ohne updatedAt bleibt "remote gewinnt" unverändert.
+// Union-merge zweier Listen nach id. Alle Items dieser Typen tragen inzwischen ein
+// updatedAt (gesetzt bei jeder Erstellung/Änderung, siehe heimplaner-app.js) —
+// bei gleicher id gewinnt die tatsächlich neuere Seite; ein fehlendes updatedAt
+// zählt als 0 (ältestmöglich), damit der Vergleich auch greift, wenn nur eine
+// Seite das Feld schon gesetzt hat. Das verhindert, dass eine gerade lokal
+// bearbeitete, aber noch nicht hochgeladene Änderung (z.B. ein abgehakter
+// Einkauf) durch den noch älteren Serverstand überschrieben wird (siehe
+// mergeBeforeSave) — ohne Timestamp auf beiden Seiten (z.B. zwei nie bearbeitete
+// Altbestände) bleibt "remote gewinnt" als Tie-Breaker unverändert, damit ein
+// Poll weiterhin unberührte Einträge vom anderen Gerät übernimmt.
 // Neu hinzugekommene, noch nicht synchronisierte lokale Einträge bleiben
 // erhalten (gehen bei einem reinen Overwrite sonst verloren), und per
 // deletedMap (Tombstones, siehe HP.deleted/markDeleted) getilgte IDs werden
@@ -140,12 +143,38 @@ function mergeArrayById(local, remote, deletedMap) {
   (local||[]).forEach(item=>map.set(item.id, item));
   (remote||[]).forEach(item=>{
     const existing = map.get(item.id);
-    if (existing && existing.updatedAt != null && item.updatedAt != null && existing.updatedAt > item.updatedAt) return;
+    if (existing && (existing.updatedAt||0) > (item.updatedAt||0)) return;
     map.set(item.id, item);
   });
   if (deletedMap) Object.keys(deletedMap).forEach(id=>map.delete(id));
   return Array.from(map.values());
 }
+
+// Merged zwei "Plain-Object"-Maps (id/key -> Wert), die nicht Teil der
+// SYNCED_ARRAY_TYPES sind (taskStatus, taskNotes, colors, taskComments,
+// eventStatus, eventNotes, eventComments, taskExceptions, budgetLimits).
+// Diese wurden bisher beim Pull/Poll per Object.assign(HP, remote) komplett
+// durch den Serverstand ersetzt — dadurch konnte z.B. ein gerade abgehakter
+// Task-Status durch einen Poll wenige Sekunden später wieder verschwinden.
+// Stattdessen: lokale Werte gewinnen bei einem Key-Konflikt (die Änderung ist
+// per Definition die zuletzt getätigte, die noch nicht hochgeladen wurde),
+// neue Keys vom Server (z.B. vom Partnergerät gesetzt) bleiben erhalten.
+// deletedIds (Tombstones der zugehörigen Liste, tasks bzw. events) entfernt
+// verwaiste Einträge, damit eine gelöschte Aufgabe/ein gelöschter Termin nicht
+// über taskStatus/taskNotes/... "auferstehen" kann.
+function mergeObjectMap(local, remote, deletedIds) {
+  const out = Object.assign({}, remote||{}, local||{});
+  if (deletedIds) Object.keys(deletedIds).forEach(id=>delete out[id]);
+  return out;
+}
+
+// Ordnet jede Plain-Object-Map ihrer Tombstone-Liste zu (null = keine, weil die
+// Keys keine gelöschten Entity-IDs sind, sondern z.B. 'p1'/'p2').
+const OBJECT_MAP_TYPES = {
+  taskStatus: 'tasks', taskNotes: 'tasks', taskComments: 'tasks', taskExceptions: 'tasks',
+  eventStatus: 'events', eventNotes: 'events', eventComments: 'events',
+  colors: null, budgetLimits: null
+};
 
 // Merged zwei Tombstone-Maps (id -> Lösch-Zeitstempel): Union der Keys, jeweils
 // der jüngere Zeitstempel gewinnt.
@@ -176,20 +205,19 @@ function mergeData(remote) {
   const localSnapshot = {};
   SYNCED_ARRAY_TYPES.forEach(t => { localSnapshot[t] = HP[t]; });
   const localTasks = HP.tasks;
+  const localMaps = {};
+  Object.keys(OBJECT_MAP_TYPES).forEach(t => { localMaps[t] = HP[t]; });
 
   Object.assign(HP, remote);
   HP.deleted = mergedDeleted;
   SYNCED_ARRAY_TYPES.forEach(t => { HP[t] = mergeArrayById(localSnapshot[t], remote[t], mergedDeleted[t]); });
   HP.tasks = mergeTaskLists(localTasks, remote.tasks, mergedDeleted.tasks);
-  if (!HP.taskStatus) HP.taskStatus = {};
-  if (!HP.taskNotes) HP.taskNotes = {};
-  if (!HP.colors) HP.colors = {};
-  if (!HP.taskComments) HP.taskComments = {};
-  if (!HP.eventStatus) HP.eventStatus = {};
-  if (!HP.eventNotes) HP.eventNotes = {};
-  if (!HP.eventComments) HP.eventComments = {};
-  if (!HP.taskExceptions) HP.taskExceptions = {};
-  if (!HP.budgetLimits) HP.budgetLimits = {p1:{}, p2:{}};
+  Object.keys(OBJECT_MAP_TYPES).forEach(t => {
+    const tombKey = OBJECT_MAP_TYPES[t];
+    HP[t] = mergeObjectMap(localMaps[t], remote[t], tombKey ? mergedDeleted[tombKey] : null);
+  });
+  if (!HP.budgetLimits.p1) HP.budgetLimits.p1 = {};
+  if (!HP.budgetLimits.p2) HP.budgetLimits.p2 = {};
   try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
   if (typeof render === 'function') render();
   if (typeof applyColors === 'function') applyColors();
@@ -214,6 +242,10 @@ async function mergeBeforeSave() {
     HP.deleted = mergedDeleted;
     SYNCED_ARRAY_TYPES.forEach(t => { HP[t] = mergeArrayById(HP[t], remote[t], mergedDeleted[t]); });
     HP.tasks = mergeTaskLists(HP.tasks, remote.tasks, mergedDeleted.tasks);
+    Object.keys(OBJECT_MAP_TYPES).forEach(t => {
+      const tombKey = OBJECT_MAP_TYPES[t];
+      HP[t] = mergeObjectMap(HP[t], remote[t], tombKey ? mergedDeleted[tombKey] : null);
+    });
     try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
   } catch(e) { /* best effort – normaler Save läuft trotzdem weiter */ }
 }

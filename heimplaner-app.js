@@ -344,7 +344,7 @@ function saveQuickAddTask() {
     if(!date){showToast('Bitte Datum wählen');return;}
     const reminder=document.getElementById('qa-reminder-ev')?.value||'';
     if(!HP.events)HP.events=[];
-    HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,reminder,important,note:''});
+    HP.events.push({id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,reminder,important,note:'',updatedAt:Date.now()});
     HP_save();closeModal();render();
     if(typeof renderMonth==='function'&&document.getElementById('view-month')&&!document.getElementById('view-month').classList.contains('hidden'))renderMonth();
     showToast(emoji+' '+name+' am '+date+' eingetragen');
@@ -357,7 +357,7 @@ function saveQuickAddTask() {
     const days=sel.length?sel:[0,1,2,3,4,5,6];
     const tid=who+Date.now();
     const reminder=document.getElementById('qa-reminder-task')?.value||'';
-    HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,timeEnd,reminder});
+    HP.tasks[who].push({id:tid,emoji,name,days,prio,important,status:'open',time,timeEnd,reminder,updatedAt:Date.now()});
     HP_save();closeModal();render();showToast(emoji+' '+name+' hinzugefügt');
   }
 }
@@ -409,7 +409,7 @@ function makeShopItem(item) {
     '<button onclick="event.stopPropagation();openEditShopItemById(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Bearbeiten">✏️</button>'+
     '<button onclick="event.stopPropagation();saveShopItemTemplate(\''+item.id+'\')" style="background:none;border:none;color:var(--amber);cursor:pointer;font-size:1.15rem;line-height:1;padding:4px 6px;border-radius:4px;opacity:0.85" title="Zu Favoriten hinzufügen">⭐</button>'+
     '</div>';
-  div.addEventListener('click',()=>{item.bought=!item.bought;HP_save();renderShop();renderSidebarStats();});
+  div.addEventListener('click',()=>{item.bought=!item.bought;item.updatedAt=Date.now();HP_save();renderShop();renderSidebarStats();});
   return div;
 }
 
@@ -421,8 +421,8 @@ function addShopItem(name,qty,unit,cat,taskId,taskName) {
   const c=cat||document.getElementById('shop-add-cat')?.value||'Sonstiges';
   const existing=HP.shop.find(i=>i.name.toLowerCase()===n.toLowerCase()&&!i.bought);
   if(existing&&!name){showDuplicateModal(existing,q,u);return;}
-  if(existing&&name){existing.qty=existing.qty?existing.qty+'+'+q:q;HP_save();renderShop();renderSidebarStats();showToast(n+' Menge angepasst');return;}
-  HP.shop.push({id:'sh'+Date.now(),name:n,qty:q,unit:u,cat:c,bought:false,taskId:taskId||null,taskName:taskName||null});
+  if(existing&&name){existing.qty=existing.qty?existing.qty+'+'+q:q;existing.updatedAt=Date.now();HP_save();renderShop();renderSidebarStats();showToast(n+' Menge angepasst');return;}
+  HP.shop.push({id:'sh'+Date.now(),name:n,qty:q,unit:u,cat:c,bought:false,taskId:taskId||null,taskName:taskName||null,updatedAt:Date.now()});
   HP_save();
   if(!name){['shop-add-name','shop-add-qty','shop-add-unit'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});const sc=document.getElementById('shop-add-cat');if(sc)sc.value='';}
   renderShop();renderSidebarStats();showToast(n+' hinzugefügt');
@@ -432,8 +432,8 @@ function saveShopItemTemplate(id) {
   const item=HP.shop.find(i=>i.id===id); if(!item) return;
   if(!HP.savedShopItems) HP.savedShopItems=[];
   const existing=HP.savedShopItems.find(s=>s.name.toLowerCase()===item.name.toLowerCase());
-  if(existing){existing.qty=item.qty;existing.unit=item.unit;existing.cat=item.cat;}
-  else HP.savedShopItems.push({id:'ssi'+Date.now(),name:item.name,qty:item.qty,unit:item.unit,cat:item.cat});
+  if(existing){existing.qty=item.qty;existing.unit=item.unit;existing.cat=item.cat;existing.updatedAt=Date.now();}
+  else HP.savedShopItems.push({id:'ssi'+Date.now(),name:item.name,qty:item.qty,unit:item.unit,cat:item.cat,updatedAt:Date.now()});
   HP_save();showToast('⭐ "'+item.name+'" zu Favoriten hinzugefügt');
 }
 
@@ -485,6 +485,7 @@ function saveEditShopItem(id) {
   item.qty=document.getElementById('ei-qty')?.value.trim()||'';
   item.unit=document.getElementById('ei-unit')?.value.trim()||'';
   item.cat=document.getElementById('ei-cat')?.value||item.cat;
+  item.updatedAt=Date.now();
   HP_save();closeModal();renderShop();showToast('Artikel aktualisiert');
 }
 function deleteShopItem(id){markDeleted('shop',id);HP.shop=HP.shop.filter(i=>i.id!==id);HP_save();closeModal();renderShop();renderSidebarStats();showToast('Artikel gelöscht');}
@@ -498,8 +499,8 @@ function showDuplicateModal(existing,q,u) {
     '<button class="mbtn" style="background:var(--surface);color:var(--text)" onclick="addSeparate(\''+existing.name+'\',\''+q+'\',\''+u+'\')">Separat</button>'+
     '<button class="mbtn mbtn-confirm" onclick="increaseQty(\''+existing.id+'\',\''+q+'\')">Erhöhen</button></div>');
 }
-function increaseQty(id,q){const i=HP.shop.find(x=>x.id===id);if(i)i.qty=i.qty?i.qty+'+'+q:q;HP_save();closeModal();renderShop();showToast('Menge angepasst');}
-function addSeparate(name,qty,unit){closeModal();HP.shop.push({id:'sh'+Date.now(),name,qty,unit,cat:'Sonstiges',bought:false,taskId:null,taskName:null});HP_save();renderShop();renderSidebarStats();showToast(name+' separat hinzugefügt');}
+function increaseQty(id,q){const i=HP.shop.find(x=>x.id===id);if(i){i.qty=i.qty?i.qty+'+'+q:q;i.updatedAt=Date.now();}HP_save();closeModal();renderShop();showToast('Menge angepasst');}
+function addSeparate(name,qty,unit){closeModal();HP.shop.push({id:'sh'+Date.now(),name,qty,unit,cat:'Sonstiges',bought:false,taskId:null,taskName:null,updatedAt:Date.now()});HP_save();renderShop();renderSidebarStats();showToast(name+' separat hinzugefügt');}
 
 // ── BUDGET ────────────────────────────────────
 let budgetMonthOffset=0, budgetTab='p1';
@@ -818,7 +819,7 @@ function saveCustomRecipeFromMeal(key,slot){
     cat:document.getElementById('cr-cat')?.value||'Hauptspeisen',
     time:parseInt(document.getElementById('cr-time')?.value)||30,
     pers:parseInt(document.getElementById('cr-pers')?.value)||2,
-    tags:['eigenes'],ing,custom:true};
+    tags:['eigenes'],ing,custom:true,updatedAt:Date.now()};
   if(!HP.customRecipes)HP.customRecipes=[];
   HP.customRecipes.push(newRecipe);
   // Link the meal slot to this new recipe
@@ -841,7 +842,7 @@ function addDayToShop(key){
     const r=allRecipes().find(x=>x.id===m.recipeId); if(!r) return;
     r.ing.forEach(ing=>{
       if(!HP.shop.find(i=>i.name.toLowerCase()===ing.n.toLowerCase()&&!i.bought)){
-        HP.shop.push({id:'sh'+Date.now()+Math.random(),name:ing.n,qty:ing.q,unit:ing.u,cat:guessCat(ing.n),bought:false,taskId:null,taskName:m.emoji+' '+m.name});added++;
+        HP.shop.push({id:'sh'+Date.now()+Math.random(),name:ing.n,qty:ing.q,unit:ing.u,cat:guessCat(ing.n),bought:false,taskId:null,taskName:m.emoji+' '+m.name,updatedAt:Date.now()});added++;
       }
     });
   });
@@ -854,7 +855,7 @@ function addWholeWeekToShop(){
       const r=allRecipes().find(x=>x.id===m.recipeId); if(!r) return;
       r.ing.forEach(ing=>{
         if(!HP.shop.find(i=>i.name.toLowerCase()===ing.n.toLowerCase()&&!i.bought)){
-          HP.shop.push({id:'sh'+Date.now()+Math.random(),name:ing.n,qty:ing.q,unit:ing.u,cat:guessCat(ing.n),bought:false,taskId:null,taskName:m.emoji+' '+m.name});added++;
+          HP.shop.push({id:'sh'+Date.now()+Math.random(),name:ing.n,qty:ing.q,unit:ing.u,cat:guessCat(ing.n),bought:false,taskId:null,taskName:m.emoji+' '+m.name,updatedAt:Date.now()});added++;
         }
       });
     });
@@ -899,7 +900,7 @@ function addSelectedIngs(rid) {
   r.ing.forEach((ing,i)=>{
     const cb=document.getElementById('ic-'+i); if(!cb||!cb.checked) return;
     if(!HP.shop.find(x=>x.name.toLowerCase()===ing.n.toLowerCase()&&!x.bought)){
-      HP.shop.push({id:'sh'+Date.now()+Math.random(),name:ing.n,qty:ing.q,unit:ing.u,cat:guessCat(ing.n),bought:false,taskId:null,taskName:r.emoji+' '+r.name});added++;
+      HP.shop.push({id:'sh'+Date.now()+Math.random(),name:ing.n,qty:ing.q,unit:ing.u,cat:guessCat(ing.n),bought:false,taskId:null,taskName:r.emoji+' '+r.name,updatedAt:Date.now()});added++;
     }
   });
   HP_save();closeModal();renderSidebarStats();showToast(added+' Zutaten von "'+r.name+'" hinzugefügt');
@@ -964,7 +965,7 @@ function readCustomRecipeForm() {
 function saveCustomRecipe() {
   const f=readCustomRecipeForm(); if(!f) return;
   if(!HP.customRecipes)HP.customRecipes=[];
-  HP.customRecipes.push({id:'cr'+Date.now(),...f,tags:['eigenes'],custom:true});
+  HP.customRecipes.push({id:'cr'+Date.now(),...f,tags:['eigenes'],custom:true,updatedAt:Date.now()});
   HP_save();closeModal();renderRecipes();showToast(f.emoji+' '+f.name+' hinzugefügt');
 }
 
@@ -1031,13 +1032,14 @@ function previewImportedRecipe() {
 function saveImportedRecipe() {
   const f=readCustomRecipeForm(); if(!f) return;
   if(!HP.customRecipes)HP.customRecipes=[];
-  HP.customRecipes.push({id:'cr'+Date.now(),...f,tags:['eigenes','importiert'],custom:true});
+  HP.customRecipes.push({id:'cr'+Date.now(),...f,tags:['eigenes','importiert'],custom:true,updatedAt:Date.now()});
   HP_save();closeModal();renderRecipes();showToast(f.emoji+' '+f.name+' importiert');
 }
 function saveEditCustomRecipe(id) {
   const r=(HP.customRecipes||[]).find(x=>x.id===id); if(!r){closeModal();return;}
   const f=readCustomRecipeForm(); if(!f) return;
   Object.assign(r,f);
+  r.updatedAt=Date.now();
   HP_save();closeModal();renderRecipes();showToast('Rezept aktualisiert');
 }
 function deleteCustomRecipe(id){markDeleted('customRecipes',id);HP.customRecipes=(HP.customRecipes||[]).filter(r=>r.id!==id);HP_save();renderRecipes();showToast('Rezept gelöscht');}
@@ -1058,10 +1060,11 @@ function renderManage() {
     el.querySelectorAll('.dp').forEach(p=>{p.addEventListener('click',()=>{
       const t=HP.tasks[p.dataset.who].find(t=>t.id===p.dataset.tid); if(!t) return;
       const i=t.days.indexOf(+p.dataset.day); if(i>-1)t.days.splice(i,1); else t.days.push(+p.dataset.day);
+      t.updatedAt=Date.now();
       HP_save();render();
     });});
     el.querySelectorAll('.wichtig-btn').forEach(b=>{b.addEventListener('click',()=>{
-      const t=HP.tasks[b.dataset.who].find(t=>t.id===b.dataset.tid); if(t){t.important=!t.important;HP_save();render();}
+      const t=HP.tasks[b.dataset.who].find(t=>t.id===b.dataset.tid); if(t){t.important=!t.important;t.updatedAt=Date.now();HP_save();render();}
     });});
     el.querySelectorAll('.tm-del').forEach(b=>{b.addEventListener('click',()=>{
       markDeleted('tasks', b.dataset.tid);
@@ -1219,7 +1222,7 @@ function addTask(){
   if(!name){showToast('Bitte Aufgabenname eingeben');return;}
   const days=afSelectedDays.length?[...afSelectedDays]:[0,1,2,3,4,5,6];
   const tid=who+Date.now();
-  HP.tasks[who].push({id:tid,emoji,name,days,prio,status:'open',time,timeEnd,reminder});
+  HP.tasks[who].push({id:tid,emoji,name,days,prio,status:'open',time,timeEnd,reminder,updatedAt:Date.now()});
   ['af-name','af-time','af-time-end'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   selectEmoji('af-emoji','⭐');
   document.getElementById('af-prio').checked=false;
@@ -1318,7 +1321,7 @@ function saveTaskDetails(tid,dateKey='') {
   const te=document.getElementById('tm-time-end')?.value||'';
   const imp=document.getElementById('tm-important')?.checked||false;
   const emoji=document.getElementById('tm-emoji')?.value||'⭐';
-  ['p1','p2','shared'].forEach(w=>{const task=HP.tasks[w].find(x=>x.id===tid);if(task){task.time=t;task.timeEnd=te;task.reminder=r;task.important=imp;task.emoji=emoji;}});
+  ['p1','p2','shared'].forEach(w=>{const task=HP.tasks[w].find(x=>x.id===tid);if(task){task.time=t;task.timeEnd=te;task.reminder=r;task.important=imp;task.emoji=emoji;task.updatedAt=Date.now();}});
   HP_save();
   render();
 }
@@ -1487,7 +1490,7 @@ function saveNewNote(){
   if(newEventName && newEventDate) {
     const eid = 'ev' + Date.now();
     if(!HP.events) HP.events = [];
-    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:'',who:newEventWho,important:false,note:''});
+    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:'',who:newEventWho,important:false,note:'',updatedAt:Date.now()});
     linkedEventId = eid;
     showToast('📅 Termin "' + newEventName + '" erstellt');
   } else if(newEventName && !newEventDate) {
@@ -1497,7 +1500,8 @@ function saveNewNote(){
     id:'n'+Date.now(),
     title, body, color:document.getElementById('note-color')?.value||'yellow',
     linkedEventId: linkedEventId||'',
-    created:new Date().toISOString()
+    created:new Date().toISOString(),
+    updatedAt:Date.now()
   });
   HP_save();closeModal();renderPinboard();render();
 }
@@ -1529,13 +1533,14 @@ function saveEditNote(id){
   if(newEventName && newEventDate) {
     const eid = 'ev' + Date.now();
     if(!HP.events) HP.events = [];
-    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:'',who:newEventWho,important:false,note:''});
+    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:'',who:newEventWho,important:false,note:'',updatedAt:Date.now()});
     linkedEventId = eid;
     showToast('📅 Termin "' + newEventName + '" erstellt');
   } else if(newEventName && !newEventDate) {
     showToast('Bitte Datum für den neuen Termin wählen'); return;
   }
   n.linkedEventId = linkedEventId;
+  n.updatedAt = Date.now();
   HP_save();closeModal();renderPinboard();render();
 }
 function deleteNote(id){
@@ -1662,7 +1667,7 @@ function saveNewEvent() {
   if(!name){showToast('Bitte Name eingeben');return;}
   if(!date){showToast('Bitte Datum wählen');return;}
   if(!HP.events) HP.events=[];
-  const ev={id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,reminder,important,note:''};
+  const ev={id:'ev'+Date.now(),emoji,name,date,time,timeEnd,who,reminder,important,note:'',updatedAt:Date.now()};
   if(isChore){
     const [unit,value]=(document.getElementById('ev-recur')?.value||'months:3').split(':');
     ev.chore=true; ev.recur={unit,value:parseInt(value)};
@@ -1747,6 +1752,7 @@ function openEventModal(id) {
 function saveEventModalDetails(id) {
   const e=(HP.events||[]).find(x=>x.id===id); if(!e) return;
   e.important=document.getElementById('ev-important')?.checked||false;
+  e.updatedAt=Date.now();
   const blockNote=document.getElementById('ev-block-note'); if(blockNote){if(!HP.eventNotes)HP.eventNotes={};HP.eventNotes[id]=blockNote.value;}
   const comment=document.getElementById('ev-comment')?.value||'';
   if(!HP.eventComments) HP.eventComments={};
@@ -1759,6 +1765,7 @@ function setEventStatus(id,status,btn) {
   const e=(HP.events||[]).find(x=>x.id===id);
   if(e && e.chore && e.recur && status==='done'){
     e.date=advanceDateKey(e.date,e.recur.unit,e.recur.value,e.recur.weekday,e.recur.nth);
+    e.updatedAt=Date.now();
     if(HP.eventStatus) delete HP.eventStatus[id];
     HP_save();closeModal();render();
     if(typeof renderMonth==='function')renderMonth();
@@ -1818,6 +1825,7 @@ function saveEditEvent(id) {
       e.recur.nth=parseInt(document.getElementById('ev-recur-nth')?.value||'-1');
     }
   }
+  e.updatedAt=Date.now();
   HP_save();closeModal();render();
   if(typeof renderMonth==='function')renderMonth();
   if(typeof renderEventsList==='function') renderEventsList();
@@ -1902,7 +1910,7 @@ function saveNewBirthday() {
   const year = document.getElementById('bd-year')?.value.trim()||'';
   if(!name||!day||!month){showToast('Bitte Name, Tag und Monat eingeben');return;}
   if(!HP.birthdays) HP.birthdays=[];
-  HP.birthdays.push({id:'bd'+Date.now(),name,date:'0000-'+month+'-'+day,year});
+  HP.birthdays.push({id:'bd'+Date.now(),name,date:'0000-'+month+'-'+day,year,updatedAt:Date.now()});
   HP_save();closeModal();renderBirthdayList();
   showToast('🎂 '+name+' gespeichert');
 }
@@ -1934,6 +1942,7 @@ function saveEditBirthday(id) {
   const month=document.getElementById('bd-month')?.value.padStart(2,'0');
   b.date='0000-'+month+'-'+day;
   b.year=document.getElementById('bd-year')?.value.trim()||'';
+  b.updatedAt=Date.now();
   HP_save();closeModal();renderBirthdayList();
   showToast('Geburtstag gespeichert');
 }
@@ -2054,13 +2063,13 @@ function buildContext(){
 function execSingle(a){
   if(a.action==='add_task'){
     const w=a.who||'shared';
-    HP.tasks[w].push({id:w+Date.now(),emoji:a.emoji||'⭐',name:a.name,days:a.days||[0,1,2,3,4,5,6],prio:a.prio||false,status:'open',time:a.time||'',reminder:''});
+    HP.tasks[w].push({id:w+Date.now(),emoji:a.emoji||'⭐',name:a.name,days:a.days||[0,1,2,3,4,5,6],prio:a.prio||false,status:'open',time:a.time||'',reminder:'',updatedAt:Date.now()});
     return{msg:'✅ Task "'+a.emoji+' '+a.name+'" für '+(w==='p1'?HP.names.p1:w==='p2'?HP.names.p2:'beide')+' hinzugefügt.'};
   }
   if(a.action==='add_shop'){
     const ex=HP.shop.find(i=>i.name.toLowerCase()===a.name.toLowerCase()&&!i.bought);
-    if(ex){ex.qty=ex.qty?ex.qty+'+'+a.qty:a.qty;return{msg:'📝 "'+a.name+'" — Menge angepasst.'};}
-    HP.shop.push({id:'sh'+Date.now(),name:a.name,qty:a.qty||'',unit:a.unit||'',cat:a.cat||guessCat(a.name),bought:false,taskId:null,taskName:null});
+    if(ex){ex.qty=ex.qty?ex.qty+'+'+a.qty:a.qty;ex.updatedAt=Date.now();return{msg:'📝 "'+a.name+'" — Menge angepasst.'};}
+    HP.shop.push({id:'sh'+Date.now(),name:a.name,qty:a.qty||'',unit:a.unit||'',cat:a.cat||guessCat(a.name),bought:false,taskId:null,taskName:null,updatedAt:Date.now()});
     return{msg:'🛒 "'+a.name+'" zur Einkaufsliste hinzugefügt.'};
   }
   if(a.action==='set_meal'){
