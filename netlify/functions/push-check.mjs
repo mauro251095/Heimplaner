@@ -72,6 +72,36 @@ async function sbFetch(path, opts = {}) {
   });
 }
 
+// Holt gezielt die vier für Erinnerungen relevanten Teilbäume aus der
+// jsonb-Spalte "data". Schlägt die schlanke Abfrage fehl (z.B. weil eine
+// PostgREST-Version die ->-Syntax im select nicht unterstützt), wird auf den
+// bisherigen Vollabruf zurückgefallen — die Erinnerungen laufen dann wie
+// vorher weiter, nur ohne die Ersparnis. Ein stiller Ausfall der
+// Benachrichtigungen ist damit ausgeschlossen.
+const REMINDER_KEYS = ['tasks', 'events', 'birthdays', 'taskExceptions'];
+
+async function loadReminderData() {
+  try {
+    const select = REMINDER_KEYS.map(k => `data->${k}`).join(',');
+    const res = await sbFetch(`heimplaner_sync?id=eq.shared&select=${encodeURIComponent(select)}`);
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length && REMINDER_KEYS.some(k => rows[0][k] != null)) {
+        return rows[0];
+      }
+      if (Array.isArray(rows) && !rows.length) return null; // wirklich keine Daten
+    }
+    console.warn('push-check: schlanke Abfrage nicht verwendbar, nutze Vollabruf');
+  } catch (e) {
+    console.warn('push-check: schlanke Abfrage fehlgeschlagen, nutze Vollabruf:', e.message);
+  }
+
+  const res = await sbFetch('heimplaner_sync?id=eq.shared&select=data');
+  const rows = await res.json();
+  if (!Array.isArray(rows) || !rows.length) return null;
+  return rows[0].data || {};
+}
+
 export default async () => {
   if (!SUPABASE_URL || !SUPABASE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     console.error('push-check: SUPABASE_URL/SUPABASE_KEY/VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY fehlen');
@@ -79,10 +109,14 @@ export default async () => {
   }
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-  const dataRes = await sbFetch('heimplaner_sync?id=eq.shared&select=data');
-  const rows = await dataRes.json();
-  if (!rows.length) return new Response('no data', { status: 200 });
-  const HP = rows[0].data || {};
+  // Nur laden, was für Erinnerungen gebraucht wird.
+  // Diese Function läuft ~43'200 Mal pro Monat; ein Vollabruf des HP-Objekts
+  // (dominiert von der Rezeptbibliothek, dazu Budget, Notizen, Menüplan und
+  // Tombstones) war damit der grösste Einzelposten beim Supabase-Egress —
+  // ganz ohne dass die App überhaupt geöffnet wird.
+  // Gebraucht werden nur tasks, events, birthdays und taskExceptions.
+  const HP = await loadReminderData();
+  if (!HP) return new Response('no data', { status: 200 });
 
   const subsRes = await sbFetch('push_subscriptions?select=id,endpoint,p256dh,auth,who');
   const subs = await subsRes.json();
