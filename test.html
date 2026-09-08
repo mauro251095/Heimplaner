@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heimplaner – Tests</title>
+<style>
+  :root{--bg:#0d0f14;--panel:#13161e;--border:rgba(255,255,255,.08);--text:#e8eaf0;--muted:#6b7280;
+        --green:#4ade80;--red:#f87171;--amber:#fbbf24;--blue:#6C8EFF}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 Inter,system-ui,-apple-system,sans-serif;padding:24px}
+  h1{font-size:1.4rem;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:.82rem;margin-bottom:20px}
+  #summary{position:sticky;top:0;background:var(--bg);padding:12px 0;border-bottom:1px solid var(--border);
+           margin-bottom:16px;font-size:1rem;font-weight:600;z-index:10}
+  .grp{background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden}
+  .grp>h2{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+          margin:0;padding:10px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+  .t{display:flex;gap:10px;padding:6px 14px;font-size:.82rem;align-items:baseline;border-bottom:1px solid rgba(255,255,255,.03)}
+  .t:last-child{border-bottom:none}
+  .t.ok .mark{color:var(--green)} .t.fail{background:rgba(248,113,113,.08)} .t.fail .mark{color:var(--red)}
+  .mark{flex-shrink:0;font-weight:700;width:14px}
+  .why{color:var(--red);font-size:.76rem;margin-left:24px;padding:0 14px 8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
+  .pass{color:var(--green)} .failc{color:var(--red)}
+</style>
+</head>
+<body>
+
+<h1>Heimplaner – Tests</h1>
+<div class="sub">
+  Prüft die Logik ohne Oberfläche: Merge &amp; Tombstones, Datumsberechnung, HTML-Escaping,
+  Kategorie-Heuristik und den Rezept-Importer.<br>
+  Kein npm, kein Framework, kein Build — diese Datei im Browser öffnen. Vor jedem Push sinnvoll.
+</div>
+
+<div id="summary">Läuft…</div>
+<div id="out"></div>
+
+<!-- Dieselben Skripte wie die App, in derselben Reihenfolge.
+     app.js zuletzt, weil es auf data.js aufbaut. -->
+<script src="heimplaner-data.js"></script>
+<script src="heimplaner-app.js"></script>
+<script src="heimplaner-sync.js"></script>
+
+<script>
+// ── Winziges Test-Gerüst ─────────────────────────────────
+let bestanden = 0, gescheitert = 0, aktGruppe = null;
+const out = document.getElementById('out');
+
+function gruppe(name) {
+  aktGruppe = document.createElement('div');
+  aktGruppe.className = 'grp';
+  aktGruppe.innerHTML = '<h2></h2>';
+  aktGruppe.querySelector('h2').textContent = name;
+  out.appendChild(aktGruppe);
+}
+
+function pruefe(beschreibung, fn) {
+  let ok = false, grund = '';
+  try {
+    const r = fn();
+    if (r === true) ok = true;
+    else { grund = (r === false || r === undefined) ? 'Ergebnis war nicht true' : String(r); }
+  } catch (e) {
+    grund = e.name + ': ' + e.message;
+  }
+  ok ? bestanden++ : gescheitert++;
+  const row = document.createElement('div');
+  row.className = 't ' + (ok ? 'ok' : 'fail');
+  row.innerHTML = '<span class="mark"></span><span class="txt"></span>';
+  row.querySelector('.mark').textContent = ok ? '✓' : '✕';
+  row.querySelector('.txt').textContent = beschreibung;
+  aktGruppe.appendChild(row);
+  if (!ok) {
+    const w = document.createElement('div');
+    w.className = 'why';
+    w.textContent = grund;
+    aktGruppe.appendChild(w);
+  }
+}
+
+// Vergleicht zwei Werte strukturell und liefert bei Ungleichheit eine
+// lesbare Meldung statt nur "false".
+function gleich(ist, soll) {
+  const a = JSON.stringify(ist), b = JSON.stringify(soll);
+  return a === b ? true : 'erwartet: ' + b + '\nerhalten: ' + a;
+}
+const ids = arr => (arr || []).map(x => x.id).sort();
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Merge nach ID (mergeArrayById)');
+
+pruefe('Neuerer lokaler Eintrag gewinnt gegen älteren Server-Stand', () => {
+  const r = mergeArrayById(
+    [{id:'a', name:'lokal neu', updatedAt:2000}],
+    [{id:'a', name:'server alt', updatedAt:1000}], null);
+  return gleich(r[0].name, 'lokal neu');
+});
+
+pruefe('Neuerer Server-Stand gewinnt gegen älteren lokalen Eintrag', () => {
+  const r = mergeArrayById(
+    [{id:'a', name:'lokal alt', updatedAt:1000}],
+    [{id:'a', name:'server neu', updatedAt:2000}], null);
+  return gleich(r[0].name, 'server neu');
+});
+
+pruefe('Ohne Zeitstempel auf beiden Seiten gewinnt Remote (Alt-Bestand)', () => {
+  const r = mergeArrayById([{id:'a', name:'lokal'}], [{id:'a', name:'server'}], null);
+  return gleich(r[0].name, 'server');
+});
+
+pruefe('Fehlender Zeitstempel zählt als ältestmöglich', () => {
+  const r = mergeArrayById(
+    [{id:'a', name:'lokal mit Stempel', updatedAt:5}],
+    [{id:'a', name:'server ohne Stempel'}], null);
+  return gleich(r[0].name, 'lokal mit Stempel');
+});
+
+pruefe('Nur lokal vorhandener Eintrag bleibt erhalten', () => {
+  const r = mergeArrayById([{id:'neu', updatedAt:1}], [], null);
+  return gleich(ids(r), ['neu']);
+});
+
+pruefe('Nur remote vorhandener Eintrag wird übernommen', () => {
+  const r = mergeArrayById([], [{id:'vompartner', updatedAt:1}], null);
+  return gleich(ids(r), ['vompartner']);
+});
+
+pruefe('Getilgte ID wird entfernt, auch wenn Remote sie noch hat', () => {
+  const r = mergeArrayById([], [{id:'weg', updatedAt:9999}], {weg: Date.now()});
+  return gleich(ids(r), []);
+});
+
+pruefe('Getilgte ID wird auch aus dem lokalen Stand entfernt', () => {
+  const r = mergeArrayById([{id:'weg', updatedAt:9999}], [], {weg: Date.now()});
+  return gleich(ids(r), []);
+});
+
+pruefe('Leere und fehlende Listen werfen nicht', () => {
+  return gleich(mergeArrayById(null, undefined, null), []);
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Merge von Objekt-Maps (mergeObjectMap)');
+
+pruefe('Lokaler Wert gewinnt bei Schlüsselkonflikt', () => {
+  return gleich(mergeObjectMap({t1:'done'}, {t1:'open'}, null), {t1:'done'});
+});
+
+pruefe('Neuer Schlüssel vom Partnergerät bleibt erhalten', () => {
+  const r = mergeObjectMap({t1:'done'}, {t2:'wip'}, null);
+  return gleich(Object.keys(r).sort(), ['t1','t2']);
+});
+
+pruefe('Tombstone entfernt verwaisten Status-Eintrag', () => {
+  return gleich(mergeObjectMap({t1:'done'}, {t1:'open'}, {t1: Date.now()}), {});
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Tombstones (mergeDeletedMap, pruneTombstones)');
+
+pruefe('Union beider Seiten, jüngerer Zeitstempel gewinnt', () => {
+  return gleich(mergeDeletedMap({a:100, b:5}, {a:50, c:7}), {a:100, b:5, c:7});
+});
+
+pruefe('Tombstone älter als 90 Tage wird entfernt', () => {
+  const d = {deleted:{shop:{alt: Date.now() - 100*86400000}}};
+  pruneTombstones(d);
+  return gleich(Object.keys(d.deleted.shop), []);
+});
+
+pruefe('Tombstone jünger als 90 Tage bleibt', () => {
+  const d = {deleted:{shop:{neu: Date.now() - 10*86400000}}};
+  pruneTombstones(d);
+  return gleich(Object.keys(d.deleted.shop), ['neu']);
+});
+
+pruefe('Grenzfall 89 Tage bleibt erhalten', () => {
+  const d = {deleted:{shop:{grenze: Date.now() - 89*86400000}}};
+  pruneTombstones(d);
+  return gleich(Object.keys(d.deleted.shop), ['grenze']);
+});
+
+pruefe('Ungültiger Zeitstempel wird behalten statt geraten', () => {
+  const d = {deleted:{shop:{kaputt: 'gestern'}}};
+  pruneTombstones(d);
+  return gleich(Object.keys(d.deleted.shop), ['kaputt']);
+});
+
+pruefe('pruneTombstones verträgt null und leeres Objekt', () => {
+  return pruneTombstones(null) === 0 && pruneTombstones({}) === 0;
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Aufgabenlisten (mergeTaskLists)');
+
+pruefe('Alle drei Listen werden gemergt', () => {
+  const r = mergeTaskLists(
+    {p1:[{id:'a',updatedAt:1}], p2:[], shared:[]},
+    {p1:[], p2:[{id:'b',updatedAt:1}], shared:[{id:'c',updatedAt:1}]}, null);
+  return gleich([ids(r.p1), ids(r.p2), ids(r.shared)], [['a'],['b'],['c']]);
+});
+
+pruefe('Gelöschte Aufgabe kommt über keine der drei Listen zurück', () => {
+  const tomb = {weg: Date.now()};
+  const r = mergeTaskLists(
+    {p1:[], p2:[], shared:[]},
+    {p1:[{id:'weg',updatedAt:9999}], p2:[{id:'weg',updatedAt:9999}], shared:[{id:'weg',updatedAt:9999}]}, tomb);
+  return gleich([r.p1.length, r.p2.length, r.shared.length], [0,0,0]);
+});
+
+pruefe('Fehlendes Aufgaben-Objekt wirft nicht', () => {
+  const r = mergeTaskLists(null, null, null);
+  return gleich([r.p1, r.p2, r.shared], [[],[],[]]);
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Datumsschlüssel (dk)');
+
+pruefe('dk nutzt lokale Zeit, nicht UTC (kein Tagesversatz)', () => {
+  // 1. Januar 00:30 Ortszeit ist in UTC noch der 31. Dezember.
+  // dk muss trotzdem den 1. Januar liefern.
+  const d = new Date(2026, 0, 1, 0, 30, 0);
+  return gleich(dk(d), '2026-01-01');
+});
+
+pruefe('dk füllt Monat und Tag zweistellig auf', () => {
+  return gleich(dk(new Date(2026, 8, 5)), '2026-09-05');
+});
+
+pruefe('dk am 31.12. spät abends bleibt im alten Jahr', () => {
+  return gleich(dk(new Date(2026, 11, 31, 23, 45)), '2026-12-31');
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Wiederkehrende Aufgaben (advanceDateKey, nthWeekdayOfMonth)');
+
+pruefe('Wöchentlich: +7 Tage', () => gleich(advanceDateKey('2026-09-08','weeks',1), '2026-09-15'));
+pruefe('Alle 2 Wochen: +14 Tage', () => gleich(advanceDateKey('2026-09-08','weeks',2), '2026-09-22'));
+pruefe('Wöchentlich über den Monatswechsel', () => gleich(advanceDateKey('2026-09-29','weeks',1), '2026-10-06'));
+pruefe('Wöchentlich über den Jahreswechsel', () => gleich(advanceDateKey('2026-12-29','weeks',1), '2027-01-05'));
+
+pruefe('Monatlich: gleicher Tag im Folgemonat', () => gleich(advanceDateKey('2026-09-15','months',1), '2026-10-15'));
+pruefe('Monatlich vom 31. in den 30-Tage-Monat wird gekappt', () => gleich(advanceDateKey('2026-10-31','months',1), '2026-11-30'));
+pruefe('Monatlich vom 31. Januar in den Februar wird gekappt', () => gleich(advanceDateKey('2027-01-31','months',1), '2027-02-28'));
+pruefe('Jährlich: +12 Monate', () => gleich(advanceDateKey('2026-09-08','months',12), '2027-09-08'));
+pruefe('Vierteljährlich über den Jahreswechsel', () => gleich(advanceDateKey('2026-11-15','months',3), '2027-02-15'));
+
+pruefe('1. Montag im September 2026 ist der 7.', () => {
+  return gleich(nthWeekdayOfMonth(2026, 8, 0, 1).toISOString().slice(0,10), '2026-09-07');
+});
+pruefe('4. Montag im September 2026 ist der 28.', () => {
+  return gleich(nthWeekdayOfMonth(2026, 8, 0, 4).toISOString().slice(0,10), '2026-09-28');
+});
+pruefe('Letzter Montag im September 2026 ist der 28.', () => {
+  return gleich(nthWeekdayOfMonth(2026, 8, 0, -1).toISOString().slice(0,10), '2026-09-28');
+});
+pruefe('Letzter Sonntag im Februar 2027 ist der 28.', () => {
+  return gleich(nthWeekdayOfMonth(2027, 1, 6, -1).toISOString().slice(0,10), '2027-02-28');
+});
+pruefe('4. Wochentag liegt nie im Folgemonat (max. der 28.)', () => {
+  const fehler = [];
+  for (let m = 0; m < 12; m++) for (let w = 0; w < 7; w++) {
+    const d = nthWeekdayOfMonth(2026, m, w, 4);
+    if (d.getUTCMonth() !== m) fehler.push('Monat ' + (m+1) + ', Wochentag ' + w);
+  }
+  return fehler.length ? 'läuft über bei: ' + fehler.join('; ') : true;
+});
+pruefe('"Letzter" liegt in allen Monaten im richtigen Monat', () => {
+  const fehler = [];
+  for (let m = 0; m < 12; m++) for (let w = 0; w < 7; w++) {
+    const d = nthWeekdayOfMonth(2026, m, w, -1);
+    if (d.getUTCMonth() !== m) fehler.push('Monat ' + (m+1) + ', Wochentag ' + w);
+  }
+  return fehler.length ? 'falscher Monat bei: ' + fehler.join('; ') : true;
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Geburtstage');
+
+pruefe('Geburtstag später im Jahr bleibt im laufenden Jahr', () => {
+  const heute = new Date(); heute.setHours(0,0,0,0);
+  const morgen = new Date(heute); morgen.setDate(heute.getDate() + 1);
+  const key = getNextBirthday('0000-' + String(morgen.getMonth()+1).padStart(2,'0') + '-' + String(morgen.getDate()).padStart(2,'0'));
+  return gleich(key, dk(morgen));
+});
+
+pruefe('Bereits vergangener Geburtstag rutscht ins Folgejahr', () => {
+  const heute = new Date(); heute.setHours(0,0,0,0);
+  const gestern = new Date(heute); gestern.setDate(heute.getDate() - 1);
+  const key = getNextBirthday('0000-' + String(gestern.getMonth()+1).padStart(2,'0') + '-' + String(gestern.getDate()).padStart(2,'0'));
+  const jahr = parseInt(key.slice(0,4));
+  return jahr === gestern.getFullYear() + 1 ? true : 'erwartet Folgejahr, erhalten ' + key;
+});
+
+pruefe('Heutiger Geburtstag ist heute, nicht in einem Jahr', () => {
+  const heute = new Date(); heute.setHours(0,0,0,0);
+  const key = getNextBirthday('0000-' + String(heute.getMonth()+1).padStart(2,'0') + '-' + String(heute.getDate()).padStart(2,'0'));
+  return gleich(key, dk(heute));
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('HTML-Escaping (esc) – sicherheitskritisch');
+
+pruefe('Spitze Klammern werden neutralisiert', () => gleich(esc('<b>x</b>'), '&lt;b&gt;x&lt;/b&gt;'));
+pruefe('Anführungszeichen (Attribut-Ausbruch)', () => gleich(esc('a"b'), 'a&quot;b'));
+pruefe('Apostroph (onclick-Ausbruch)', () => gleich(esc("O'Brien"), 'O&#39;Brien'));
+pruefe('Kaufmännisches Und zuerst, sonst Doppel-Escaping', () => gleich(esc('&lt;'), '&amp;lt;'));
+pruefe('null und undefined werden zu leerem String', () => esc(null) === '' && esc(undefined) === '');
+pruefe('Zahlen bleiben unverändert', () => gleich(esc(42), '42'));
+pruefe('Umlaute und Sonderzeichen bleiben lesbar', () => gleich(esc('Rüebli & Gruyère'), 'Rüebli &amp; Gruyère'));
+pruefe('Der klassische XSS-Payload wird vollständig entschärft', () => {
+  const r = esc('"><img src=x onerror=alert(1)>');
+  return /[<>"']/.test(r) ? 'Sonderzeichen übrig: ' + r : true;
+});
+pruefe('Escapter Text erzeugt im DOM keine Elemente', () => {
+  const d = document.createElement('div');
+  d.innerHTML = '<span>' + esc('<img src=x onerror="/*nichts*/">') + '</span>';
+  return d.querySelectorAll('img').length === 0 ? true : 'img-Tag entstanden';
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Kategorie-Heuristik (guessCat)');
+
+pruefe('Rüebli → Früchte & Gemüse', () => gleich(guessCat('Rüebli'), 'Früchte & Gemüse'));
+pruefe('Peperoni → Früchte & Gemüse', () => gleich(guessCat('Peperoni'), 'Früchte & Gemüse'));
+pruefe('Halbrahm → Kühlwaren', () => gleich(guessCat('Halbrahm'), 'Kühlwaren'));
+pruefe('Cervelat → Fleisch & Fisch', () => gleich(guessCat('Cervelat'), 'Fleisch & Fisch'));
+pruefe('Poulet → Fleisch & Fisch', () => gleich(guessCat('Poulet'), 'Fleisch & Fisch'));
+pruefe('Hörnli → Backwaren', () => gleich(guessCat('Hörnli'), 'Backwaren'));
+pruefe('Gross-/Kleinschreibung egal', () => gleich(guessCat('MILCH'), guessCat('milch')));
+pruefe('Unbekanntes landet in Vorrat', () => gleich(guessCat('Zahnstocher'), 'Vorrat'));
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Rezept-Importer (parseBettyBossiRecipe)');
+
+// bettybossi.ch gruppiert die Zutaten PRO SCHRITT, nicht als Gesamtliste:
+//   N. ZutatName / Menge Einheit / (weitere Paare) / Fliesstext = der Schritt
+const BB_BEISPIEL = [
+  'Älplermagronen',
+  '1. Hörnli',
+  '400 g',
+  'Halbrahm',
+  '2 dl',
+  'Hörnli in Salzwasser al dente kochen, danach abgiessen und beiseitestellen.',
+  '2. Muskatnuss',
+  'wenig',
+  'Halbrahm beigeben, mit Muskatnuss würzen und alles gut vermischt servieren.'
+].join('\n');
+
+pruefe('Erkennt den Rezeptnamen aus der ersten Zeile', () => {
+  return gleich(parseBettyBossiRecipe(BB_BEISPIEL).name, 'Älplermagronen');
+});
+pruefe('Erkennt die Zubereitungsschritte', () => {
+  return gleich(parseBettyBossiRecipe(BB_BEISPIEL).steps.length, 2);
+});
+pruefe('Die Schrittnummer landet nicht im Zutatennamen', () => {
+  const p = parseBettyBossiRecipe(BB_BEISPIEL);
+  const mitNummer = p.ing.filter(i => /^\d+\./.test(i.n));
+  return mitNummer.length ? 'Nummer im Namen: ' + JSON.stringify(mitNummer) : true;
+});
+pruefe('Erkennt Zutaten mit Menge und Einheit', () => {
+  const p = parseBettyBossiRecipe(BB_BEISPIEL);
+  const h = p.ing.find(i => /Hörnli/.test(i.n));
+  return h ? gleich([h.q, h.u], ['400', 'g']) : 'Hörnli nicht gefunden in: ' + JSON.stringify(p.ing);
+});
+pruefe('Sammelt Zutaten über mehrere Schritte hinweg ein', () => {
+  const p = parseBettyBossiRecipe(BB_BEISPIEL);
+  return gleich(p.ing.map(i => i.n), ['Hörnli', 'Halbrahm', 'Muskatnuss']);
+});
+pruefe('Zutat ohne Zahl behält "wenig" als Menge', () => {
+  const p = parseBettyBossiRecipe(BB_BEISPIEL);
+  const m = p.ing.find(i => /Muskat/.test(i.n));
+  return m ? gleich([m.q, m.u], ['wenig', '']) : 'Muskatnuss nicht gefunden';
+});
+pruefe('"wenig" wird als Menge übernommen', () => {
+  return gleich(parseQtyLine('wenig'), {q:'wenig', u:''});
+});
+pruefe('Mengenbereiche (2–3) bleiben erhalten', () => {
+  return gleich(parseQtyLine('2–3 dl').q, '2–3');
+});
+pruefe('Zahl ohne Einheit bekommt "Stk"', () => {
+  return gleich(parseQtyLine('4'), {q:'4', u:'Stk'});
+});
+pruefe('Leerer Text liefert leeres Ergebnis statt zu werfen', () => {
+  const p = parseBettyBossiRecipe('');
+  return gleich([p.name, p.ing.length, p.steps.length], ['', 0, 0]);
+});
+pruefe('Text ohne nummerierte Schritte liefert keine halben Rezepte', () => {
+  const p = parseBettyBossiRecipe('Nur etwas Fliesstext ohne jede Nummerierung.');
+  return gleich([p.ing.length, p.steps.length], [0, 0]);
+});
+
+// ═══════════════════════════════════════════════════════════
+const s = document.getElementById('summary');
+s.innerHTML = '<span class="pass">' + bestanden + ' bestanden</span>' +
+  (gescheitert ? ' · <span class="failc">' + gescheitert + ' gescheitert</span>' : ' · alles grün');
+document.title = (gescheitert ? '✕ ' : '✓ ') + bestanden + '/' + (bestanden + gescheitert) + ' – Heimplaner Tests';
+</script>
+</body>
+</html>
