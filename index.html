@@ -388,9 +388,26 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Reihenfolge ist bindend, siehe CLAUDE.md:
+     data  -> definiert HP und die Helfer (esc, dk, markDeleted ...)
+     app   -> Schale: Routing, render(), Toast, Modal
+     dann die Bereichsdateien (nur Funktionsdeklarationen, Reihenfolge
+     untereinander unkritisch – sie rufen sich erst zur Laufzeit auf)
+     sync  -> erweitert HP_save, muss nach data kommen
+     pwa   -> nutzt setView, kommt zuletzt -->
 <script src="heimplaner-login.js"></script>
 <script src="heimplaner-data.js"></script>
 <script src="heimplaner-app.js"></script>
+<script src="heimplaner-views.js"></script>
+<script src="heimplaner-shop.js"></script>
+<script src="heimplaner-budget.js"></script>
+<script src="heimplaner-meals.js"></script>
+<script src="heimplaner-tasks.js"></script>
+<script src="heimplaner-month.js"></script>
+<script src="heimplaner-notes.js"></script>
+<script src="heimplaner-events.js"></script>
+<script src="heimplaner-birthdays.js"></script>
+<script src="heimplaner-settings.js"></script>
 <script src="heimplaner-sync.js"></script>
 <script src="heimplaner-pwa.js"></script>
 
