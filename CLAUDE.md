@@ -26,30 +26,41 @@ Five files, each with a defined responsibility:
 - `heimplaner-data.js` — data model / local state
 - `heimplaner-app.js` — UI logic, rendering, event handling
 - `heimplaner-sync.js` — Supabase sync via Netlify function proxy
+- `heimplaner-pwa.js` — service worker registration, `?view=` deep link, install banner
+- `heimplaner.css` — all styles (extracted from `index.html`; the CSP depends on it staying a separate file)
+- `test.html` — 70 checks for merge, tombstone, date and escaping logic. Open it in a browser before pushing.
+- `supabase-setup.sql` — table definitions to run in the Supabase SQL editor
+- `_headers` — CSP and security headers
+- `netlify/lib/` — shared code for the functions. Deliberately **not** inside `netlify/functions/`: files there each become a public endpoint.
 
-CRITICAL — do not reorder: `index.html` must always end with exactly these four script tags, in this order, directly before `</body>`:
+CRITICAL — do not reorder: `index.html` must always end with exactly these five script tags, in this order, directly before `</body>`:
 
 ```html
 <script src="heimplaner-login.js"></script>
 <script src="heimplaner-data.js"></script>
 <script src="heimplaner-app.js"></script>
 <script src="heimplaner-sync.js"></script>
+<script src="heimplaner-pwa.js"></script>
 ```
 
 If you add a new JS file, decide deliberately where in this order it belongs (it almost certainly depends on `heimplaner-data.js` loading first) — don't just append it.
+
+Do **not** put styles back into a `<style>` block or logic into an inline `<script>` in `index.html`: the CSP sets `script-src-elem 'self'` and `style-src-elem 'self'`, so both would simply stop working.
 
 ## Auth
 
 - `heimplaner-login.js` (client) + Netlify function `auth.js` (server)
 - Credentials stored as `HP_USERS` env var, format: `mauro:pw,melissa:pw`
-- On successful login, a token is persisted in `localStorage` for 30 days
-- Shared `APP_PASSWORD` also gates access alongside per-user credentials
+- On successful login, `{username, expiry}` is persisted in `localStorage` for 30 days. This is **not** a validated token — it is client-written and never checked by the server. It gates the UI only.
+- The actual access control for all data is `APP_PASSWORD` (the sync password the user types in the sync dialog), checked server-side by `sync.js` and `push-subscribe.js`. Do not remove it — it is the only thing protecting the database.
+- `netlify/lib/throttle.js` brakes brute-force attempts: 10 failures per IP in 15 minutes → 15-minute block, counters in Supabase (in-memory counters are useless on serverless). Fail-open by design, so a missing table never locks you out.
 
 ## Sync
 
 - Supabase is the source of truth; Netlify function proxies all reads/writes so the Supabase key never reaches the client
 - Writes are debounced 2 seconds after the last local change before syncing
-- Client polls every 15 seconds to pick up changes made on the other partner's device
+- Client polls every 15 seconds. The poll first asks `sync?meta=1`, which returns only `updated_at` (~50 bytes), and fetches the full record only when it actually changed. Polling pauses while the app is hidden (`document.hidden`).
+- `push-check.mjs` runs every minute and reads only `tasks`, `events`, `birthdays` and `taskExceptions` — not the whole record. It falls back to the full fetch if the narrow query fails, so reminders can never silently stop.
 - When touching sync logic, preserve this debounce/poll timing unless explicitly asked to change it — it's tuned to avoid hammering Supabase while still feeling "live" between two devices
 - Deletions use tombstones (`HP.deleted[type][id] = timestamp`, set via `markDeleted()` in `heimplaner-data.js`) so a poll/merge never resurrects an item deleted on the other device. Every delete function must call `markDeleted()` before removing the item from its array. Sync-relevant arrays (events, notes, birthdays, shop, savedShopItems, customRecipes, budgetEntries, tasks) are merged by ID in `heimplaner-sync.js` (`mergeArrayById`/`mergeTaskLists`), not blindly overwritten — on an ID conflict remote wins (matches prior full-overwrite behavior), but tombstoned IDs are always excluded and new local-only items are preserved.
 

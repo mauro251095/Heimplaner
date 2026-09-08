@@ -1,7 +1,30 @@
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; script-src-elem 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Frame-Options: DENY
+
+# Warum script-src doppelt:
+#   script-src ist die Rueckfalloption fuer aeltere Browser, die die
+#   feineren Direktiven nicht kennen. Wo sie bekannt sind, gewinnen sie:
+#     script-src-elem 'self'          -> ein eingeschleustes <script> laeuft NICHT,
+#                                        und es kann kein fremdes Skript geladen werden
+#     script-src-attr 'unsafe-inline' -> die vorhandenen onclick-Attribute laufen weiter
+#   Dasselbe Muster fuer style-src: kein eingeschleustes <style>, aber die
+#   zahlreichen style="..."-Attribute der App funktionieren.
+#
+# Der verbliebene Rest waeren eingeschleuste Event-Handler-Attribute. Genau die
+# schliesst esc() aus heimplaner-data.js, das " und ' mitescaped.
+#
+# connect-src 'self' bleibt die wichtigste Zeile: selbst wenn doch etwas
+# ausgefuehrt wuerde, kaeme es nicht dazu, Daten nach aussen zu schicken.
+
+# Ausgelagerte Dateien duerfen zwischengespeichert werden; index.html nicht,
+# damit nach einem Deploy nicht auf eine veraltete Seite verwiesen wird.
+/heimplaner.css
+  Cache-Control: public, max-age=3600
+
+/index.html
+  Cache-Control: no-cache
