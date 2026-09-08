@@ -4,6 +4,8 @@
 // und legt es (upsert) in Supabase ab.
 // ═══════════════════════════════════════════════
 
+const { guardPassword } = require('../lib/throttle');
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const APP_PASSWORD = process.env.APP_PASSWORD;
@@ -20,10 +22,10 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: '' };
   }
 
-  const pw = event.headers['x-app-password'];
-  if (pw !== APP_PASSWORD) {
-    return { statusCode: 401, headers, body: JSON.stringify({ error: 'Ungültiges Passwort' }) };
-  }
+  const denied = await guardPassword(event, headers, {
+    supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY, appPassword: APP_PASSWORD
+  });
+  if (denied) return denied;
 
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };

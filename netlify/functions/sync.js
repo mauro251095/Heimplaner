@@ -3,6 +3,8 @@
 // Der API Key bleibt hier, nie im Frontend-Code
 // ═══════════════════════════════════════════════
 
+const { guardPassword } = require('../lib/throttle');
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const APP_PASSWORD = process.env.APP_PASSWORD;
@@ -20,15 +22,12 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: '' };
   }
 
-  // Passwort prüfen
-  const pw = event.headers['x-app-password'];
-  if (pw !== APP_PASSWORD) {
-    return {
-      statusCode: 401,
-      headers,
-      body: JSON.stringify({ error: 'Ungültiges Passwort' })
-    };
-  }
+  // Passwort prüfen — mit Fehlversuchsbremse und Vergleich in konstanter Zeit.
+  // Muss vor jeder anderen Logik stehen.
+  const denied = await guardPassword(event, headers, {
+    supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY, appPassword: APP_PASSWORD
+  });
+  if (denied) return denied;
 
   try {
     // GET — Daten laden
