@@ -760,8 +760,51 @@ function migrateBuiltinRecipes(d) {
   d.recipesMigrated = true;
 }
 
+// localStorage liegt je nach Browser bei rund 5 MB. Wird die Grenze
+// überschritten, wirft setItem — und weil der Fehler bisher stillschweigend
+// verschluckt wurde, hätte man es erst gemerkt, wenn Änderungen nach einem
+// Neuladen weg sind. Ab 2 MB warnen wir, damit vorher Zeit zum Aufräumen
+// bleibt; ab dem echten Fehler wird deutlich hingewiesen.
+const HP_WARN_BYTES = 2 * 1024 * 1024;
+let hpGroesseGewarnt = false;
+let hpSpeicherFehler = false;
+
 function HP_save() {
-  try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
+  let json;
+  try { json = JSON.stringify(HP); } catch(e) { return; }
+
+  if (json.length > HP_WARN_BYTES && !hpGroesseGewarnt) {
+    hpGroesseGewarnt = true;
+    console.warn('Heimplaner: Datenbestand bei ' + (json.length/1048576).toFixed(1) + ' MB — Grenze liegt bei ca. 5 MB.');
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Datenbestand wird gross (' + (json.length/1048576).toFixed(1) + ' MB)');
+    }
+  }
+
+  try {
+    localStorage.setItem(SK, json);
+    hpSpeicherFehler = false;
+  } catch(e) {
+    // Stiller Fehlschlag ist hier die unangenehmste Variante: man hält die
+    // Änderung für gespeichert, und nach dem nächsten Neuladen ist sie weg.
+    if (!hpSpeicherFehler) {
+      hpSpeicherFehler = true;
+      console.error('Heimplaner: Speichern fehlgeschlagen', e && e.name);
+      if (typeof showToast === 'function') {
+        showToast('❌ Lokal nicht speicherbar — Speicher voll. Bitte Daten exportieren.');
+      }
+    }
+  }
+}
+
+// Obergrenzen pro Textfeld. Verhindert, dass ein versehentlich eingefügter
+// Riesentext den Datenbestand aufbläht — und damit Übertragung und
+// Kontingent belastet.
+const FELD_MAX = { name: 200, titel: 200, kommentar: 300, notiz: 5000, schritt: 2000 };
+
+function kappen(text, max) {
+  const t = String(text == null ? '' : text);
+  return t.length > max ? t.slice(0, max) : t;
 }
 
 // Tombstone für eine gelöschte ID hinterlegen, damit ein Sync-Merge sie nicht
@@ -771,6 +814,13 @@ function markDeleted(type, id) {
   if (!HP.deleted) HP.deleted = {};
   if (!HP.deleted[type]) HP.deleted[type] = {};
   HP.deleted[type][id] = Date.now();
+}
+
+// Gegenstück zu markDeleted für "Rückgängig": Ohne das Entfernen des
+// Tombstones würde der nächste Merge den wiederhergestellten Eintrag sofort
+// wieder auslöschen.
+function unmarkDeleted(type, id) {
+  if (HP.deleted && HP.deleted[type]) delete HP.deleted[type][id];
 }
 
 // Tombstones werden bei jeder Synchronisierung mitübertragen und wuchsen bisher

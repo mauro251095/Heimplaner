@@ -390,7 +390,14 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:9px 18px;font-size:.8rem;z-index:200;opacity:0;transition:all .3s;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.4)}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* pointer-events erst im sichtbaren Zustand: sonst waere der
+   Rueckgaengig-Knopf nicht anklickbar, und im unsichtbaren Zustand darf der
+   Toast keine Klicks auf die App darunter abfangen. */
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast{display:flex;align-items:center;gap:0;max-width:calc(100vw - 32px)}
+.toast-undo{margin-left:12px;background:none;border:1px solid var(--p1);border-radius:6px;color:var(--p1);
+  font-family:'Inter',sans-serif;font-size:.75rem;font-weight:600;padding:3px 10px;cursor:pointer;flex-shrink:0}
+.toast-undo:hover{background:var(--p1bg)}
 
 /* ── MOBILE ── */
 @media(max-width:768px){
@@ -621,9 +628,9 @@ body { padding-top: env(safe-area-inset-top); }
       <div class="shop-prog"><div class="shop-prog-fill" id="shop-prog-fill" style="width:0%"></div></div>
       <div id="shop-cats"></div>
       <div class="shop-add-bar">
-        <input class="af-in txt" id="shop-add-name" placeholder="Artikel hinzufügen…" style="min-width:150px">
-        <input class="af-in" id="shop-add-qty" placeholder="Menge" style="width:70px">
-        <input class="af-in" id="shop-add-unit" placeholder="Einheit" style="width:70px">
+        <input class="af-in txt" id="shop-add-name" maxlength="200" placeholder="Artikel hinzufügen…" style="min-width:150px">
+        <input class="af-in" id="shop-add-qty" maxlength="30" placeholder="Menge" style="width:70px">
+        <input class="af-in" id="shop-add-unit" maxlength="30" placeholder="Einheit" style="width:70px">
         <select class="af-sel" id="shop-add-cat">
           <option value="" selected>📂 Kategorie (optional)</option>
           <option value="Früchte & Gemüse">🥦 Früchte & Gemüse</option>
@@ -659,8 +666,8 @@ body { padding-top: env(safe-area-inset-top); }
           <option value="shared">Gemeinsam</option>
         </select>
         <select class="af-sel" id="bg-add-cat"></select>
-        <input class="af-in txt" id="bg-add-comment" placeholder="Kommentar (optional)">
-        <input class="af-in" id="bg-add-amount" type="text" inputmode="decimal" placeholder="Betrag CHF" style="width:110px">
+        <input class="af-in txt" id="bg-add-comment" maxlength="300" placeholder="Kommentar (optional)">
+        <input class="af-in" id="bg-add-amount" type="text" inputmode="decimal" maxlength="12" placeholder="Betrag CHF" style="width:110px">
         <input class="af-in" id="bg-add-date" type="date" style="width:150px">
         <button class="af-add" onclick="addBudgetEntry()">+ Hinzufügen</button>
       </div>
@@ -698,7 +705,7 @@ body { padding-top: env(safe-area-inset-top); }
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
         <div class="sec-hd" id="recipe-hd" style="margin-bottom:0">Rezeptbibliothek</div>
       </div>
-      <input class="recipe-search" id="recipe-search" placeholder="Rezept suchen…">
+      <input class="recipe-search" id="recipe-search" maxlength="100" placeholder="Rezept suchen…">
       <div class="rfbtns" id="recipe-filters"></div>
       <div class="recipes-grid" id="recipes-grid"></div>
     </div>
@@ -723,7 +730,7 @@ body { padding-top: env(safe-area-inset-top); }
             <button type="button" class="emoji-picker-btn" id="af-emoji-btn" onclick="event.stopPropagation();toggleEmojiMenu('af-emoji')">⭐</button>
             <input type="hidden" id="af-emoji" value="⭐">
           </div>
-          <input class="af-in txt" id="af-name" placeholder="Aufgabe…">
+          <input class="af-in txt" id="af-name" maxlength="200" placeholder="Aufgabe…">
           <select class="af-sel" id="af-who"><option value="p1" id="af-op1">Mauro</option><option value="p2" id="af-op2">Lena</option><option value="shared">Gemeinsam</option></select>
         </div>
         <div class="emoji-picker-menu hidden" id="af-emoji-menu">

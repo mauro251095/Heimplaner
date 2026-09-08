@@ -298,10 +298,16 @@ document.addEventListener('visibilitychange', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  // HP_save überschreiben damit Änderungen automatisch synchronisiert werden
+  // HP_save erweitern, damit Änderungen automatisch synchronisiert werden.
+  // Wichtig: das Original AUFRUFEN statt seine Logik hier zu wiederholen.
+  // Vorher wurde _orig zwar gefangen, aber nie benutzt — die Zeile darunter
+  // schrieb selbst in den localStorage und verschluckte jeden Fehler. Damit
+  // lief alles, was in HP_save (heimplaner-data.js) steht, ins Leere, sobald
+  // diese Datei geladen war: die Grössenwarnung ebenso wie der Hinweis, dass
+  // lokal gar nicht mehr gespeichert werden konnte.
   const _orig = HP_save;
   HP_save = function() {
-    try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
+    _orig();
     if (syncEnabled) {
       clearTimeout(syncTimer);
       syncTimer = setTimeout(async () => {

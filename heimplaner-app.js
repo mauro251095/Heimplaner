@@ -17,6 +17,30 @@ function showToast(msg) {
   toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
+// Toast mit "Rückgängig"-Knopf. Angenehmer als ein Bestätigungsdialog bei
+// jedem Löschvorgang: der Normalfall (man wollte wirklich löschen) bleibt
+// ein Klick, und der Fehlgriff ist trotzdem abgesichert.
+// Steht bewusst länger als der normale Toast, damit man reagieren kann.
+function showUndoToast(msg, undoFn) {
+  const t=document.getElementById('toast');
+  if(!t) { showToast(msg); return; }
+  t.textContent='';
+  const span=document.createElement('span');
+  span.textContent=msg;
+  const btn=document.createElement('button');
+  btn.className='toast-undo';
+  btn.textContent='Rückgängig';
+  btn.onclick=()=>{
+    clearTimeout(toastTimer);
+    t.classList.remove('show');
+    try { undoFn(); } catch(e) { showToast('Wiederherstellen fehlgeschlagen'); }
+  };
+  t.appendChild(span); t.appendChild(btn);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ t.classList.remove('show'); },6000);
+}
+
 // ── Modal ─────────────────────────────────────
 function showModal(html, wide=false) {
   closeModal();
@@ -363,15 +387,34 @@ function saveQuickAddTask() {
 }
 
 function deleteEvent(id){
+  // Nebendaten mitsichern, sonst käme der Termin beim Rückgängig ohne
+  // Status, Notiz und Kommentare zurück.
+  const weg=(HP.events||[]).find(e=>e.id===id);
+  const nebendaten={
+    status:(HP.eventStatus||{})[id],
+    notiz:(HP.eventNotes||{})[id],
+    kommentare:(HP.eventComments||{})[id]
+  };
   markDeleted('events', id);
   HP.events=(HP.events||[]).filter(e=>e.id!==id);
   if(HP.eventStatus) delete HP.eventStatus[id];
   if(HP.eventNotes) delete HP.eventNotes[id];
   if(HP.eventComments) delete HP.eventComments[id];
-  HP_save();render();
-  if(typeof renderMonth==='function')renderMonth();
-  if(typeof renderHouseholdList==='function')renderHouseholdList();
-  showToast('Termin gelöscht');
+  const neuZeichnen=()=>{
+    render();
+    if(typeof renderMonth==='function')renderMonth();
+    if(typeof renderHouseholdList==='function')renderHouseholdList();
+  };
+  HP_save();neuZeichnen();
+  showUndoToast('Termin gelöscht', ()=>{
+    if(!weg) return;
+    unmarkDeleted('events',id);
+    weg.updatedAt=Date.now(); HP.events.push(weg);
+    if(nebendaten.status!==undefined){ HP.eventStatus=HP.eventStatus||{}; HP.eventStatus[id]=nebendaten.status; }
+    if(nebendaten.notiz!==undefined){ HP.eventNotes=HP.eventNotes||{}; HP.eventNotes[id]=nebendaten.notiz; }
+    if(nebendaten.kommentare!==undefined){ HP.eventComments=HP.eventComments||{}; HP.eventComments[id]=nebendaten.kommentare; }
+    HP_save();neuZeichnen();showToast('Wiederhergestellt');
+  });
 }
 
 // ── SHOP ──────────────────────────────────────
@@ -457,9 +500,15 @@ function addSavedItemToShop(id) {
 }
 
 function deleteSavedShopItem(id) {
+  const weg=(HP.savedShopItems||[]).find(x=>x.id===id);
   markDeleted('savedShopItems', id);
   HP.savedShopItems=(HP.savedShopItems||[]).filter(x=>x.id!==id);
   HP_save();openSavedShopItems();
+  showUndoToast('Favorit gelöscht', ()=>{
+    if(!weg) return;
+    unmarkDeleted('savedShopItems',id); weg.updatedAt=Date.now(); HP.savedShopItems.push(weg);
+    HP_save();openSavedShopItems();showToast('Wiederhergestellt');
+  });
 }
 
 function openEditShopItemById(id) {
@@ -469,7 +518,7 @@ function openEditShopItemById(id) {
 function openEditShopItem(item) {
   const opts=CATS.map(c=>'<option value="'+c+'"'+(item.cat===c?' selected':'')+'>'+catEmoji(c)+' '+c+'</option>').join('');
   showModal('<h3>✏️ Artikel bearbeiten</h3>'+
-    '<div class="modal-row"><label>Name</label><input class="modal-in" id="ei-name" value="'+esc(item.name)+'"></div>'+
+    '<div class="modal-row"><label>Name</label><input class="modal-in" id="ei-name" maxlength="200" value="'+esc(item.name)+'"></div>'+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Menge</label><input class="modal-in" id="ei-qty" value="'+esc(item.qty||'')+'"></div>'+
     '<div style="flex:1"><label>Einheit</label><input class="modal-in" id="ei-unit" value="'+esc(item.unit||'')+'"></div></div></div>'+
@@ -488,8 +537,28 @@ function saveEditShopItem(id) {
   item.updatedAt=Date.now();
   HP_save();closeModal();renderShop();showToast('Artikel aktualisiert');
 }
-function deleteShopItem(id){markDeleted('shop',id);HP.shop=HP.shop.filter(i=>i.id!==id);HP_save();closeModal();renderShop();renderSidebarStats();showToast('Artikel gelöscht');}
-function clearBought(){HP.shop.filter(i=>i.bought).forEach(i=>markDeleted('shop',i.id));HP.shop=HP.shop.filter(i=>!i.bought);HP_save();renderShop();renderSidebarStats();showToast('Erledigte Artikel entfernt');}
+function deleteShopItem(id){
+  const weg=HP.shop.find(i=>i.id===id);
+  markDeleted('shop',id);HP.shop=HP.shop.filter(i=>i.id!==id);
+  HP_save();closeModal();renderShop();renderSidebarStats();
+  showUndoToast('Artikel gelöscht', ()=>{
+    if(!weg) return;
+    unmarkDeleted('shop',id); HP.shop.push(weg); weg.updatedAt=Date.now();
+    HP_save();renderShop();renderSidebarStats();showToast('Wiederhergestellt');
+  });
+}
+function clearBought(){
+  const weg=HP.shop.filter(i=>i.bought);
+  if(!weg.length){showToast('Nichts zu entfernen');return;}
+  weg.forEach(i=>markDeleted('shop',i.id));
+  HP.shop=HP.shop.filter(i=>!i.bought);
+  HP_save();renderShop();renderSidebarStats();
+  // Sagt auch, WIE VIELE entfernt wurden - vorher passierte das stillschweigend.
+  showUndoToast(weg.length+' Artikel entfernt', ()=>{
+    weg.forEach(i=>{ unmarkDeleted('shop',i.id); i.updatedAt=Date.now(); HP.shop.push(i); });
+    HP_save();renderShop();renderSidebarStats();showToast(weg.length+' wiederhergestellt');
+  });
+}
 function showDuplicateModal(existing,q,u) {
   showModal('<h3>🛒 Bereits auf der Liste</h3>'+
     '<div class="dup-warn">⚠️ <b>'+esc(existing.name)+'</b> ist bereits auf der Liste ('+esc([existing.qty,existing.unit].filter(Boolean).join(' '))+').</div>'+
@@ -572,14 +641,23 @@ function mkBudgetEntry(person,cat,amount,comment,date,groupId) {
 
 function deleteBudgetEntry(id) {
   const entry=(HP.budgetEntries||[]).find(e=>e.id===id); if(!entry) return;
+  // Bei einer gemeinsamen Buchung hängen zwei Einträge zusammen (je eine
+  // Hälfte pro Person) — beide müssen zusammen zurückkommen.
+  let weg;
   if (entry.sharedGroupId) {
-    HP.budgetEntries.filter(e=>e.sharedGroupId===entry.sharedGroupId).forEach(e=>markDeleted('budgetEntries',e.id));
+    weg=HP.budgetEntries.filter(e=>e.sharedGroupId===entry.sharedGroupId);
+    weg.forEach(e=>markDeleted('budgetEntries',e.id));
     HP.budgetEntries=HP.budgetEntries.filter(e=>e.sharedGroupId!==entry.sharedGroupId);
   } else {
+    weg=[entry];
     markDeleted('budgetEntries', id);
     HP.budgetEntries=HP.budgetEntries.filter(e=>e.id!==id);
   }
-  HP_save(); closeModal(); renderBudget(); showToast('Buchung gelöscht');
+  HP_save(); closeModal(); renderBudget();
+  showUndoToast(weg.length>1?'Gemeinsame Buchung gelöscht':'Buchung gelöscht', ()=>{
+    weg.forEach(e=>{ unmarkDeleted('budgetEntries',e.id); e.updatedAt=Date.now(); HP.budgetEntries.push(e); });
+    HP_save();renderBudget();showToast('Wiederhergestellt');
+  });
 }
 
 function openEditBudgetEntry(id) {
@@ -592,7 +670,7 @@ function openEditBudgetEntry(id) {
   showModal('<h3>✏️ Buchung bearbeiten</h3>'+
     (isShared?'<div style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Gemeinsame Buchung – der Betrag wird automatisch 50/50 zwischen Mauro &amp; Melissa aufgeteilt.</div>':'')+
     '<div class="modal-row"><label>Kategorie</label><select class="modal-in" id="be-cat">'+opts+'</select></div>'+
-    '<div class="modal-row"><label>Kommentar</label><input class="modal-in" id="be-comment" value="'+esc(entry.comment||'')+'"></div>'+
+    '<div class="modal-row"><label>Kommentar</label><input class="modal-in" id="be-comment" maxlength="300" value="'+esc(entry.comment||'')+'"></div>'+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Betrag (CHF)</label><input class="modal-in" id="be-amount" type="text" inputmode="decimal" value="'+totalAmount+'"></div>'+
     '<div style="flex:1"><label>Datum</label><input class="modal-in" id="be-date" type="date" value="'+entry.date+'"></div></div></div>'+
@@ -762,7 +840,7 @@ function openMealPicker(key,slot) {
     '<div class="modal-row"><label>Gericht</label>'+
     '<div style="display:flex;gap:7px">'+
     '<input class="modal-in" id="mp-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+esc(existing?.emoji&&existing.emoji!=='🍽️'?existing.emoji:'')+'">'+
-    '<input class="modal-in" id="mp-name" placeholder="z.B. Älplermagronen" style="flex:1" value="'+esc(existing?.name||'')+'">'+
+    '<input class="modal-in" id="mp-name" maxlength="200" placeholder="z.B. Älplermagronen" style="flex:1" value="'+esc(existing?.name||'')+'">'+
     '</div></div>'+
     '<div class="modal-btns" style="justify-content:space-between;flex-wrap:wrap;gap:6px">'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
@@ -794,7 +872,7 @@ function addMealToLibrary(key,slot){
     '<h3>📖 "'+esc(m.name)+'" zur Bibliothek</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label><div style="display:flex;gap:7px">'+
     '<input class="modal-in" id="cr-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+esc(m.emoji)+'">'+
-    '<input class="modal-in" id="cr-name" placeholder="Name" style="flex:1" value="'+esc(m.name)+'"></div></div>'+
+    '<input class="modal-in" id="cr-name" maxlength="200" placeholder="Name" style="flex:1" value="'+esc(m.name)+'"></div></div>'+
     '<div class="modal-row"><div style="display:flex;gap:7px">'+
     '<div style="flex:1"><label>Zeit (Min)</label><input class="modal-in" id="cr-time" type="number" value="30"></div>'+
     '<div style="flex:1"><label>Personen</label><input class="modal-in" id="cr-pers" type="number" value="2"></div>'+
@@ -802,7 +880,7 @@ function addMealToLibrary(key,slot){
     cats.map(c=>'<option'+(c===defaultCat?' selected':'')+'>'+c+'</option>').join('')+
     '</select></div></div></div>'+
     '<div class="modal-row"><label>Zutaten (Name, Menge, Einheit – eine pro Zeile)</label>'+
-    '<textarea class="modal-in" id="cr-ings" rows="5" placeholder="Pasta, 300, g&#10;Tomatensauce, 1, Dose" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
+    '<textarea class="modal-in" id="cr-ings" rows="5" maxlength="4000" placeholder="Pasta, 300, g&#10;Tomatensauce, 1, Dose" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="saveCustomRecipeFromMeal(\''+key+'\',\''+slot+'\')">✓ Zur Bibliothek hinzufügen</button></div>'
   );
@@ -930,15 +1008,15 @@ function customRecipeModalHTML(title, saveOnclick, prefill) {
   return '<h3>'+title+'</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label><div style="display:flex;gap:7px">'+
     '<input class="modal-in" id="cr-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+esc(p.emoji||'')+'">'+
-    '<input class="modal-in" id="cr-name" placeholder="Name" style="flex:1" value="'+esc(p.name||'')+'"></div></div>'+
+    '<input class="modal-in" id="cr-name" maxlength="200" placeholder="Name" style="flex:1" value="'+esc(p.name||'')+'"></div></div>'+
     '<div class="modal-row"><div style="display:flex;gap:7px">'+
     '<div style="flex:1"><label>Zeit (Min)</label><input class="modal-in" id="cr-time" type="number" value="'+(p.time!=null?p.time:30)+'"></div>'+
     '<div style="flex:1"><label>Personen</label><input class="modal-in" id="cr-pers" type="number" value="'+(p.pers!=null?p.pers:2)+'"></div>'+
     '<div style="flex:1"><label>Kategorie</label><select class="modal-in" id="cr-cat">'+cats.map(c=>'<option'+(p.cat===c?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></div></div></div>'+
     '<div class="modal-row"><label>Zutaten (Name, Menge, Einheit – eine pro Zeile)</label>'+
-    '<textarea class="modal-in" id="cr-ings" rows="5" placeholder="Pasta, 300, g&#10;Tomatensauce, 1, Dose" style="resize:vertical;font-family:Inter,sans-serif">'+esc(ingText)+'</textarea></div>'+
+    '<textarea class="modal-in" id="cr-ings" rows="5" maxlength="4000" placeholder="Pasta, 300, g&#10;Tomatensauce, 1, Dose" style="resize:vertical;font-family:Inter,sans-serif">'+esc(ingText)+'</textarea></div>'+
     '<div class="modal-row"><label>Ablauf (ein Schritt pro Zeile)</label>'+
-    '<textarea class="modal-in" id="cr-steps" rows="5" placeholder="Wasser aufkochen und Pasta darin kochen.&#10;Sauce erhitzen und mit der Pasta mischen." style="resize:vertical;font-family:Inter,sans-serif">'+esc(stepsText)+'</textarea></div>'+
+    '<textarea class="modal-in" id="cr-steps" rows="5" maxlength="8000" placeholder="Wasser aufkochen und Pasta darin kochen.&#10;Sauce erhitzen und mit der Pasta mischen." style="resize:vertical;font-family:Inter,sans-serif">'+esc(stepsText)+'</textarea></div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="'+saveOnclick+'">✓ Speichern</button></div>';
 }
@@ -1017,7 +1095,7 @@ function parseBettyBossiRecipe(raw) {
 function openImportRecipe() {
   showModal('<h3>📋 Rezept importieren</h3>'+
     '<p style="font-size:.78rem;color:var(--muted);margin-bottom:10px">Rezepttext von bettybossi.ch markieren, kopieren und hier einfügen. Läuft komplett lokal im Browser, es wird keine Seite nachgeladen.</p>'+
-    '<div class="modal-row"><textarea class="modal-in" id="import-raw" rows="12" placeholder="Rezepttext hier einfügen…" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
+    '<div class="modal-row"><textarea class="modal-in" id="import-raw" rows="12" maxlength="20000" placeholder="Rezepttext hier einfügen…" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="previewImportedRecipe()">→ Vorschau</button></div>');
 }
@@ -1042,7 +1120,16 @@ function saveEditCustomRecipe(id) {
   r.updatedAt=Date.now();
   HP_save();closeModal();renderRecipes();showToast('Rezept aktualisiert');
 }
-function deleteCustomRecipe(id){markDeleted('customRecipes',id);HP.customRecipes=(HP.customRecipes||[]).filter(r=>r.id!==id);HP_save();renderRecipes();showToast('Rezept gelöscht');}
+function deleteCustomRecipe(id){
+  const weg=(HP.customRecipes||[]).find(r=>r.id===id);
+  markDeleted('customRecipes',id);HP.customRecipes=(HP.customRecipes||[]).filter(r=>r.id!==id);
+  HP_save();renderRecipes();
+  showUndoToast('Rezept gelöscht', ()=>{
+    if(!weg) return;
+    unmarkDeleted('customRecipes',id); weg.updatedAt=Date.now(); HP.customRecipes.push(weg);
+    HP_save();renderRecipes();showToast('Wiederhergestellt');
+  });
+}
 
 // ── MANAGE ────────────────────────────────────
 function renderManage() {
@@ -1134,7 +1221,7 @@ function renamePerson(who) {
     '<h3>✏️ ' + esc(label) + ' anpassen</h3>' +
     '<input type="hidden" id="rename-color" value="' + currentColor + '">' +
     '<div class="modal-row"><label>Name</label>' +
-    '<input class="modal-in" id="rename-input" value="' + esc(current) + '" style="border-color:' + currentColor + '"></div>' +
+    '<input class="modal-in" id="rename-input" maxlength="40" value="' + esc(current) + '" style="border-color:' + currentColor + '"></div>' +
     (who !== 'shared' ? '' : '') +
     '<div class="modal-row"><label>Farbe</label>' +
     '<div style="display:flex;gap:2px;flex-wrap:wrap">' + swatches + '</div></div>' +
@@ -1261,7 +1348,7 @@ function openTaskModal(tid,dateKey='') {
     '<div style="flex:1"><label>Erinnerung</label><select class="modal-in" id="tm-rem">'+taskReminderOptions(task.reminder)+'</select></div></div>'+
     '<div class="modal-row" id="block-sec" style="'+(st!=='blocked'?'display:none':'')+' ">'+
     '<label>Was fehlt / warum blockiert?</label>'+
-    '<input class="modal-in" id="block-note" placeholder="z.B. Blumenerde fehlt…" value="'+esc(note)+'">'+
+    '<input class="modal-in" id="block-note" maxlength="300" placeholder="z.B. Blumenerde fehlt…" value="'+esc(note)+'">'+
     '<button class="mbtn mbtn-confirm" style="margin-top:8px;width:100%;background:var(--shared)" onclick="addBlockedToShop(\''+tid+'\')">🛒 Zur Einkaufsliste</button></div>'+
     '<div class="modal-row" id="comment-section">'+
     '<label>💬 Kommentar</label>'+
@@ -1331,7 +1418,7 @@ function addBlockedToShop(tid) {
   HP.taskNotes[tid]=note; HP_save(); closeModal();
   const opts=CATS.map(c=>'<option value="'+c+'">'+catEmoji(c)+' '+c+'</option>').join('');
   showModal('<h3>🛒 Zur Einkaufsliste</h3>'+
-    '<div class="modal-row"><label>Artikel</label><input class="modal-in" id="bl-name" value="'+esc(note)+'" placeholder="z.B. Blumenerde"></div>'+
+    '<div class="modal-row"><label>Artikel</label><input class="modal-in" id="bl-name" maxlength="200" value="'+esc(note)+'" placeholder="z.B. Blumenerde"></div>'+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Menge</label><input class="modal-in" id="bl-qty"></div>'+
     '<div style="flex:1"><label>Einheit</label><input class="modal-in" id="bl-unit"></div>'+
@@ -1471,8 +1558,8 @@ function buildNoteTaskSection(linkedEventId) {
 function openAddNote(){
   showModal('<h3>📌 Neue Notiz</h3><input type="hidden" id="note-color" value="yellow">'+
     '<div class="modal-row"><label>Farbe</label><div style="display:flex;gap:6px">'+noteColorBtns('yellow')+'</div></div>'+
-    '<div class="modal-row"><label>Titel</label><input class="modal-in" id="note-title" placeholder="Titel…"></div>'+
-    '<div class="modal-row"><label>Notiz (optional)</label><textarea class="modal-in" id="note-body" rows="4" placeholder="Text…" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
+    '<div class="modal-row"><label>Titel</label><input class="modal-in" id="note-title" maxlength="200" placeholder="Titel…"></div>'+
+    '<div class="modal-row"><label>Notiz (optional)</label><textarea class="modal-in" id="note-body" rows="4" maxlength="5000" placeholder="Text…" style="resize:vertical;font-family:Inter,sans-serif"></textarea></div>'+
     buildNoteTaskSection(null)+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="saveNewNote()">✓ Speichern</button></div>');
@@ -1510,8 +1597,8 @@ function openEditNote(id){
   const n=(HP.notes||[]).find(x=>x.id===id); if(!n) return;
   showModal('<h3>✏️ Notiz bearbeiten</h3><input type="hidden" id="note-color" value="'+esc(n.color)+'">'+
     '<div class="modal-row"><label>Farbe</label><div style="display:flex;gap:6px">'+noteColorBtns(n.color)+'</div></div>'+
-    '<div class="modal-row"><label>Titel</label><input class="modal-in" id="note-title" value="'+esc(n.title||'')+'"></div>'+
-    '<div class="modal-row"><label>Notiz (optional)</label><textarea class="modal-in" id="note-body" rows="4" style="resize:vertical;font-family:Inter,sans-serif">'+esc(n.body)+'</textarea></div>'+
+    '<div class="modal-row"><label>Titel</label><input class="modal-in" id="note-title" maxlength="200" value="'+esc(n.title||'')+'"></div>'+
+    '<div class="modal-row"><label>Notiz (optional)</label><textarea class="modal-in" id="note-body" rows="4" maxlength="5000" style="resize:vertical;font-family:Inter,sans-serif">'+esc(n.body)+'</textarea></div>'+
     buildNoteTaskSection(n.linkedEventId||n.linkedTaskId||'')+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="deleteNote(\''+id+'\')">🗑</button>'+
@@ -1625,7 +1712,7 @@ function openAddEvent(prefillDate='', chore=false) {
     '<div class="modal-row"><label>Emoji & Name</label>'+
     '<div style="display:flex;gap:7px">'+
     emojiPickerBtnHTML('ev-emoji',chore?'🧹':'📅')+
-    '<input class="modal-in" id="ev-name" placeholder="'+(chore?'z.B. Fenster putzen…':'z.B. Arzttermin, Abendessen…')+'" style="flex:1"></div>'+
+    '<input class="modal-in" id="ev-name" maxlength="200" placeholder="'+(chore?'z.B. Fenster putzen…':'z.B. Arzttermin, Abendessen…')+'" style="flex:1"></div>'+
     emojiPickerMenuHTML('ev-emoji')+
     '</div>'+
     '<div class="modal-row"><label>'+(chore?'Nächste Fälligkeit':'Datum')+'</label>'+
@@ -1692,7 +1779,7 @@ function openEditEvent(id) {
     '<div class="modal-row"><label>Emoji & Name</label>'+
     '<div style="display:flex;gap:7px">'+
     emojiPickerBtnHTML('ev-emoji',e.emoji)+
-    '<input class="modal-in" id="ev-name" value="'+esc(e.name)+'" style="flex:1"></div>'+
+    '<input class="modal-in" id="ev-name" maxlength="200" value="'+esc(e.name)+'" style="flex:1"></div>'+
     emojiPickerMenuHTML('ev-emoji')+
     '</div>'+
     '<div class="modal-row"><label>'+(chore?'Nächste Fälligkeit':'Datum')+'</label>'+
@@ -1735,7 +1822,7 @@ function openEventModal(id) {
     '</label></div>'+
     '<div class="modal-row" id="ev-block-sec" style="'+(st!=='blocked'?'display:none':'')+' ">'+
     '<label>Was fehlt / warum blockiert?</label>'+
-    '<input class="modal-in" id="ev-block-note" placeholder="z.B. Termin fehlt noch…" value="'+esc(note)+'">'+
+    '<input class="modal-in" id="ev-block-note" maxlength="300" placeholder="z.B. Termin fehlt noch…" value="'+esc(note)+'">'+
     '<button class="mbtn mbtn-confirm" style="margin-top:8px;width:100%;background:var(--shared)" onclick="addBlockedEventToShop(\''+id+'\')">🛒 Zur Einkaufsliste</button></div>'+
     '<div class="modal-row" id="ev-comment-section">'+
     '<label>💬 Kommentar</label>'+
@@ -1788,7 +1875,7 @@ function addBlockedEventToShop(id) {
   HP.eventNotes[id]=note; HP_save(); closeModal();
   const opts=CATS.map(c=>'<option value="'+c+'">'+catEmoji(c)+' '+c+'</option>').join('');
   showModal('<h3>🛒 Zur Einkaufsliste</h3>'+
-    '<div class="modal-row"><label>Artikel</label><input class="modal-in" id="bl-name" value="'+esc(note)+'" placeholder="z.B. Blumenerde"></div>'+
+    '<div class="modal-row"><label>Artikel</label><input class="modal-in" id="bl-name" maxlength="200" value="'+esc(note)+'" placeholder="z.B. Blumenerde"></div>'+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Menge</label><input class="modal-in" id="bl-qty"></div>'+
     '<div style="flex:1"><label>Einheit</label><input class="modal-in" id="bl-unit"></div>'+
@@ -1889,7 +1976,7 @@ function openAddBirthday() {
   showModal(
     '<h3>🎂 Geburtstag eintragen</h3>'+
     '<div class="modal-row"><label>Name</label>'+
-    '<input class="modal-in" id="bd-name" placeholder="z.B. Oma Rosina"></div>'+
+    '<input class="modal-in" id="bd-name" maxlength="200" placeholder="z.B. Oma Rosina"></div>'+
     '<div class="modal-row"><label>Geburtstag (Tag & Monat)</label>'+
     '<div style="display:flex;gap:8px">'+
     '<input class="modal-in" type="number" id="bd-day" placeholder="Tag" min="1" max="31" style="width:80px">'+
@@ -1921,7 +2008,7 @@ function openEditBirthday(id) {
   showModal(
     '<h3>✏️ Geburtstag bearbeiten</h3>'+
     '<div class="modal-row"><label>Name</label>'+
-    '<input class="modal-in" id="bd-name" value="'+esc(b.name)+'"></div>'+
+    '<input class="modal-in" id="bd-name" maxlength="200" value="'+esc(b.name)+'"></div>'+
     '<div class="modal-row"><label>Geburtstag</label>'+
     '<div style="display:flex;gap:8px">'+
     '<input class="modal-in" type="number" id="bd-day" value="'+parseInt(d)+'" min="1" max="31" style="width:80px">'+
@@ -1948,9 +2035,15 @@ function saveEditBirthday(id) {
 }
 
 function deleteBirthday(id) {
+  const weg=(HP.birthdays||[]).find(x=>x.id===id);
   markDeleted('birthdays', id);
   HP.birthdays=(HP.birthdays||[]).filter(x=>x.id!==id);
-  HP_save();closeModal();renderBirthdayList();showToast('Gelöscht');
+  HP_save();closeModal();renderBirthdayList();
+  showUndoToast('Geburtstag gelöscht', ()=>{
+    if(!weg) return;
+    unmarkDeleted('birthdays',id); weg.updatedAt=Date.now(); HP.birthdays.push(weg);
+    HP_save();renderBirthdayList();render();showToast('Wiederhergestellt');
+  });
 }
 
 // Show birthday banners in today view
