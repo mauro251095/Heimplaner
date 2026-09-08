@@ -4,7 +4,7 @@
 
 let weekOffset=0, monthOffset=0, monthViewOffset=0;
 let curView='all', persView='p1', recipeFilter='Alle', pendingMealSlot=null;
-let speechRec=null, isMicActive=false, afSelectedDays=[];
+let afSelectedDays=[];
 const NOTIF_OK=typeof window!=='undefined'&&'Notification' in window;
 
 // ── Toast ─────────────────────────────────────
@@ -129,11 +129,11 @@ function renderTodayBanner() {
   const dayT=tasks.filter(t=>taskOccursOn(t,todayKey));
   const doneC=dayT.filter(t=>isDone(today,t.id)||getStatus(t.id)==='done').length;
   const prioOpen=dayT.filter(t=>t.prio&&!isDone(today,t.id)&&getStatus(t.id)!=='done').length;
-  const evChips=dayEv.map(e=>'<span class="tbc '+(e.important?'tbc-important':'tbc-'+e.who+' tbc-event')+'" onclick="openEventModal(\''+e.id+'\')">'+e.emoji+' '+e.name+'</span>').join('');
+  const evChips=dayEv.map(e=>'<span class="tbc '+(e.important?'tbc-important':'tbc-'+e.who+' tbc-event')+'" onclick="openEventModal(\''+esc(e.id)+'\')">'+esc(e.emoji)+' '+esc(e.name)+'</span>').join('');
   const taskChips=dayT.map(t=>{
     const d=isDone(today,t.id)||getStatus(t.id)==='done';
     const si=getStatus(t.id)==='wip'?'🟡':getStatus(t.id)==='blocked'?'🔴':getStatus(t.id)==='done'?'✅':'';
-    return '<span class="tbc '+(t.important?'tbc-important':'tbc-'+t.who)+(d?' done':'')+(t.prio?' tbc-prio':'')+'" onclick="openTaskModal(\''+t.id+'\',\''+todayKey+'\')">'+(t.prio?'● ':'')+t.emoji+' '+t.name+(si?' '+si:'')+'</span>';
+    return '<span class="tbc '+(t.important?'tbc-important':'tbc-'+t.who)+(d?' done':'')+(t.prio?' tbc-prio':'')+'" onclick="openTaskModal(\''+esc(t.id)+'\',\''+todayKey+'\')">'+(t.prio?'● ':'')+esc(t.emoji)+' '+esc(t.name)+(si?' '+si:'')+'</span>';
   }).join('');
   const chips=(evChips+taskChips)||'<span style="font-size:.76rem;color:var(--muted)">Keine Aufgaben heute</span>';
   const el=document.getElementById('today-banner');
@@ -149,8 +149,8 @@ function renderBlockedBanners() {
   const blocked=allTasks().filter(t=>!t.onceDate&&taskOccursOn(t,todayKey)&&getStatus(t.id)==='blocked');
   const el=document.getElementById('blocked-banners');
   if(el) el.innerHTML=blocked.map(t=>
-    '<div class="blocked-banner" onclick="openTaskModal(\''+t.id+'\',\''+todayKey+'\')">🔴 <b>'+t.emoji+' '+t.name+'</b> ist blockiert'+
-    (HP.taskNotes[t.id]?' <span style="color:var(--muted)">– '+HP.taskNotes[t.id]+'</span>':'')+
+    '<div class="blocked-banner" onclick="openTaskModal(\''+esc(t.id)+'\',\''+todayKey+'\')">🔴 <b>'+esc(t.emoji)+' '+esc(t.name)+'</b> ist blockiert'+
+    (HP.taskNotes[t.id]?' <span style="color:var(--muted)">– '+esc(HP.taskNotes[t.id])+'</span>':'')+
     '<span style="margin-left:auto;font-size:.7rem;color:var(--muted)">Details →</span></div>'
   ).join('');
 }
@@ -194,7 +194,7 @@ function renderWeekGrid() {
       const chip=document.createElement('div');
       chip.className='task-chip c-birthday';
       const bdAge=b.year?new Date().getFullYear()-parseInt(b.year):'';
-      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">🎂 '+b.name+(bdAge?' ('+bdAge+')':'')+' </span>';
+      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">🎂 '+esc(b.name)+(bdAge?' ('+bdAge+')':'')+' </span>';
       chip.style.cursor='default';
       tc.appendChild(chip);
     });
@@ -207,16 +207,16 @@ function renderWeekGrid() {
         const ecmt=(HP.eventComments||{})[e.id]||'';
         const linkedNote=(HP.notes||[]).find(n=>n.linkedEventId===e.id);
         chip.className='task-chip '+(e.important?'c-important':'c'+e.who+' ev-once')+' s-'+est+(est==='done'?' done':'');
-        chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+e.emoji+' '+e.name+(e.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTimeRange(e.time,e.timeEnd)+'</span>':'')+'</span>'+
+        chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+esc(e.emoji)+' '+esc(e.name)+(e.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+esc(fmtTimeRange(e.time,e.timeEnd))+'</span>':'')+'</span>'+
           '<span class="chip-st">'+esi+'</span>'+(ecmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'')+
-          (linkedNote?'<span style="font-size:.65rem;opacity:.7;flex-shrink:0;cursor:pointer" title="Verknüpfte Notiz öffnen" onclick="event.stopPropagation();openEditNote(\''+linkedNote.id+'\')">🔗</span>':'');
+          (linkedNote?'<span style="font-size:.65rem;opacity:.7;flex-shrink:0;cursor:pointer" title="Verknüpfte Notiz öffnen" onclick="event.stopPropagation();openEditNote(\''+esc(linkedNote.id)+'\')">🔗</span>':'');
         chip.addEventListener('click',()=>openEventModal(e.id));
       } else {
         const t=data, d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
         const si=st==='wip'?'🟡':st==='blocked'?'🔴':'';
         chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
         const cmt=((HP.taskComments||{})[t.id]||{})[key]||'';
-        chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+t.emoji+' '+t.name+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+fmtTimeRange(t.time,t.timeEnd)+'</span>':'')+' </span>'+'<span class="chip-st">'+si+'</span>'+(cmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'');
+        chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">'+esc(t.emoji)+' '+esc(t.name)+(t.time?'<span style="font-size:.6rem;opacity:.7;margin-left:3px">⏰'+esc(fmtTimeRange(t.time,t.timeEnd))+'</span>':'')+' </span>'+'<span class="chip-st">'+si+'</span>'+(cmt?'<span style="font-size:.65rem;opacity:.7">💬</span>':'');
         chip.addEventListener('click',()=>openTaskModal(t.id,key));
       }
       tc.appendChild(chip);
@@ -225,7 +225,7 @@ function renderWeekGrid() {
     Object.entries(dayMeals).forEach(([slot,m])=>{
       const chip=document.createElement('div');
       chip.className='task-chip c-meal';
-      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">🍽️ '+m.name+'</span><span style="font-size:.6rem;opacity:.6;flex-shrink:0">'+slot+'</span>';
+      chip.innerHTML='<span class="chip-dot"></span><span style="flex:1">🍽️ '+esc(m.name)+'</span><span style="font-size:.6rem;opacity:.6;flex-shrink:0">'+esc(slot)+'</span>';
       chip.addEventListener('click',()=>openMealPicker(key,slot));
       tc.appendChild(chip);
     });
@@ -240,8 +240,8 @@ function renderPersonView(who) {
   dates.forEach((date,di)=>{const dt=tasks.filter(t=>!t.onceDate&&taskOccursOn(t,dk(date)));tot+=dt.length;dt.forEach(t=>{if(isDone(date,t.id)||getStatus(t.id)==='done')done++;});});
   const pct=tot?Math.round(done/tot*100):0;
   const hd=document.getElementById('pv-hd');
-  if(hd) hd.innerHTML='<div class="pv-av pv-av-'+who+'">'+n.charAt(0).toUpperCase()+'</div>'+
-    '<div><div class="pv-name" style="color:'+color+'">'+n+'</div><div class="pv-sub">Persönliche Wochenübersicht</div></div>'+
+  if(hd) hd.innerHTML='<div class="pv-av pv-av-'+who+'">'+esc(n.charAt(0).toUpperCase())+'</div>'+
+    '<div><div class="pv-name" style="color:'+color+'">'+esc(n)+'</div><div class="pv-sub">Persönliche Wochenübersicht</div></div>'+
     '<div class="pv-stats"><div class="pv-stat"><div class="psn" style="color:'+color+'">'+done+'</div><div class="psl">Erledigt</div></div>'+
     '<div class="pv-stat"><div class="psn">'+tot+'</div><div class="psl">Gesamt</div></div>'+
     '<div class="pv-stat"><div class="psn" style="color:var(--today)">'+pct+'%</div><div class="psl">Quote</div></div></div>'+
@@ -261,7 +261,7 @@ function renderPersonView(who) {
       const d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
       const pill=document.createElement('div');
       pill.className='pv-pill '+(t.important?'p-important':(t.who==='shared'?'pshared':'p'+t.who[1]))+(d?' s-done':'')+(t.prio?' is-prio':'')+(st==='blocked'?' s-blocked':'');
-      pill.innerHTML=t.emoji+' '+t.name+
+      pill.innerHTML=esc(t.emoji)+' '+esc(t.name)+
         (st==='wip'?'<span class="pst wip">🟡</span>':st==='blocked'?'<span class="pst blk">🔴</span>':'')+
         (t.who==='shared'?'<span style="font-size:.62rem;opacity:.55"> gem.</span>':'');
       pill.addEventListener('click',()=>openTaskModal(t.id,dk(date)));
@@ -284,8 +284,8 @@ function openQuickAddTask(who='shared', prefillDate='') {
     '</div>'+
     '<div class="modal-row"><label>Für wen</label>'+
     '<select class="modal-in" id="qa-who" onchange="updateQaDayClass()">'+
-    '<option value="p1"'+(who==='p1'?' selected':'')+'>'+HP.names.p1+'</option>'+
-    '<option value="p2"'+(who==='p2'?' selected':'')+'>'+HP.names.p2+'</option>'+
+    '<option value="p1"'+(who==='p1'?' selected':'')+'>'+esc(HP.names.p1)+'</option>'+
+    '<option value="p2"'+(who==='p2'?' selected':'')+'>'+esc(HP.names.p2)+'</option>'+
     '<option value="shared"'+(who==='shared'?' selected':'')+'>Gemeinsam</option>'+
     '</select></div>'+
     '<div class="modal-row"><label>Art</label>'+
@@ -384,7 +384,7 @@ function renderShop() {
   CATS.forEach(cat=>{
     const items=HP.shop.filter(i=>i.cat===cat); if(!items.length) return;
     const sec=document.createElement('div'); sec.className='cat-section';
-    sec.innerHTML='<div class="cat-title">'+(CAT_EMOJI[cat]||'📦')+' '+cat+'</div><div class="shop-grid"></div>';
+    sec.innerHTML='<div class="cat-title">'+(CAT_EMOJI[cat]||'📦')+' '+esc(cat)+'</div><div class="shop-grid"></div>';
     el.appendChild(sec);
     items.forEach(item=>sec.querySelector('.shop-grid').appendChild(makeShopItem(item)));
   });
@@ -400,9 +400,9 @@ function renderShop() {
 function makeShopItem(item) {
   const div=document.createElement('div');
   div.className='shop-item'+(item.bought?' bought':'')+(item.taskId?' has-task':'');
-  div.innerHTML='<div class="si-name">'+item.name+'</div>'+
-    '<div class="si-qty">'+[item.qty,item.unit].filter(Boolean).join(' ')+'</div>'+
-    (item.taskId?'<div class="si-task">🔗 '+(item.taskName||'Projekt')+'</div>':'')+
+  div.innerHTML='<div class="si-name">'+esc(item.name)+'</div>'+
+    '<div class="si-qty">'+esc([item.qty,item.unit].filter(Boolean).join(' '))+'</div>'+
+    (item.taskId?'<div class="si-task">🔗 '+esc(item.taskName||'Projekt')+'</div>':'')+
     '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">'+
     '<div class="si-check" style="flex-shrink:0">'+(item.bought?'✓':'')+'</div>'+
     '<button onclick="event.stopPropagation();deleteShopItem(\''+item.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:4px;opacity:0.6" title="Löschen">✕</button>'+
@@ -441,7 +441,7 @@ function openSavedShopItems() {
   const saved=HP.savedShopItems||[];
   const rows=saved.length
     ? saved.map(s=>'<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.83rem">'+
-        '<span style="flex:1">'+catEmoji(s.cat)+' '+s.name+(s.qty||s.unit?' <span style="color:var(--muted);font-size:.75rem">('+[s.qty,s.unit].filter(Boolean).join(' ')+')</span>':'')+'</span>'+
+        '<span style="flex:1">'+catEmoji(s.cat)+' '+esc(s.name)+(s.qty||s.unit?' <span style="color:var(--muted);font-size:.75rem">('+esc([s.qty,s.unit].filter(Boolean).join(' '))+')</span>':'')+'</span>'+
         '<button class="mbtn mbtn-confirm" style="padding:4px 10px" onclick="addSavedItemToShop(\''+s.id+'\')">+ Hinzufügen</button>'+
         '<button onclick="deleteSavedShopItem(\''+s.id+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 6px" title="Favorit löschen">✕</button>'+
         '</div>').join('')
@@ -469,10 +469,10 @@ function openEditShopItemById(id) {
 function openEditShopItem(item) {
   const opts=CATS.map(c=>'<option value="'+c+'"'+(item.cat===c?' selected':'')+'>'+catEmoji(c)+' '+c+'</option>').join('');
   showModal('<h3>✏️ Artikel bearbeiten</h3>'+
-    '<div class="modal-row"><label>Name</label><input class="modal-in" id="ei-name" value="'+item.name+'"></div>'+
+    '<div class="modal-row"><label>Name</label><input class="modal-in" id="ei-name" value="'+esc(item.name)+'"></div>'+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
-    '<div style="flex:1"><label>Menge</label><input class="modal-in" id="ei-qty" value="'+(item.qty||'')+'"></div>'+
-    '<div style="flex:1"><label>Einheit</label><input class="modal-in" id="ei-unit" value="'+(item.unit||'')+'"></div></div></div>'+
+    '<div style="flex:1"><label>Menge</label><input class="modal-in" id="ei-qty" value="'+esc(item.qty||'')+'"></div>'+
+    '<div style="flex:1"><label>Einheit</label><input class="modal-in" id="ei-unit" value="'+esc(item.unit||'')+'"></div></div></div>'+
     '<div class="modal-row"><label>Kategorie</label><select class="modal-in" id="ei-cat">'+opts+'</select></div>'+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="deleteShopItem(\''+item.id+'\')">🗑 Löschen</button>'+
@@ -492,11 +492,11 @@ function deleteShopItem(id){markDeleted('shop',id);HP.shop=HP.shop.filter(i=>i.i
 function clearBought(){HP.shop.filter(i=>i.bought).forEach(i=>markDeleted('shop',i.id));HP.shop=HP.shop.filter(i=>!i.bought);HP_save();renderShop();renderSidebarStats();showToast('Erledigte Artikel entfernt');}
 function showDuplicateModal(existing,q,u) {
   showModal('<h3>🛒 Bereits auf der Liste</h3>'+
-    '<div class="dup-warn">⚠️ <b>'+existing.name+'</b> ist bereits auf der Liste ('+[existing.qty,existing.unit].filter(Boolean).join(' ')+').</div>'+
+    '<div class="dup-warn">⚠️ <b>'+esc(existing.name)+'</b> ist bereits auf der Liste ('+esc([existing.qty,existing.unit].filter(Boolean).join(' '))+').</div>'+
     '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Menge erhöhen'+(q?' (+'+q+(u?' '+u:'')+')':'')+' oder separat hinzufügen?</p>'+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
-    '<button class="mbtn" style="background:var(--surface);color:var(--text)" onclick="addSeparate(\''+existing.name+'\',\''+q+'\',\''+u+'\')">Separat</button>'+
+    '<button class="mbtn" style="background:var(--surface);color:var(--text)" onclick="addSeparate(\''+esc(existing.name)+'\',\''+esc(q)+'\',\''+esc(u)+'\')">Separat</button>'+
     '<button class="mbtn mbtn-confirm" onclick="increaseQty(\''+existing.id+'\',\''+q+'\')">Erhöhen</button></div>');
 }
 function increaseQty(id,q){const i=HP.shop.find(x=>x.id===id);if(i){i.qty=i.qty?i.qty+'+'+q:q;i.updatedAt=Date.now();}HP_save();closeModal();renderShop();showToast('Menge angepasst');}
@@ -592,7 +592,7 @@ function openEditBudgetEntry(id) {
   showModal('<h3>✏️ Buchung bearbeiten</h3>'+
     (isShared?'<div style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Gemeinsame Buchung – der Betrag wird automatisch 50/50 zwischen Mauro &amp; Melissa aufgeteilt.</div>':'')+
     '<div class="modal-row"><label>Kategorie</label><select class="modal-in" id="be-cat">'+opts+'</select></div>'+
-    '<div class="modal-row"><label>Kommentar</label><input class="modal-in" id="be-comment" value="'+(entry.comment||'')+'"></div>'+
+    '<div class="modal-row"><label>Kommentar</label><input class="modal-in" id="be-comment" value="'+esc(entry.comment||'')+'"></div>'+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Betrag (CHF)</label><input class="modal-in" id="be-amount" type="text" inputmode="decimal" value="'+totalAmount+'"></div>'+
     '<div style="flex:1"><label>Datum</label><input class="modal-in" id="be-date" type="date" value="'+entry.date+'"></div></div></div>'+
@@ -661,7 +661,7 @@ function openBudgetYearStats(person) {
   });
   rows+='<tr class="byt-total"><td>Total</td>'+monthShort.map(()=>'<td></td>').join('')+
     '<td>'+fmtCHF(yearIst)+'</td><td>'+(yearSoll?fmtCHF(yearSoll):'–')+'</td></tr>';
-  showModal('<h3>📊 Jahresstatistik '+year+' – '+HP.names[person]+'</h3>'+
+  showModal('<h3>📊 Jahresstatistik '+year+' – '+esc(HP.names[person])+'</h3>'+
     '<div style="overflow-x:auto"><table class="budget-yearstats-table">'+rows+'</table></div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Schliessen</button></div>', true);
 }
@@ -683,7 +683,7 @@ function renderBudgetColumn(person, mk) {
     const rowsHtml=catEntries.length ? catEntries.map(e=>
       '<div class="budget-entry-row">'+
         '<span class="ber-date">'+e.date.slice(8,10)+'.'+e.date.slice(5,7)+'</span>'+
-        '<span class="ber-comment">'+(e.comment||'—')+'</span>'+
+        '<span class="ber-comment">'+esc(e.comment||'—')+'</span>'+
         '<span class="ber-amount">'+fmtCHF(e.amount)+'</span>'+
         '<button onclick="event.stopPropagation();openEditBudgetEntry(\''+e.id+'\')" title="Bearbeiten">✏️</button>'+
         '<button onclick="event.stopPropagation();deleteBudgetEntry(\''+e.id+'\')" title="Löschen">✕</button>'+
@@ -700,7 +700,7 @@ function renderBudgetColumn(person, mk) {
   const totalPct=totalLimit>0?Math.round(totalIst/totalLimit*100):0;
   col.innerHTML=
     '<div class="budget-col-hd">'+
-      '<span class="bc-person-name" style="color:var(--'+person+')">'+name+'</span>'+
+      '<span class="bc-person-name" style="color:var(--'+person+')">'+esc(name)+'</span>'+
       '<button class="bc-gear" onclick="openBudgetLimitsModal(\''+person+'\')" title="Limits bearbeiten">⚙️</button>'+
     '</div>'+
     cardsHtml+
@@ -731,8 +731,8 @@ function renderMeals() {
         // Filled slot: emoji is purely decorative, name + edit/delete buttons
         return '<div class="meal-slot"><div class="ms-lbl">'+slot+'</div>'+
           '<div class="ms-content has-meal" style="cursor:default">'+
-          '<span class="me" style="pointer-events:none">'+m.emoji+'</span>'+
-          '<span class="mn2" style="pointer-events:none">'+m.name+'</span>'+
+          '<span class="me" style="pointer-events:none">'+esc(m.emoji)+'</span>'+
+          '<span class="mn2" style="pointer-events:none">'+esc(m.name)+'</span>'+
           '<span style="display:flex;gap:4px;margin-left:auto;flex-shrink:0">'+
           '<span class="mdel" style="opacity:.7;cursor:pointer" onclick="openMealPicker(\''+key+'\',\''+slot+'\')">✏️</span>'+
           '<span class="mdel" style="opacity:.7;cursor:pointer" onclick="removeMeal(\''+key+'\',\''+slot+'\')">✕</span>'+
@@ -761,8 +761,8 @@ function openMealPicker(key,slot) {
     '<h3>📅 '+slot+' eintragen</h3>'+
     '<div class="modal-row"><label>Gericht</label>'+
     '<div style="display:flex;gap:7px">'+
-    '<input class="modal-in" id="mp-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+(existing?.emoji&&existing.emoji!=='🍽️'?existing.emoji:'')+'">'+
-    '<input class="modal-in" id="mp-name" placeholder="z.B. Älplermagronen" style="flex:1" value="'+(existing?.name||'')+'">'+
+    '<input class="modal-in" id="mp-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+esc(existing?.emoji&&existing.emoji!=='🍽️'?existing.emoji:'')+'">'+
+    '<input class="modal-in" id="mp-name" placeholder="z.B. Älplermagronen" style="flex:1" value="'+esc(existing?.name||'')+'">'+
     '</div></div>'+
     '<div class="modal-btns" style="justify-content:space-between;flex-wrap:wrap;gap:6px">'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
@@ -791,10 +791,10 @@ function addMealToLibrary(key,slot){
   const cats=['Frühstück','Salate','Pasta','Hauptspeisen','Grill','Suppen','Snacks','Desserts'];
   const defaultCat=slot==='Frühstück'?'Frühstück':'Hauptspeisen';
   showModal(
-    '<h3>📖 "'+m.name+'" zur Bibliothek</h3>'+
+    '<h3>📖 "'+esc(m.name)+'" zur Bibliothek</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label><div style="display:flex;gap:7px">'+
-    '<input class="modal-in" id="cr-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+m.emoji+'">'+
-    '<input class="modal-in" id="cr-name" placeholder="Name" style="flex:1" value="'+m.name+'"></div></div>'+
+    '<input class="modal-in" id="cr-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+esc(m.emoji)+'">'+
+    '<input class="modal-in" id="cr-name" placeholder="Name" style="flex:1" value="'+esc(m.name)+'"></div></div>'+
     '<div class="modal-row"><div style="display:flex;gap:7px">'+
     '<div style="flex:1"><label>Zeit (Min)</label><input class="modal-in" id="cr-time" type="number" value="30"></div>'+
     '<div style="flex:1"><label>Personen</label><input class="modal-in" id="cr-pers" type="number" value="2"></div>'+
@@ -869,7 +869,7 @@ function renderRecipes() {
   const hd=document.getElementById('recipe-hd'); if(hd) hd.textContent='Rezeptbibliothek · '+all.length+' Rezepte';
   const cats=['Alle',...new Set(all.map(r=>r.cat))];
   const fe=document.getElementById('recipe-filters');
-  if(fe) fe.innerHTML=cats.map(c=>'<button class="rfbtn'+(c===recipeFilter?' active':'')+'" onclick="setRecipeFilter(\''+c+'\')">'+c+'</button>').join('')+
+  if(fe) fe.innerHTML=cats.map(c=>'<button class="rfbtn'+(c===recipeFilter?' active':'')+'" onclick="setRecipeFilter(\''+esc(c)+'\')">'+esc(c)+'</button>').join('')+
     '<button class="rfbtn" style="background:var(--p2bg);border-color:var(--p2);color:var(--p2)" onclick="openAddCustomRecipe()">+ Eigenes Rezept</button>'+
     '<button class="rfbtn" style="background:var(--surface);border-color:var(--border)" onclick="openImportRecipe()">📋 Rezept importieren</button>';
   const q=(document.getElementById('recipe-search')?.value||'').toLowerCase();
@@ -878,10 +878,10 @@ function renderRecipes() {
   filtered.forEach(r=>{
     const card=document.createElement('div'); card.className='rc';
     const isPending=!!pendingMealSlot;
-    card.innerHTML='<div class="rc-top">'+r.emoji+'</div><div class="rc-body">'+
-      '<div class="rc-name">'+r.name+(r.custom?'<span style="font-size:.6rem;color:var(--amber);margin-left:5px">eigenes</span>':'')+'</div>'+
-      '<div class="rc-meta"><span>⏱ '+r.time+' Min</span><span>👥 '+r.pers+' Pers.</span></div>'+
-      '<div class="rc-tags">'+r.tags.map(t=>'<span class="rc-tag">'+t+'</span>').join('')+'</div>'+
+    card.innerHTML='<div class="rc-top">'+esc(r.emoji)+'</div><div class="rc-body">'+
+      '<div class="rc-name">'+esc(r.name)+(r.custom?'<span style="font-size:.6rem;color:var(--amber);margin-left:5px">eigenes</span>':'')+'</div>'+
+      '<div class="rc-meta"><span>⏱ '+esc(r.time)+' Min</span><span>👥 '+esc(r.pers)+' Pers.</span></div>'+
+      '<div class="rc-tags">'+r.tags.map(t=>'<span class="rc-tag">'+esc(t)+'</span>').join('')+'</div>'+
       '<button class="rc-addbtn" onclick="event.stopPropagation();openRecipeDetail(\''+r.id+'\')">🛒 Zutaten wählen</button>'+
       '<button class="rc-addbtn" style="margin-top:4px;background:var(--p2bg);border-color:var(--p2);color:var(--p2)" onclick="event.stopPropagation();'+(isPending?'assignMealFromRecipe(allRecipes().find(x=>x.id===\''+r.id+'\'))':'openMealPlanModal(\''+r.id+'\')')+'">'+(isPending?'✓ Für Menüplan wählen':'📅 Zum Menüplan')+'</button>'+
       (r.custom?'<button class="rc-addbtn" style="margin-top:4px;background:var(--surface);border-color:var(--border)" onclick="event.stopPropagation();openEditCustomRecipe(\''+r.id+'\')">✏️ Bearbeiten</button>':'')+
@@ -909,7 +909,7 @@ function openMealPlanModal(rid) {
   const r=allRecipes().find(x=>x.id===rid); if(!r) return;
   const dates=getWeekDates(weekOffset);
   const opts=dates.map((d,i)=>['Frühstück','Mittag','Abend'].map(s=>'<option value="'+dk(d)+'||'+s+'">'+DS[i]+' '+d.getDate()+'. – '+s+'</option>').join('')).join('');
-  showModal('<h3>'+r.emoji+' '+r.name+'</h3>'+
+  showModal('<h3>'+esc(r.emoji)+' '+esc(r.name)+'</h3>'+
     '<div class="modal-row"><label>Wann?</label><select class="modal-in" id="meal-slot-sel">'+opts+'</select></div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="confirmMealSlot(\''+rid+'\')">Hinzufügen</button></div>');
@@ -929,16 +929,16 @@ function customRecipeModalHTML(title, saveOnclick, prefill) {
   const stepsText=(p.steps||[]).join('\n');
   return '<h3>'+title+'</h3>'+
     '<div class="modal-row"><label>Emoji & Name</label><div style="display:flex;gap:7px">'+
-    '<input class="modal-in" id="cr-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+(p.emoji||'')+'">'+
-    '<input class="modal-in" id="cr-name" placeholder="Name" style="flex:1" value="'+(p.name||'')+'"></div></div>'+
+    '<input class="modal-in" id="cr-emoji" placeholder="🍽️" maxlength="2" style="width:48px;text-align:center" value="'+esc(p.emoji||'')+'">'+
+    '<input class="modal-in" id="cr-name" placeholder="Name" style="flex:1" value="'+esc(p.name||'')+'"></div></div>'+
     '<div class="modal-row"><div style="display:flex;gap:7px">'+
     '<div style="flex:1"><label>Zeit (Min)</label><input class="modal-in" id="cr-time" type="number" value="'+(p.time!=null?p.time:30)+'"></div>'+
     '<div style="flex:1"><label>Personen</label><input class="modal-in" id="cr-pers" type="number" value="'+(p.pers!=null?p.pers:2)+'"></div>'+
-    '<div style="flex:1"><label>Kategorie</label><select class="modal-in" id="cr-cat">'+cats.map(c=>'<option'+(p.cat===c?' selected':'')+'>'+c+'</option>').join('')+'</select></div></div></div>'+
+    '<div style="flex:1"><label>Kategorie</label><select class="modal-in" id="cr-cat">'+cats.map(c=>'<option'+(p.cat===c?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></div></div></div>'+
     '<div class="modal-row"><label>Zutaten (Name, Menge, Einheit – eine pro Zeile)</label>'+
-    '<textarea class="modal-in" id="cr-ings" rows="5" placeholder="Pasta, 300, g&#10;Tomatensauce, 1, Dose" style="resize:vertical;font-family:Inter,sans-serif">'+ingText+'</textarea></div>'+
+    '<textarea class="modal-in" id="cr-ings" rows="5" placeholder="Pasta, 300, g&#10;Tomatensauce, 1, Dose" style="resize:vertical;font-family:Inter,sans-serif">'+esc(ingText)+'</textarea></div>'+
     '<div class="modal-row"><label>Ablauf (ein Schritt pro Zeile)</label>'+
-    '<textarea class="modal-in" id="cr-steps" rows="5" placeholder="Wasser aufkochen und Pasta darin kochen.&#10;Sauce erhitzen und mit der Pasta mischen." style="resize:vertical;font-family:Inter,sans-serif">'+stepsText+'</textarea></div>'+
+    '<textarea class="modal-in" id="cr-steps" rows="5" placeholder="Wasser aufkochen und Pasta darin kochen.&#10;Sauce erhitzen und mit der Pasta mischen." style="resize:vertical;font-family:Inter,sans-serif">'+esc(stepsText)+'</textarea></div>'+
     '<div class="modal-btns"><button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn mbtn-confirm" onclick="'+saveOnclick+'">✓ Speichern</button></div>';
 }
@@ -1050,10 +1050,10 @@ function renderManage() {
     const el=document.getElementById('tm-'+who); if(!el) return; el.innerHTML='';
     HP.tasks[who].forEach(task=>{
       const card=document.createElement('div'); card.className='tm-card';
-      const dps=DS.map((d,i)=>'<span class="dp '+(task.days.includes(i)?'o'+(who==='shared'?'sh':who):'')+'" data-tid="'+task.id+'" data-who="'+who+'" data-day="'+i+'">'+d+'</span>').join('');
-      card.innerHTML='<div class="tm-top"><span class="tm-name">'+task.emoji+' '+task.name+(task.time?' <span style="font-size:.65rem;color:var(--muted)">⏰'+fmtTimeRange(task.time,task.timeEnd)+'</span>':'')+'</span>'+
-        '<div class="tm-acts"><button class="wichtig-btn'+(task.important?' on':'')+'" data-tid="'+task.id+'" data-who="'+who+'" title="Wichtig">!</button>'+
-        '<button class="tm-del" data-tid="'+task.id+'" data-who="'+who+'">✕</button></div></div>'+
+      const dps=DS.map((d,i)=>'<span class="dp '+(task.days.includes(i)?'o'+(who==='shared'?'sh':who):'')+'" data-tid="'+esc(task.id)+'" data-who="'+who+'" data-day="'+i+'">'+d+'</span>').join('');
+      card.innerHTML='<div class="tm-top"><span class="tm-name">'+esc(task.emoji)+' '+esc(task.name)+(task.time?' <span style="font-size:.65rem;color:var(--muted)">⏰'+esc(fmtTimeRange(task.time,task.timeEnd))+'</span>':'')+'</span>'+
+        '<div class="tm-acts"><button class="wichtig-btn'+(task.important?' on':'')+'" data-tid="'+esc(task.id)+'" data-who="'+who+'" title="Wichtig">!</button>'+
+        '<button class="tm-del" data-tid="'+esc(task.id)+'" data-who="'+who+'">✕</button></div></div>'+
         '<div class="day-pills">'+dps+'</div>';
       el.appendChild(card);
     });
@@ -1089,10 +1089,10 @@ function renderEventsList() {
     const whoColor=e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)';
     const isPast=e.date<today;
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px'+(isPast?';opacity:.5':'')+'">'+
-      '<span style="font-size:1.1rem">'+e.emoji+'</span>'+
-      '<div style="flex:1"><div style="font-size:.82rem;font-weight:500">'+e.name+'</div>'+
-      '<div style="font-size:.7rem;color:var(--muted)">'+e.date+(e.time?' · ⏰'+fmtTimeRange(e.time,e.timeEnd):'')+'</div></div>'+
-      '<span style="font-size:.7rem;color:'+whoColor+';font-weight:500">'+whoLabel+'</span>'+
+      '<span style="font-size:1.1rem">'+esc(e.emoji)+'</span>'+
+      '<div style="flex:1"><div style="font-size:.82rem;font-weight:500">'+esc(e.name)+'</div>'+
+      '<div style="font-size:.7rem;color:var(--muted)">'+esc(e.date)+(e.time?' · ⏰'+esc(fmtTimeRange(e.time,e.timeEnd)):'')+'</div></div>'+
+      '<span style="font-size:.7rem;color:'+whoColor+';font-weight:500">'+esc(whoLabel)+'</span>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✏️</button>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="deleteEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✕</button>'+
     '</div>';
@@ -1110,10 +1110,10 @@ function renderHouseholdList() {
     const whoLabel=e.who==='p1'?HP.names.p1:e.who==='p2'?HP.names.p2:'Gemeinsam';
     const whoColor=e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)';
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px">'+
-      '<span style="font-size:1.1rem">'+e.emoji+'</span>'+
-      '<div style="flex:1"><div style="font-size:.82rem;font-weight:500">'+e.name+'</div>'+
-      '<div style="font-size:.7rem;color:var(--muted)">🔁 '+recurLabel(e.recur)+' · Fällig: '+e.date+(e.time?' · ⏰'+fmtTimeRange(e.time,e.timeEnd):'')+'</div></div>'+
-      '<span style="font-size:.7rem;color:'+whoColor+';font-weight:500">'+whoLabel+'</span>'+
+      '<span style="font-size:1.1rem">'+esc(e.emoji)+'</span>'+
+      '<div style="flex:1"><div style="font-size:.82rem;font-weight:500">'+esc(e.name)+'</div>'+
+      '<div style="font-size:.7rem;color:var(--muted)">🔁 '+esc(recurLabel(e.recur))+' · Fällig: '+esc(e.date)+(e.time?' · ⏰'+esc(fmtTimeRange(e.time,e.timeEnd)):'')+'</div></div>'+
+      '<span style="font-size:.7rem;color:'+whoColor+';font-weight:500">'+esc(whoLabel)+'</span>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="openEventModal(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">👁️</button>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✏️</button>'+
       '<button data-eid=' + JSON.stringify(e.id) + ' onclick="deleteEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 6px">✕</button>'+
@@ -1131,10 +1131,10 @@ function renamePerson(who) {
     'class="rp-swatch" style="display:inline-block;width:26px;height:26px;border-radius:50%;background:' + c.val + ';cursor:pointer;border:3px solid ' + (c.val === currentColor ? '#fff' : 'transparent') + ';transition:border .15s;margin:3px" title="' + c.name + '"></span>'
   ).join('');
   showModal(
-    '<h3>✏️ ' + label + ' anpassen</h3>' +
+    '<h3>✏️ ' + esc(label) + ' anpassen</h3>' +
     '<input type="hidden" id="rename-color" value="' + currentColor + '">' +
     '<div class="modal-row"><label>Name</label>' +
-    '<input class="modal-in" id="rename-input" value="' + current + '" style="border-color:' + currentColor + '"></div>' +
+    '<input class="modal-in" id="rename-input" value="' + esc(current) + '" style="border-color:' + currentColor + '"></div>' +
     (who !== 'shared' ? '' : '') +
     '<div class="modal-row"><label>Farbe</label>' +
     '<div style="display:flex;gap:2px;flex-wrap:wrap">' + swatches + '</div></div>' +
@@ -1245,7 +1245,7 @@ function openTaskModal(tid,dateKey='') {
   const stBtns=[['open','⬜ Offen'],['wip','🟡 In Arbeit'],['blocked','🔴 Blockiert'],['done','✅ Erledigt']]
     .map(([s,l])=>'<button class="st-btn'+(st===s?' sel-'+s:'')+'" onclick="setTaskStatus(\''+tid+'\',\''+s+'\',this)">'+l+'</button>').join('');
   const occLabel=dateKey?new Date(dateKey+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'}):'';
-  showModal('<h3>'+task.name+'</h3>'+
+  showModal('<h3>'+esc(task.name)+'</h3>'+
     '<div class="modal-row"><label>Emoji</label>'+
     '<div style="display:flex;gap:7px">'+emojiPickerBtnHTML('tm-emoji',task.emoji)+'</div>'+
     emojiPickerMenuHTML('tm-emoji')+
@@ -1261,7 +1261,7 @@ function openTaskModal(tid,dateKey='') {
     '<div style="flex:1"><label>Erinnerung</label><select class="modal-in" id="tm-rem">'+taskReminderOptions(task.reminder)+'</select></div></div>'+
     '<div class="modal-row" id="block-sec" style="'+(st!=='blocked'?'display:none':'')+' ">'+
     '<label>Was fehlt / warum blockiert?</label>'+
-    '<input class="modal-in" id="block-note" placeholder="z.B. Blumenerde fehlt…" value="'+note+'">'+
+    '<input class="modal-in" id="block-note" placeholder="z.B. Blumenerde fehlt…" value="'+esc(note)+'">'+
     '<button class="mbtn mbtn-confirm" style="margin-top:8px;width:100%;background:var(--shared)" onclick="addBlockedToShop(\''+tid+'\')">🛒 Zur Einkaufsliste</button></div>'+
     '<div class="modal-row" id="comment-section">'+
     '<label>💬 Kommentar</label>'+
@@ -1331,7 +1331,7 @@ function addBlockedToShop(tid) {
   HP.taskNotes[tid]=note; HP_save(); closeModal();
   const opts=CATS.map(c=>'<option value="'+c+'">'+catEmoji(c)+' '+c+'</option>').join('');
   showModal('<h3>🛒 Zur Einkaufsliste</h3>'+
-    '<div class="modal-row"><label>Artikel</label><input class="modal-in" id="bl-name" value="'+note+'" placeholder="z.B. Blumenerde"></div>'+
+    '<div class="modal-row"><label>Artikel</label><input class="modal-in" id="bl-name" value="'+esc(note)+'" placeholder="z.B. Blumenerde"></div>'+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Menge</label><input class="modal-in" id="bl-qty"></div>'+
     '<div style="flex:1"><label>Einheit</label><input class="modal-in" id="bl-unit"></div>'+
@@ -1370,14 +1370,14 @@ function renderMonth() {
     const mm=String(date.getMonth()+1).padStart(2,'0'),dd2=String(date.getDate()).padStart(2,'0');
     const dayBdaysM=(HP.birthdays||[]).filter(b=>b.date.slice(5)===mm+'-'+dd2);
     const evHtml=[
-      ...dayBdaysM.map(b=>'<div class="mc-event mc-birthday">🎂 '+b.name+'</div>'),
+      ...dayBdaysM.map(b=>'<div class="mc-event mc-birthday">🎂 '+esc(b.name)+'</div>'),
       ...mergeTimelineItems(dayEvents,dayT).map(({kind,data})=>{
         if(kind==='event'){
           const e=data, est=getEventStatus(e.id), esi=est==='wip'?' 🟡':est==='blocked'?' 🔴':'';
-          return '<div class="mc-event '+(e.important?'mc-event-important':'e'+(e.who==='shared'?'sh':e.who)+' mc-event-once')+'">'+e.emoji+' '+e.name+esi+'</div>';
+          return '<div class="mc-event '+(e.important?'mc-event-important':'e'+(e.who==='shared'?'sh':e.who)+' mc-event-once')+'">'+esc(e.emoji)+' '+esc(e.name)+esi+'</div>';
         }
         const t=data, tst=getStatus(t.id), tsi=tst==='wip'?' 🟡':tst==='blocked'?' 🔴':'';
-        return '<div class="mc-event '+(t.important?'mc-event-important':'e'+(t.who==='shared'?'sh':t.who))+'">'+t.emoji+' '+t.name+tsi+'</div>';
+        return '<div class="mc-event '+(t.important?'mc-event-important':'e'+(t.who==='shared'?'sh':t.who))+'">'+esc(t.emoji)+' '+esc(t.name)+tsi+'</div>';
       })
     ].join('');
     html+='<div class="month-cell'+(isT?' today':'')+((dayT.length||dayEvents.length||dayBdaysM.length)?' has-events':'')+'" onclick="openDayDetail(\''+key+'\')">'+
@@ -1399,25 +1399,25 @@ function openDayDetail(key) {
     if(kind==='event'){
       const e=data, linkedNote=(HP.notes||[]).find(n=>n.linkedEventId===e.id);
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px'+(e.important?';background:rgba(248,113,113,.08)':'')+'">'+
-      '<span style="color:'+(e.important?'var(--red)':e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+e.emoji+'</span>'+
-      '<div style="flex:1"><div style="font-weight:500">'+e.name+'</div>'+
-      (linkedNote?'<div style="font-size:.7rem;color:var(--muted);margin-top:2px;cursor:pointer" onclick="event.stopPropagation();openEditNote(\''+linkedNote.id+'\')" title="Verknüpfte Notiz öffnen">🔗 '+
-      (linkedNote.title||linkedNote.body.slice(0,30)+(linkedNote.body.length>30?'…':''))+'</div>':'')+
+      '<span style="color:'+(e.important?'var(--red)':e.who==='p1'?'var(--p1)':e.who==='p2'?'var(--p2)':'var(--shared)')+'">'+esc(e.emoji)+'</span>'+
+      '<div style="flex:1"><div style="font-weight:500">'+esc(e.name)+'</div>'+
+      (linkedNote?'<div style="font-size:.7rem;color:var(--muted);margin-top:2px;cursor:pointer" onclick="event.stopPropagation();openEditNote(\''+esc(linkedNote.id)+'\')" title="Verknüpfte Notiz öffnen">🔗 '+
+      esc(linkedNote.title||linkedNote.body.slice(0,30)+(linkedNote.body.length>30?'…':''))+'</div>':'')+
       '</div>'+
-      (e.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+fmtTimeRange(e.time,e.timeEnd)+'</span>':'')+
-      '<button data-eid="'+e.id+'" onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Bearbeiten">✏️</button>'+
-      '<button data-eid="'+e.id+'" onclick="deleteEvent(this.dataset.eid);closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Löschen">✕</button>'+
+      (e.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+esc(fmtTimeRange(e.time,e.timeEnd))+'</span>':'')+
+      '<button data-eid="'+esc(e.id)+'" onclick="openEditEvent(this.dataset.eid)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Bearbeiten">✏️</button>'+
+      '<button data-eid="'+esc(e.id)+'" onclick="deleteEvent(this.dataset.eid);closeModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px" title="Löschen">✕</button>'+
       '</div>';
     }
     const t=data;
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px;cursor:pointer" onclick="closeModal();openTaskModal(\''+t.id+'\',\''+key+'\')">'+
-        '<span style="color:'+(t.who==='p1'?'var(--p1)':t.who==='p2'?'var(--p2)':'var(--shared)')+'">'+t.emoji+'</span>'+
-        '<span style="flex:1">'+t.name+'</span>'+(t.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+fmtTimeRange(t.time,t.timeEnd)+'</span>':'')+
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px;cursor:pointer" onclick="closeModal();openTaskModal(\''+esc(t.id)+'\',\''+key+'\')">'+
+        '<span style="color:'+(t.who==='p1'?'var(--p1)':t.who==='p2'?'var(--p2)':'var(--shared)')+'">'+esc(t.emoji)+'</span>'+
+        '<span style="flex:1">'+esc(t.name)+'</span>'+(t.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+esc(fmtTimeRange(t.time,t.timeEnd))+'</span>':'')+
         (isDone(date,t.id)?'<span style="color:var(--green)">✓</span>':'')+'</div>';
   }).join('') : '<div style="font-size:.78rem;color:var(--muted);padding:6px 0">Keine Termine oder Aufgaben</div>';
   const mealsHtml=['Frühstück','Mittag','Abend'].map(s=>'<div style="display:flex;gap:8px;padding:4px 0;font-size:.79rem">'+
     '<span style="color:var(--muted);width:70px;flex-shrink:0">'+s+'</span>'+
-    '<span>'+(meals[s]?meals[s].emoji+' '+meals[s].name:'—')+'</span></div>').join('');
+    '<span>'+(meals[s]?esc(meals[s].emoji)+' '+esc(meals[s].name):'—')+'</span></div>').join('');
   showModal('<h3>'+label+'</h3>'+
     '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Termine &amp; Aufgaben</div>'+itemsHtml+
     '<div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px">Menü</div>'+mealsHtml+
@@ -1440,9 +1440,9 @@ function renderPinboard() {
     return '<div class="pin-note" style="'+NOTE_BG[n.color||'yellow']+'" onclick="openEditNote(\''+n.id+'\')">'+
       '<div class="pin-pin">📌</div>'+
       '<button class="pin-del" onclick="event.stopPropagation();deleteNote(\''+n.id+'\')">✕</button>'+
-      (n.title?'<div class="pin-title">'+n.title+'</div>':'')+
-      (n.body?'<div class="pin-body">'+n.body+'</div>':'')+
-      (linked?'<div class="pin-date" style="opacity:.8">🔗 '+linked.emoji+' '+linked.name+(dueDate?' · Fällig: '+dueDate:'')+'</div>':'')+
+      (n.title?'<div class="pin-title">'+esc(n.title)+'</div>':'')+
+      (n.body?'<div class="pin-body">'+esc(n.body)+'</div>':'')+
+      (linked?'<div class="pin-date" style="opacity:.8">🔗 '+esc(linked.emoji)+' '+esc(linked.name)+(dueDate?' · Fällig: '+esc(dueDate):'')+'</div>':'')+
       '</div>';
   }).join('')+'</div>';
 }
@@ -1452,8 +1452,8 @@ function noteColorBtns(selected){return NOTE_COLORS.map(c=>'<span onclick="docum
 function buildNoteTaskSection(linkedEventId) {
   const events = HP.events || [];
   const eventOpts = '<option value="">— kein Termin —</option>' +
-    events.map(e => '<option value="' + e.id + '"' + (e.id === linkedEventId ? ' selected' : '') + '>' +
-      e.emoji + ' ' + e.name + ' (' + e.date + ')</option>'
+    events.map(e => '<option value="' + esc(e.id) + '"' + (e.id === linkedEventId ? ' selected' : '') + '>' +
+      esc(e.emoji) + ' ' + esc(e.name) + ' (' + esc(e.date) + ')</option>'
     ).join('');
   return '<div class="modal-row"><label>Bestehenden Termin verknüpfen</label>' +
     '<select class="modal-in" id="note-event-id">' + eventOpts + '</select></div>' +
@@ -1462,7 +1462,7 @@ function buildNoteTaskSection(linkedEventId) {
     '<input class="modal-in" id="note-new-event-name" placeholder="Terminname…" style="flex:1">' +
     '<input class="modal-in" type="date" id="note-new-event-date" style="width:140px">' +
     '<select class="modal-in" id="note-new-event-who" style="width:110px">' +
-    '<option value="p1">'+HP.names.p1+'</option><option value="p2">'+HP.names.p2+'</option>'+
+    '<option value="p1">'+esc(HP.names.p1)+'</option><option value="p2">'+esc(HP.names.p2)+'</option>'+
     '<option value="shared" selected>Gemeinsam</option>'+
     '</select>' +
     '</div></div>';
@@ -1508,10 +1508,10 @@ function saveNewNote(){
 
 function openEditNote(id){
   const n=(HP.notes||[]).find(x=>x.id===id); if(!n) return;
-  showModal('<h3>✏️ Notiz bearbeiten</h3><input type="hidden" id="note-color" value="'+n.color+'">'+
+  showModal('<h3>✏️ Notiz bearbeiten</h3><input type="hidden" id="note-color" value="'+esc(n.color)+'">'+
     '<div class="modal-row"><label>Farbe</label><div style="display:flex;gap:6px">'+noteColorBtns(n.color)+'</div></div>'+
-    '<div class="modal-row"><label>Titel</label><input class="modal-in" id="note-title" value="'+(n.title||'')+'"></div>'+
-    '<div class="modal-row"><label>Notiz (optional)</label><textarea class="modal-in" id="note-body" rows="4" style="resize:vertical;font-family:Inter,sans-serif">'+n.body+'</textarea></div>'+
+    '<div class="modal-row"><label>Titel</label><input class="modal-in" id="note-title" value="'+esc(n.title||'')+'"></div>'+
+    '<div class="modal-row"><label>Notiz (optional)</label><textarea class="modal-in" id="note-body" rows="4" style="resize:vertical;font-family:Inter,sans-serif">'+esc(n.body)+'</textarea></div>'+
     buildNoteTaskSection(n.linkedEventId||n.linkedTaskId||'')+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn" style="background:var(--rbg);border:1px solid var(--red);color:var(--red)" onclick="deleteNote(\''+id+'\')">🗑</button>'+
@@ -1637,8 +1637,8 @@ function openAddEvent(prefillDate='', chore=false) {
     '</div></div>'+
     '<div class="modal-row"><label>Für wen</label>'+
     '<select class="modal-in" id="ev-who">'+
-    '<option value="p1">'+HP.names.p1+'</option>'+
-    '<option value="p2">'+HP.names.p2+'</option>'+
+    '<option value="p1">'+esc(HP.names.p1)+'</option>'+
+    '<option value="p2">'+esc(HP.names.p2)+'</option>'+
     '<option value="shared" selected>Gemeinsam</option>'+
     '</select></div>'+
     '<div class="modal-row"><label>Erinnerung</label>'+
@@ -1692,11 +1692,11 @@ function openEditEvent(id) {
     '<div class="modal-row"><label>Emoji & Name</label>'+
     '<div style="display:flex;gap:7px">'+
     emojiPickerBtnHTML('ev-emoji',e.emoji)+
-    '<input class="modal-in" id="ev-name" value="'+e.name+'" style="flex:1"></div>'+
+    '<input class="modal-in" id="ev-name" value="'+esc(e.name)+'" style="flex:1"></div>'+
     emojiPickerMenuHTML('ev-emoji')+
     '</div>'+
     '<div class="modal-row"><label>'+(chore?'Nächste Fälligkeit':'Datum')+'</label>'+
-    '<input class="modal-in" type="date" id="ev-date" value="'+e.date+'"></div>'+
+    '<input class="modal-in" type="date" id="ev-date" value="'+esc(e.date)+'"></div>'+
     (chore?choreRecurRow(e.recur||null):'')+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Von (optional)</label><input class="modal-in" type="time" id="ev-time" value="'+(e.time||'')+'"></div>'+
@@ -1704,8 +1704,8 @@ function openEditEvent(id) {
     '</div></div>'+
     '<div class="modal-row"><label>Für wen</label>'+
     '<select class="modal-in" id="ev-who">'+
-    '<option value="p1"'+(e.who==='p1'?' selected':'')+'>'+HP.names.p1+'</option>'+
-    '<option value="p2"'+(e.who==='p2'?' selected':'')+'>'+HP.names.p2+'</option>'+
+    '<option value="p1"'+(e.who==='p1'?' selected':'')+'>'+esc(HP.names.p1)+'</option>'+
+    '<option value="p2"'+(e.who==='p2'?' selected':'')+'>'+esc(HP.names.p2)+'</option>'+
     '<option value="shared"'+(e.who==='shared'?' selected':'')+'>Gemeinsam</option>'+
     '</select></div>'+
     '<div class="modal-row"><label>Erinnerung</label>'+
@@ -1727,7 +1727,7 @@ function openEventModal(id) {
   const st=getEventStatus(id), note=(HP.eventNotes||{})[id]||'';
   const stBtns=[['open','⬜ Offen'],['wip','🟡 In Arbeit'],['blocked','🔴 Blockiert'],['done','✅ Erledigt']]
     .map(([s,l])=>'<button class="st-btn'+(st===s?' sel-'+s:'')+'" onclick="setEventStatus(\''+id+'\',\''+s+'\',this)">'+l+'</button>').join('');
-  showModal('<h3>'+e.emoji+' '+e.name+'</h3>'+
+  showModal('<h3>'+esc(e.emoji)+' '+esc(e.name)+'</h3>'+
     '<div class="modal-row"><label>Status</label><div class="st-btns">'+stBtns+'</div></div>'+
     '<div class="modal-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
     '<input type="checkbox" id="ev-important"'+(e.important?' checked':'')+' style="accent-color:var(--red);width:16px;height:16px">'+
@@ -1735,7 +1735,7 @@ function openEventModal(id) {
     '</label></div>'+
     '<div class="modal-row" id="ev-block-sec" style="'+(st!=='blocked'?'display:none':'')+' ">'+
     '<label>Was fehlt / warum blockiert?</label>'+
-    '<input class="modal-in" id="ev-block-note" placeholder="z.B. Termin fehlt noch…" value="'+note+'">'+
+    '<input class="modal-in" id="ev-block-note" placeholder="z.B. Termin fehlt noch…" value="'+esc(note)+'">'+
     '<button class="mbtn mbtn-confirm" style="margin-top:8px;width:100%;background:var(--shared)" onclick="addBlockedEventToShop(\''+id+'\')">🛒 Zur Einkaufsliste</button></div>'+
     '<div class="modal-row" id="ev-comment-section">'+
     '<label>💬 Kommentar</label>'+
@@ -1788,7 +1788,7 @@ function addBlockedEventToShop(id) {
   HP.eventNotes[id]=note; HP_save(); closeModal();
   const opts=CATS.map(c=>'<option value="'+c+'">'+catEmoji(c)+' '+c+'</option>').join('');
   showModal('<h3>🛒 Zur Einkaufsliste</h3>'+
-    '<div class="modal-row"><label>Artikel</label><input class="modal-in" id="bl-name" value="'+note+'" placeholder="z.B. Blumenerde"></div>'+
+    '<div class="modal-row"><label>Artikel</label><input class="modal-in" id="bl-name" value="'+esc(note)+'" placeholder="z.B. Blumenerde"></div>'+
     '<div class="modal-row"><div style="display:flex;gap:8px">'+
     '<div style="flex:1"><label>Menge</label><input class="modal-in" id="bl-qty"></div>'+
     '<div style="flex:1"><label>Einheit</label><input class="modal-in" id="bl-unit"></div>'+
@@ -1863,8 +1863,8 @@ function renderBirthdayList() {
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px'+(isToday2?';border-color:var(--today)':isSoon?';border-color:var(--amber)':'')+'">'+
       '<span style="font-size:1.1rem">🎂</span>'+
       '<div style="flex:1">'+
-        '<div style="font-size:.82rem;font-weight:500">'+b.name+'</div>'+
-        '<div style="font-size:.7rem;color:var(--muted)">'+dd+'.'+mm+'.'+(bdAge!==''?' (wird '+bdAge+')':'')+'</div>'+
+        '<div style="font-size:.82rem;font-weight:500">'+esc(b.name)+'</div>'+
+        '<div style="font-size:.7rem;color:var(--muted)">'+esc(dd)+'.'+esc(mm)+'.'+(bdAge!==''?' (wird '+bdAge+')':'')+'</div>'+
       '</div>'+
       '<span style="font-size:.72rem;font-weight:600;color:'+(isToday2?'var(--today)':isSoon?'var(--amber)':'var(--muted)')+'">'+
         (isToday2?'🎉 Heute!':b.daysLeft===1?'Morgen':'in '+b.daysLeft+' Tagen')+
@@ -1921,7 +1921,7 @@ function openEditBirthday(id) {
   showModal(
     '<h3>✏️ Geburtstag bearbeiten</h3>'+
     '<div class="modal-row"><label>Name</label>'+
-    '<input class="modal-in" id="bd-name" value="'+b.name+'"></div>'+
+    '<input class="modal-in" id="bd-name" value="'+esc(b.name)+'"></div>'+
     '<div class="modal-row"><label>Geburtstag</label>'+
     '<div style="display:flex;gap:8px">'+
     '<input class="modal-in" type="number" id="bd-day" value="'+parseInt(d)+'" min="1" max="31" style="width:80px">'+
@@ -1965,7 +1965,7 @@ function renderBirthdayBanners() {
   el.innerHTML=bdays.map(b=>{
     const age=b.year?new Date().getFullYear()-parseInt(b.year):'';
     return '<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:var(--r);padding:9px 14px;margin-bottom:8px;display:flex;align-items:center;gap:9px;font-size:.82rem">'+
-      '🎂 <b>'+b.name+'</b> hat heute Geburtstag!'+(age?' <span style="color:var(--muted)">('+age+' Jahre)</span>':'')+
+      '🎂 <b>'+esc(b.name)+'</b> hat heute Geburtstag!'+(age?' <span style="color:var(--muted)">('+age+' Jahre)</span>':'')+
     '</div>';
   }).join('');
 }
@@ -2034,73 +2034,6 @@ function maybeNotifBanner(){
     if(main&&tb)main.insertBefore(bar,tb.nextSibling);
   }catch(e){}
 }
-
-// ── AI ASSISTANT ──────────────────────────────
-const AI_SYSTEM=`Du bist ein hilfreicher Haushalts-Assistent für die App "Heimplaner" (Mauro & Lena, Schweiz).
-Antworte IMMER mit JSON wenn du eine Aktion ausführst:
-- Task: {"action":"add_task","emoji":"💪","name":"Sport","who":"p1|p2|shared","days":[0,1,2,3,4,5,6],"time":"18:00","prio":false}
-- Einkauf: {"action":"add_shop","name":"Milch","qty":"1","unit":"L","cat":"Kühlwaren"}
-- Menü: {"action":"set_meal","date":"YYYY-MM-DD","slot":"Frühstück|Mittag|Abend","meal":"Pasta","emoji":"🍝"}
-- Menüvorschlag: {"action":"suggest_menu","days":{"Mo":"Pasta Carbonara","Di":"Lachs aus dem Ofen","Mi":"Burger","Do":"Bolognese","Fr":"Pizza","Sa":"Grill","So":"Rührei"}}
-- Mehrere: {"actions":[...]}
-- Nur Text: {"action":"reply","text":"..."}
-Mauro mag: simpel, klassisch, kein Seafood, keine Pilze. Zwiebeln/Knoblauch optional.
-Schweizer Begriffe (Poulet statt Hähnchen). Heute: ${new Date().toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}.`;
-
-
-
-
-
-function buildContext(){
-  const tasks=allTasks(), shopOpen=HP.shop.filter(i=>!i.bought);
-  const today=new Date(); today.setHours(0,0,0,0);
-  const di=(today.getDay()+6)%7;
-  const todayT=tasks.filter(t=>t.days.includes(di));
-  const weekMeals=[];
-  getWeekDates(weekOffset).forEach((d,i)=>{const m=HP.meals[dk(d)]||{};if(Object.keys(m).length)weekMeals.push(DS[i]+': '+Object.values(m).map(x=>x.name).join(', '));});
-  return ['Tasks: '+tasks.length,'Heute ('+DS[di]+'): '+todayT.map(t=>t.name).join(', '),'Einkauf offen: '+shopOpen.map(i=>i.name).join(', '),'Menü diese Woche: '+weekMeals.join(' | '),'Namen: p1='+HP.names.p1+', p2='+HP.names.p2].join('\n');
-}
-function execSingle(a){
-  if(a.action==='add_task'){
-    const w=a.who||'shared';
-    HP.tasks[w].push({id:w+Date.now(),emoji:a.emoji||'⭐',name:a.name,days:a.days||[0,1,2,3,4,5,6],prio:a.prio||false,status:'open',time:a.time||'',reminder:'',updatedAt:Date.now()});
-    return{msg:'✅ Task "'+a.emoji+' '+a.name+'" für '+(w==='p1'?HP.names.p1:w==='p2'?HP.names.p2:'beide')+' hinzugefügt.'};
-  }
-  if(a.action==='add_shop'){
-    const ex=HP.shop.find(i=>i.name.toLowerCase()===a.name.toLowerCase()&&!i.bought);
-    if(ex){ex.qty=ex.qty?ex.qty+'+'+a.qty:a.qty;ex.updatedAt=Date.now();return{msg:'📝 "'+a.name+'" — Menge angepasst.'};}
-    HP.shop.push({id:'sh'+Date.now(),name:a.name,qty:a.qty||'',unit:a.unit||'',cat:a.cat||guessCat(a.name),bought:false,taskId:null,taskName:null,updatedAt:Date.now()});
-    return{msg:'🛒 "'+a.name+'" zur Einkaufsliste hinzugefügt.'};
-  }
-  if(a.action==='set_meal'){
-    if(!HP.meals[a.date])HP.meals[a.date]={};
-    HP.meals[a.date][a.slot]={recipeId:null,name:a.meal,emoji:a.emoji||'🍽️'};
-    return{msg:'🍽️ '+a.slot+' am '+a.date+': "'+a.meal+'" eingetragen.'};
-  }
-  if(a.action==='suggest_menu'){
-    const dates=getWeekDates(weekOffset); let count=0;
-    Object.entries(a.days||{}).forEach(([dn,mn])=>{
-      const di2=DS.indexOf(dn); if(di2<0)return;
-      const d=dates[di2], key=dk(d);
-      if(!HP.meals[key])HP.meals[key]={};
-      HP.meals[key]['Abend']={recipeId:null,name:mn,emoji:'🍽️'};count++;
-    });
-    return{msg:'📅 Menüplan für '+count+' Tage eingetragen!',actions:[{label:'📅 Zum Menüplan',fn:"setView('meals',null)"}]};
-  }
-  if(a.action==='reply') return{msg:a.text||'...'};
-  return{msg:JSON.stringify(a)};
-}
-// Speech
-function initSpeech(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return;
-  speechRec=new SR(); speechRec.lang='de-CH'; speechRec.continuous=false; speechRec.interimResults=false;
-  speechRec.onresult=e=>{const t=e.results[0][0].transcript;const inp=document.getElementById('ai-input');if(inp)inp.value=t;stopSpeech();sendAiMessage();};
-  speechRec.onerror=()=>{stopSpeech();showToast('Spracheingabe fehlgeschlagen');};
-  speechRec.onend=()=>stopSpeech();
-}
-function toggleSpeech(){if(!speechRec)initSpeech();if(!speechRec){showToast('Spracheingabe nicht verfügbar');return;}if(isMicActive)stopSpeech();else startSpeech();}
-function startSpeech(){try{speechRec.start();isMicActive=true;const b=document.getElementById('ai-mic-btn');if(b){b.classList.add('mic-active');b.textContent='⏹';}showToast('🎤 Spreche jetzt…');}catch(e){}}
-function stopSpeech(){try{speechRec?.stop();}catch(e){}isMicActive=false;const b=document.getElementById('ai-mic-btn');if(b){b.classList.remove('mic-active');b.textContent='🎤';}}
 
 // ── IMPORT / EXPORT ───────────────────────────
 
@@ -2243,7 +2176,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Input listeners
   document.getElementById('af-name')?.addEventListener('keydown',e=>{if(e.key==='Enter')addTask();});
   document.getElementById('shop-add-name')?.addEventListener('keydown',e=>{if(e.key==='Enter')addShopItem();});
-  document.getElementById('ai-input')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAiMessage();}});
   document.getElementById('recipe-search')?.addEventListener('input',filterRecipes);
 });
 
@@ -2284,7 +2216,7 @@ function renderColorSettings() {
       `<span onclick="setPersonColor('${p.key}','${c.val}')" title="${c.name}" style="display:inline-block;width:24px;height:24px;border-radius:50%;background:${c.val};cursor:pointer;border:3px solid ${c.val===currentColor?'#fff':'transparent'};transition:border .15s;margin:2px"></span>`
     ).join('');
     return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-      <span style="font-size:.82rem;font-weight:500;min-width:80px;color:${currentColor}">${p.label}</span>
+      <span style="font-size:.82rem;font-weight:500;min-width:80px;color:${currentColor}">${esc(p.label)}</span>
       <div style="display:flex;gap:4px;flex-wrap:wrap">${swatches}</div>
     </div>`;
   }).join('');
@@ -2321,8 +2253,8 @@ function openRecipeDetail(rid) {
   const rows = r.ing.map((ing, i) =>
     '<li style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">' +
     '<input type="checkbox" id="ic-' + i + '" checked style="accent-color:var(--shared);width:15px;height:15px;cursor:pointer;flex-shrink:0">' +
-    '<label for="ic-' + i + '" style="flex:1;font-size:.79rem;cursor:pointer">' + ing.n + (ing.optional ? ' <span style="font-size:.65rem;color:var(--amber)">(optional)</span>' : '') + '</label>' +
-    '<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">' + ing.q + ' ' + ing.u + '</span></li>'
+    '<label for="ic-' + i + '" style="flex:1;font-size:.79rem;cursor:pointer">' + esc(ing.n) + (ing.optional ? ' <span style="font-size:.65rem;color:var(--amber)">(optional)</span>' : '') + '</label>' +
+    '<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">' + esc(ing.q) + ' ' + esc(ing.u) + '</span></li>'
   ).join('');
 
   const stepsHtml = r.steps && r.steps.length
@@ -2330,15 +2262,15 @@ function openRecipeDetail(rid) {
       r.steps.map((s, i) =>
         '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.79rem;line-height:1.5">' +
         '<span style="background:var(--p1bg);color:var(--p1);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;margin-top:1px">' + (i+1) + '</span>' +
-        '<span>' + s + '</span></div>'
+        '<span>' + esc(s) + '</span></div>'
       ).join('')
     : '';
 
   showModal(
-    '<span style="font-size:2rem;text-align:center;display:block;margin-bottom:6px">' + r.emoji + '</span>' +
-    '<h3 style="text-align:center">' + r.name + '</h3>' +
+    '<span style="font-size:2rem;text-align:center;display:block;margin-bottom:6px">' + esc(r.emoji) + '</span>' +
+    '<h3 style="text-align:center">' + esc(r.name) + '</h3>' +
     '<div style="display:flex;gap:10px;justify-content:center;font-size:.73rem;color:var(--muted);margin-bottom:12px">' +
-    '<span>⏱ ' + r.time + ' Min</span><span>👥 ' + r.pers + ' Pers.</span><span>' + r.tags.join(' · ') + '</span></div>' +
+    '<span>⏱ ' + esc(r.time) + ' Min</span><span>👥 ' + esc(r.pers) + ' Pers.</span><span>' + esc(r.tags.join(' · ')) + '</span></div>' +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
     '<span style="font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Zutaten wählen</span>' +
     '<button onclick="toggleAllIng(' + r.ing.length + ')" style="background:none;border:none;color:var(--muted);font-size:.72rem;cursor:pointer">Alle an/ab</button></div>' +

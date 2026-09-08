@@ -773,6 +773,23 @@ function markDeleted(type, id) {
 }
 
 // ── Helpers ──────────────────────────────────────────
+
+// HTML-Escaping für alles, was aus HP (= Nutzereingaben, importierte Rezepte,
+// vom Partnergerät synchronisierte Daten) per innerHTML in die Seite geschrieben
+// wird. Ohne das ist z.B. eine Notiz mit <img src=x onerror=...> ein Stored XSS,
+// der über den Sync auch auf dem anderen Gerät ausgeführt wird.
+// Deckt zusätzlich " und ' ab, damit auch Werte in Attributen (onclick="...('X')")
+// nicht ausbrechen können.
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getMonday(off=0) {
   const n=new Date(), d=n.getDay(), diff=d===0?-6:1-d, m=new Date(n);
   m.setDate(n.getDate()+diff+off*7); m.setHours(0,0,0,0); return m;

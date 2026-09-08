@@ -36,8 +36,9 @@ function setSyncStatus(status, color) {
   const sp = status.indexOf(' ');
   const icon = sp === -1 ? status : status.slice(0, sp);
   const label = sp === -1 ? '' : status.slice(sp + 1);
-  el.innerHTML = '<span class="sync-icon" style="color:' + color + '">' + icon + '</span>' +
-    '<span class="sync-label" style="color:' + color + '"> ' + label + '</span>';
+  // icon/label können Servertext enthalten (z.B. eine Fehlermeldung aus e.message) → escapen.
+  el.innerHTML = '<span class="sync-icon" style="color:' + color + '">' + esc(icon) + '</span>' +
+    '<span class="sync-label" style="color:' + color + '"> ' + esc(label) + '</span>';
 }
 
 function openSyncModal() {
@@ -45,7 +46,7 @@ function openSyncModal() {
     '<h3>🔄 Synchronisation</h3>' +
     '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Gemeinsames Passwort für Mauro & Lena. Beide müssen dasselbe Passwort eingeben.</p>' +
     '<div class="modal-row"><label>Passwort</label>' +
-    '<input class="modal-in" type="password" id="sync-pw-input" placeholder="Euer gemeinsames Passwort" value="' + syncPassword + '"></div>' +
+    '<input class="modal-in" type="password" id="sync-pw-input" placeholder="Euer gemeinsames Passwort" value="' + esc(syncPassword) + '"></div>' +
     (syncEnabled ? '<div style="background:var(--gbg);border:1px solid var(--green);border-radius:var(--rs);padding:9px 12px;font-size:.78rem;color:var(--green);margin-bottom:10px">✅ Verbunden</div>' : '') +
     '<div class="modal-btns" style="justify-content:space-between">' +
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>' +
