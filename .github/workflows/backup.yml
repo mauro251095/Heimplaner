@@ -88,12 +88,17 @@ jobs:
           cd ziel
           git config user.name "Heimplaner Backup"
           git config user.email "actions@github.com"
+          # Ein frisch angelegtes, leeres Repo hat noch keinen Branch: der Klon
+          # landet auf einem namenlosen HEAD, und ein blosses "git push" bräche
+          # mit "no upstream branch" ab. checkout -B setzt in beiden Fällen
+          # einen sauberen main-Branch, -u trägt das Ziel gleich ein.
+          git checkout -B main
           git add -A
           if git diff --cached --quiet; then
             echo "Keine Änderungen seit dem letzten Backup"
           else
             git commit -m "Backup $stempel"
-            git push
+            git push -u origin main
             echo "✅ Backup $stempel gesichert"
           fi
 
@@ -110,5 +115,5 @@ jobs:
           done
           if ! git diff --cached --quiet; then
             git commit -m "Alte Backups ausgedünnt"
-            git push
+            git push origin main
           fi

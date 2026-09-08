@@ -70,7 +70,7 @@ function disconnectSync() {
   syncEnabled = false;
   syncPassword = '';
   localStorage.removeItem('hp_sync_pw');
-  clearInterval(syncPollTimer);
+  clearTimeout(syncPollTimer);
   setSyncStatus('⚪ Nicht verbunden', 'var(--muted)');
   closeModal();
   _toast('Synchronisation getrennt');
@@ -282,19 +282,54 @@ async function syncPollOnce() {
   }
 }
 
-function startSyncPolling() {
-  clearInterval(syncPollTimer);
-  // Nicht pollen, solange die App im Hintergrund liegt (anderer Tab, Handy
-  // gesperrt) — dort bringt ein Abruf niemandem etwas. Beim Zurückkehren wird
-  // einmal sofort nachgezogen, damit der erste Blick aktuell ist.
-  syncPollTimer = setInterval(() => {
-    if (document.hidden) return;
-    syncPollOnce();
-  }, 15000);
+// ── Poll-Takt ───────────────────────────────────────────────────────
+// 15 Sekunden, solange jemand die App tatsächlich bedient. Nach 5 Minuten
+// ohne Eingabe auf 60 Sekunden hoch, bei der ersten Berührung sofort zurück.
+//
+// Der Grund ist das Netlify-Kontingent: ein sichtbarer, aber unbenutzter Tab
+// am Desktop pollt sonst 5760-mal pro Tag und verbraucht damit still das
+// Budget, das die App zum Laufen braucht. Für den gefühlten Sofort-Sync beim
+// gemeinsamen Einkaufen ändert sich nichts — dabei tippt und tappt man ja.
+const POLL_AKTIV_MS = 15000;
+const POLL_RUHE_MS = 60000;
+const RUHE_AB_MS = 5 * 60000;
+let letzteInteraktion = Date.now();
+
+function inRuhe() {
+  return Date.now() - letzteInteraktion > RUHE_AB_MS;
 }
 
+function planeNaechstenPoll() {
+  clearTimeout(syncPollTimer);
+  syncPollTimer = setTimeout(() => {
+    // Nicht pollen, solange die App im Hintergrund liegt (anderer Tab, Handy
+    // gesperrt) — dort bringt ein Abruf niemandem etwas. Beim Zurückkehren
+    // wird über visibilitychange einmal sofort nachgezogen.
+    if (!document.hidden) syncPollOnce();
+    planeNaechstenPoll();
+  }, inRuhe() ? POLL_RUHE_MS : POLL_AKTIV_MS);
+}
+
+function startSyncPolling() {
+  letzteInteraktion = Date.now();
+  planeNaechstenPoll();
+}
+
+function merkeInteraktion() {
+  const kamAusRuhe = inRuhe();
+  letzteInteraktion = Date.now();
+  // Nur neu planen, wenn wir gerade im langsamen Takt waren — sonst würde
+  // jeder Tastendruck den laufenden Poll immer wieder nach hinten schieben.
+  if (kamAusRuhe && syncEnabled) planeNaechstenPoll();
+}
+
+document.addEventListener('pointerdown', merkeInteraktion, { passive: true });
+document.addEventListener('keydown', merkeInteraktion, { passive: true });
+
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && syncEnabled) syncPollOnce();
+  if (document.hidden) return;
+  merkeInteraktion();
+  if (syncEnabled) syncPollOnce();
 });
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -102,11 +102,40 @@ async function loadReminderData() {
   return rows[0].data || {};
 }
 
+// Minuten seit Mitternacht in Zürcher Ortszeit — unabhängig davon, dass der
+// Server in UTC läuft und die Schweiz je nach Jahreszeit ein oder zwei Stunden
+// vorgeht.
+function zurichMinutesOfDay(date) {
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false })
+    .formatToParts(date).reduce((a, x) => (a[x.type] = x.value, a), {});
+  return parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+}
+
+// Nachtruhe: ab 23:05 bis 06:00 Zürcher Zeit wird nichts verschickt.
+// Warum 23:05 und nicht 23:00: der Lauf um 23:00 deckt mit seinem
+// rückblickenden Fenster noch die Erinnerungen ab, die zwischen 22:54 und
+// 23:00 fällig wurden. Würde man dort schon abbrechen, gingen die verloren.
+const NACHT_START_MIN = 23 * 60 + 5;
+const NACHT_ENDE_MIN = 6 * 60;
+
+function istNachtruhe(date) {
+  const m = zurichMinutesOfDay(date);
+  return m >= NACHT_START_MIN || m < NACHT_ENDE_MIN;
+}
+
 export default async () => {
   if (!SUPABASE_URL || !SUPABASE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     console.error('push-check: SUPABASE_URL/SUPABASE_KEY/VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY fehlen');
     return new Response('missing env vars', { status: 500 });
   }
+
+  // Zweite, genaue Hälfte der Nachtpause. Die grobe Eingrenzung macht der
+  // Zeitplan unten (der spart die Aufrufe), aber der läuft in UTC und kann
+  // der Sommerzeit nicht folgen — diese Prüfung schneidet die Ränder sauber ab.
+  if (istNachtruhe(new Date())) {
+    return new Response('Nachtruhe', { status: 200 });
+  }
+
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
   // Nur laden, was für Erinnerungen gebraucht wird.
@@ -126,7 +155,9 @@ export default async () => {
   // Rückblickendes Fenster: erfasst alles, was seit dem letzten Lauf fällig wurde.
   // (Ein vorausschauendes Fenster verpasst Erinnerungen, sobald der Cron-Lauf
   // auch nur ein paar Sekunden nach der eigentlichen Fälligkeit startet.)
-  const windowStart = now - 5 * 60000;
+  // Eine Minute mehr als das Cron-Intervall (5 Min), damit zwischen zwei Läufen
+  // nichts durchrutscht. Die Überschneidung fängt die Dedup-Tabelle ab.
+  const windowStart = now - 6 * 60000;
   const todayKey = zurichDateKey(new Date(now));
   const tomorrowKey = addDaysToKey(todayKey, 1);
   const due = [];
@@ -208,4 +239,17 @@ export default async () => {
   return new Response(`sent ${sent} notification(s) for ${toSend.length} reminder(s)`, { status: 200 });
 };
 
-export const config = { schedule: '* * * * *' };
+// Alle 5 Minuten statt jede Minute, und nur in den UTC-Stunden 4–22.
+//
+// Warum die Stundeneingrenzung hier und nicht nur in der Function: ein früher
+// Abbruch IM Code spart zwar Supabase-Abfragen, aber der Netlify-Aufruf ist
+// trotzdem passiert und zählt aufs Kontingent. Nur ein engerer Zeitplan spart
+// echte Aufrufe.
+//
+// Warum 4–22 UTC: der Zeitplan kann der Sommerzeit nicht folgen. Das Fenster
+// deckt die Zürcher Zeit 06:00–23:59 im Sommer (UTC+2) und 05:00–23:59 im
+// Winter (UTC+1) ab — also immer etwas mehr als nötig. Die genaue Grenze
+// zieht istNachtruhe() oben.
+//
+// 43'200 Läufe/Monat -> rund 6'800.
+export const config = { schedule: '*/5 4-22 * * *' };
