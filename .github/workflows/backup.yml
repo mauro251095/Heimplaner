@@ -1,0 +1,114 @@
+name: Wöchentliches Backup
+
+# Sichert den Heimplaner-Datensatz einmal pro Woche als JSON in ein
+# SEPARATES, PRIVATES Repo.
+#
+# Warum nicht in dieses Repo: mauro251095/Heimplaner ist öffentlich. Notizen,
+# Budgetzahlen und Geburtstage haben dort nichts verloren.
+#
+# Warum überhaupt: Supabase hält genau eine aktuelle Version, und der
+# Gratistarif bietet keine Wiederherstellung nach Zeitpunkt. Ein fehlerhafter
+# Merge oder ein Fehlgriff im Client überschreibt sie ersatzlos. Der Workflow
+# dient nebenbei als Keep-Alive (siehe supabase-keepalive.yml).
+#
+# ── Einmalige Einrichtung ────────────────────────────────────────────
+# 1. Privates Repo anlegen, z.B. mauro251095/heimplaner-backup
+# 2. Personal Access Token (Fine-grained) erstellen, nur für dieses eine
+#    Repo, Berechtigung "Contents: Read and write"
+# 3. Hier unter Settings → Secrets and variables → Actions hinterlegen:
+#      BACKUP_REPO   z.B. mauro251095/heimplaner-backup
+#      BACKUP_TOKEN  das Token aus Schritt 2
+#      APP_PASSWORD  ist bereits vorhanden (Keep-Alive nutzt es)
+#
+# Ohne diese Secrets bricht der Lauf mit einer klaren Meldung ab, statt
+# still nichts zu tun.
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'   # sonntags 04:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Secrets prüfen
+        env:
+          BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+          BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+        run: |
+          fehlt=""
+          [ -z "$BACKUP_REPO" ]  && fehlt="$fehlt BACKUP_REPO"
+          [ -z "$BACKUP_TOKEN" ] && fehlt="$fehlt BACKUP_TOKEN"
+          [ -z "$APP_PASSWORD" ] && fehlt="$fehlt APP_PASSWORD"
+          if [ -n "$fehlt" ]; then
+            echo "❌ Fehlende Secrets:$fehlt"
+            echo "Siehe Einrichtungshinweis oben in dieser Datei."
+            exit 1
+          fi
+          echo "✅ Alle Secrets vorhanden"
+
+      - name: Datensatz abrufen
+        env:
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+        run: |
+          status=$(curl -sS -o roh.json -w "%{http_code}" \
+            -H "x-app-password: $APP_PASSWORD" \
+            "https://sage-salmiakki-4ab33e.netlify.app/.netlify/functions/sync")
+          if [ "$status" != "200" ]; then
+            echo "❌ Abruf fehlgeschlagen (HTTP $status)"
+            exit 1
+          fi
+          # Plausibilitätsprüfung: lieber kein Backup als ein leeres, das ein
+          # gutes überschreibt.
+          groesse=$(stat -c%s roh.json)
+          if [ "$groesse" -lt 500 ]; then
+            echo "❌ Antwort verdächtig klein ($groesse Byte) – kein Backup geschrieben"
+            cat roh.json
+            exit 1
+          fi
+          python3 -c "import json,sys; d=json.load(open('roh.json'));
+          assert isinstance(d.get('data'), dict), 'Feld data fehlt oder ist kein Objekt'
+          assert d['data'].get('tasks') is not None, 'tasks fehlt – Datensatz unvollständig'
+          print('OK, %d Byte, Bereiche: %s' % ($groesse, ', '.join(sorted(d['data'].keys())[:12])))"
+
+      - name: Ins private Backup-Repo committen
+        env:
+          BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+          BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+        run: |
+          git clone --depth 1 "https://x-access-token:$BACKUP_TOKEN@github.com/$BACKUP_REPO.git" ziel
+          mkdir -p ziel/backups
+          stempel=$(date -u +"%Y-%m-%d")
+          # Hübsch formatiert, damit git diff zwischen zwei Ständen lesbar ist
+          # und man sieht, was sich geändert hat.
+          python3 -c "import json; json.dump(json.load(open('roh.json')), open('ziel/backups/heimplaner-$stempel.json','w'), ensure_ascii=False, indent=1, sort_keys=True)"
+          cp "ziel/backups/heimplaner-$stempel.json" ziel/aktuell.json
+          cd ziel
+          git config user.name "Heimplaner Backup"
+          git config user.email "actions@github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Keine Änderungen seit dem letzten Backup"
+          else
+            git commit -m "Backup $stempel"
+            git push
+            echo "✅ Backup $stempel gesichert"
+          fi
+
+      - name: Alte Backups ausdünnen
+        env:
+          BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+          BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+        run: |
+          cd ziel
+          # Die letzten 26 Wochenstände behalten (ein halbes Jahr). Die
+          # Git-Historie bleibt ohnehin vollständig erhalten.
+          ls -1 backups/heimplaner-*.json 2>/dev/null | sort | head -n -26 | while read f; do
+            git rm -q "$f"
+          done
+          if ! git diff --cached --quiet; then
+            git commit -m "Alte Backups ausgedünnt"
+            git push
+          fi
