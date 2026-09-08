@@ -211,6 +211,9 @@ function mergeData(remote) {
 
   Object.assign(HP, remote);
   HP.deleted = mergedDeleted;
+  // Auch nach dem Merge kürzen: sonst holt sich das Gerät die abgelaufenen
+  // Tombstones des Partnergeräts bei jedem Poll wieder herein.
+  pruneTombstones(HP);
   SYNCED_ARRAY_TYPES.forEach(t => { HP[t] = mergeArrayById(localSnapshot[t], remote[t], mergedDeleted[t]); });
   HP.tasks = mergeTaskLists(localTasks, remote.tasks, mergedDeleted.tasks);
   Object.keys(OBJECT_MAP_TYPES).forEach(t => {
@@ -241,6 +244,7 @@ async function mergeBeforeSave() {
       mergedDeleted[t] = mergeDeletedMap((HP.deleted||{})[t], (remote.deleted||{})[t]);
     });
     HP.deleted = mergedDeleted;
+    pruneTombstones(HP);
     SYNCED_ARRAY_TYPES.forEach(t => { HP[t] = mergeArrayById(HP[t], remote[t], mergedDeleted[t]); });
     HP.tasks = mergeTaskLists(HP.tasks, remote.tasks, mergedDeleted.tasks);
     Object.keys(OBJECT_MAP_TYPES).forEach(t => {
@@ -251,25 +255,47 @@ async function mergeBeforeSave() {
   } catch(e) { /* best effort – normaler Save läuft trotzdem weiter */ }
 }
 
+// Ein Poll-Durchlauf: fragt zuerst nur den Zeitstempel ab (~50 Byte, ?meta=1)
+// und holt den vollen Datensatz erst, wenn sich tatsächlich etwas geändert hat.
+// Da sich in den allermeisten 15-Sekunden-Fenstern nichts ändert, sinkt das
+// übertragene Volumen um ein Vielfaches, ohne dass sich am Verhalten etwas
+// ändert — der Sync fühlt sich genauso "live" an wie vorher.
+async function syncPollOnce() {
+  if (!syncEnabled) return;
+  try {
+    const metaRes = await fetch(SYNC_URL + '?meta=1', { headers: { 'x-app-password': syncPassword } });
+    if (!metaRes.ok) return;
+    const meta = await metaRes.json();
+    if (!meta.updated_at || meta.updated_at === lastSyncedAt) return;
+
+    const res = await fetch(SYNC_URL, { headers: { 'x-app-password': syncPassword } });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (json.updated_at && json.updated_at !== lastSyncedAt) {
+      lastSyncedAt = json.updated_at;
+      mergeData(json.data);
+      setSyncStatus('🟢 Aktualisiert', 'var(--green)');
+      _toast('🔄 Daten aktualisiert');
+    }
+  } catch(e) {
+    setSyncStatus('🟡 Offline', 'var(--amber)');
+  }
+}
+
 function startSyncPolling() {
   clearInterval(syncPollTimer);
-  syncPollTimer = setInterval(async () => {
-    if (!syncEnabled) return;
-    try {
-      const res = await fetch(SYNC_URL, { headers: { 'x-app-password': syncPassword } });
-      if (!res.ok) return;
-      const json = await res.json();
-      if (json.updated_at && json.updated_at !== lastSyncedAt) {
-        lastSyncedAt = json.updated_at;
-        mergeData(json.data);
-        setSyncStatus('🟢 Aktualisiert', 'var(--green)');
-        _toast('🔄 Daten aktualisiert');
-      }
-    } catch(e) {
-      setSyncStatus('🟡 Offline', 'var(--amber)');
-    }
+  // Nicht pollen, solange die App im Hintergrund liegt (anderer Tab, Handy
+  // gesperrt) — dort bringt ein Abruf niemandem etwas. Beim Zurückkehren wird
+  // einmal sofort nachgezogen, damit der erste Blick aktuell ist.
+  syncPollTimer = setInterval(() => {
+    if (document.hidden) return;
+    syncPollOnce();
   }, 15000);
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && syncEnabled) syncPollOnce();
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   // HP_save überschreiben damit Änderungen automatisch synchronisiert werden

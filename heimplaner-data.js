@@ -727,6 +727,7 @@ function loadState() {
         d.tasks[w] = d.tasks[w].map(t => ({important:false,...t}));
       });
       migrateBuiltinRecipes(d);
+      pruneTombstones(d);
       return d;
     }
   } catch(e) {}
@@ -770,6 +771,29 @@ function markDeleted(type, id) {
   if (!HP.deleted) HP.deleted = {};
   if (!HP.deleted[type]) HP.deleted[type] = {};
   HP.deleted[type][id] = Date.now();
+}
+
+// Tombstones werden bei jeder Synchronisierung mitübertragen und wuchsen bisher
+// unbegrenzt — nach zwei Jahren besteht ein spürbarer Teil jeder Übertragung aus
+// Grabsteinen für Einkaufsartikel, die längst abgehakt sind.
+// 90 Tage sind grosszügig: beide Geräte haben in dieser Zeit garantiert
+// synchronisiert, danach kann ein Tombstone nichts mehr wiederherstellen
+// verhindern, weil es den zugehörigen Eintrag nirgends mehr gibt.
+const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+function pruneTombstones(d) {
+  if (!d || !d.deleted) return 0;
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS;
+  let removed = 0;
+  Object.keys(d.deleted).forEach(type => {
+    const map = d.deleted[type];
+    if (!map || typeof map !== 'object') return;
+    Object.keys(map).forEach(id => {
+      // Fehlender/ungültiger Zeitstempel: behalten, nicht raten.
+      if (typeof map[id] === 'number' && map[id] < cutoff) { delete map[id]; removed++; }
+    });
+  });
+  return removed;
 }
 
 // ── Helpers ──────────────────────────────────────────
@@ -934,3 +958,14 @@ function loggedInPersonKey() {
 
 // Initialise global state
 const HP = loadState();
+
+// Browser dürfen localStorage unter Speicherdruck ohne Rückfrage räumen (Safari
+// am aggressivsten). Da der lokale Stand zwischen zwei Synchronisierungen die
+// einzige Kopie frisch eingetippter Änderungen ist, bitten wir einmal um
+// dauerhaften Speicher. Wird die Anfrage abgelehnt, ändert sich nichts —
+// deshalb ohne Rückmeldung an den Nutzer.
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persisted()
+    .then(already => already ? true : navigator.storage.persist())
+    .catch(() => {});
+}

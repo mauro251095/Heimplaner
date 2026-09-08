@@ -32,9 +32,16 @@ exports.handler = async (event) => {
 
   try {
     // GET — Daten laden
+    // ?meta=1 liefert NUR den Zeitstempel (ohne den kompletten Datensatz).
+    // Der Client pollt damit alle 15 s ~50 Byte statt des ganzen HP-Objekts und
+    // holt die Vollversion erst, wenn sich updated_at tatsächlich geändert hat.
+    // Spart Supabase-Egress UND Netlify-Bandbreite, weil beides durch diese
+    // Function läuft. Ohne den Parameter bleibt das Verhalten unverändert.
     if (event.httpMethod === 'GET') {
+      const metaOnly = (event.queryStringParameters || {}).meta === '1';
+      const select = metaOnly ? 'updated_at' : 'data,updated_at';
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/heimplaner_sync?id=eq.shared&select=data,updated_at`,
+        `${SUPABASE_URL}/rest/v1/heimplaner_sync?id=eq.shared&select=${select}`,
         {
           headers: {
             'apikey': SUPABASE_KEY,
