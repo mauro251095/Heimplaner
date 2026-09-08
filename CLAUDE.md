@@ -65,7 +65,9 @@ If you add a new JS file, decide deliberately where in this order it belongs (it
 
 ## Features
 
-Weekly planner, shopping list, meal planner with an editable recipe library (currently 34 recipes, incl. mealprep and bettybossi.ch imports), monthly calendar, pinboard, and an AI assistant with voice input.
+Weekly planner, shopping list, meal planner with an editable recipe library (currently 34 recipes, incl. mealprep and bettybossi.ch imports), monthly calendar, pinboard, budget tracking, birthdays, and web-push reminders.
+
+There is **no AI assistant and no voice input** — the remnants were removed (they had been unreachable: no UI elements, and the referenced `sendAiMessage()` no longer existed). Don't reintroduce either without asking.
 
 Recipes live in `HP.customRecipes` (synced, editable via pencil icon) — the old hardcoded `RECIPES` array in `heimplaner-data.js` is migrated into `customRecipes` once on load and now serves only as that migration seed. A copy-paste importer for bettybossi.ch recipes (`parseBettyBossiRecipe` in `heimplaner-app.js`) parses pasted recipe text client-side (no network calls) into the same format, with a preview/correction step before saving.
 
@@ -74,3 +76,10 @@ Recipes live in `HP.customRecipes` (synced, editable via pencil icon) — the ol
 - No build tooling — test changes by opening `index.html` directly or via a simple static server; don't introduce a bundler/framework without asking first
 - When changing shared data shapes (in `heimplaner-data.js`), check `heimplaner-sync.js` for how that shape is serialized to/from Supabase — a mismatch breaks cross-device sync silently
 - Keep changes scoped to the relevant file(s); this is a small app and cross-cutting refactors should be called out explicitly before doing them
+
+## Security
+
+- **The GitHub repo is public.** Never commit secrets, and assume the function URLs and the whole auth scheme are known to anyone.
+- Anything from `HP` (user text, synced partner data, imported bettybossi.ch recipes) must go through `esc()` from `heimplaner-data.js` before it lands in `innerHTML` — including inside `value="…"` and `onclick="…('X')"` attributes. Use `textContent` where only text is shown.
+- `_headers` holds the CSP and security headers. A strict `script-src`/`style-src` is currently impossible because of the inline `onclick` handlers and the inline `<style>` block; `connect-src 'self'` is what actually limits the damage of an injection.
+- `netlify/functions/sync.js` and `push-subscribe.js` are gated by `APP_PASSWORD` (the sync password the user types), **not** by the login. The login token in `localStorage` is client-written and unvalidated — it gates the UI only, not data access.
