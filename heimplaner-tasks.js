@@ -202,10 +202,11 @@ function taskReminderOptions(selected) {
 
 function openTaskModal(tid,dateKey='') {
   const task=allTasks().find(t=>t.id===tid); if(!task) return;
-  const st=getStatus(tid), note=HP.taskNotes[tid]||'';
+  dateKey=dateKey||dk(new Date());
+  const st=getStatus(tid,dateKey), note=HP.taskNotes[tid]||'';
   const isImportant = task.important || false;
   const stBtns=[['open','⬜ Offen'],['wip','🟡 In Arbeit'],['blocked','🔴 Blockiert'],['done','✅ Erledigt']]
-    .map(([s,l])=>'<button class="st-btn'+(st===s?' sel-'+s:'')+'" onclick="setTaskStatus(\''+tid+'\',\''+s+'\',this)">'+l+'</button>').join('');
+    .map(([s,l])=>'<button class="st-btn'+(st===s?' sel-'+s:'')+'" onclick="setTaskStatus(\''+tid+'\',\''+dateKey+'\',\''+s+'\',this)">'+l+'</button>').join('');
   const occLabel=dateKey?new Date(dateKey+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'}):'';
   showModal('<h3>'+esc(task.name)+'</h3>'+
     '<div class="modal-row"><label>Emoji</label>'+
@@ -247,6 +248,10 @@ function deleteTaskOccurrence(tid,dateKey) {
     delete HP.taskComments[tid][dateKey];
     if(!Object.keys(HP.taskComments[tid]).length) delete HP.taskComments[tid];
   }
+  if(HP.taskStatus && HP.taskStatus[tid]) {
+    delete HP.taskStatus[tid][dateKey];
+    if(!Object.keys(HP.taskStatus[tid]).length) delete HP.taskStatus[tid];
+  }
   HP_save();closeModal();render();
   if(typeof renderMonth==='function') renderMonth();
   showToast('🗑 Einzelner Termin entfernt');
@@ -264,8 +269,11 @@ function deleteTaskSeries(tid) {
   if(typeof renderMonth==='function') renderMonth();
   showToast('🗑 Serie "'+task.name+'" gelöscht');
 }
-function setTaskStatus(tid,status,btn) {
-  HP.taskStatus[tid]=status;
+function setTaskStatus(tid,dateKey,status,btn) {
+  if(!HP.taskStatus[tid]) HP.taskStatus[tid]={};
+  if(status==='open') delete HP.taskStatus[tid][dateKey];
+  else HP.taskStatus[tid][dateKey]=status;
+  if(!Object.keys(HP.taskStatus[tid]).length) delete HP.taskStatus[tid];
   document.querySelectorAll('.st-btn').forEach(b=>b.className='st-btn');
   btn.className='st-btn sel-'+status;
   const bs=document.getElementById('block-sec'); if(bs) bs.style.display=status==='blocked'?'':'none';

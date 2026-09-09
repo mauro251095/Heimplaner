@@ -15,12 +15,12 @@ function renderTodayBanner() {
   const todayKey=dk(today);
   const dayEv=(HP.events||[]).filter(e=>e.date===todayKey);
   const dayT=tasks.filter(t=>taskOccursOn(t,todayKey));
-  const doneC=dayT.filter(t=>isDone(today,t.id)||getStatus(t.id)==='done').length;
-  const prioOpen=dayT.filter(t=>t.prio&&!isDone(today,t.id)&&getStatus(t.id)!=='done').length;
+  const doneC=dayT.filter(t=>getStatus(t.id,todayKey)==='done').length;
+  const prioOpen=dayT.filter(t=>t.prio&&getStatus(t.id,todayKey)!=='done').length;
   const evChips=dayEv.map(e=>'<span class="tbc '+(e.important?'tbc-important':'tbc-'+e.who+' tbc-event')+'" onclick="openEventModal(\''+esc(e.id)+'\')">'+esc(e.emoji)+' '+esc(e.name)+'</span>').join('');
   const taskChips=dayT.map(t=>{
-    const d=isDone(today,t.id)||getStatus(t.id)==='done';
-    const si=getStatus(t.id)==='wip'?'🟡':getStatus(t.id)==='blocked'?'🔴':getStatus(t.id)==='done'?'✅':'';
+    const d=getStatus(t.id,todayKey)==='done';
+    const si=getStatus(t.id,todayKey)==='wip'?'🟡':getStatus(t.id,todayKey)==='blocked'?'🔴':d?'✅':'';
     return '<span class="tbc '+(t.important?'tbc-important':'tbc-'+t.who)+(d?' done':'')+(t.prio?' tbc-prio':'')+'" onclick="openTaskModal(\''+esc(t.id)+'\',\''+todayKey+'\')">'+(t.prio?'● ':'')+esc(t.emoji)+' '+esc(t.name)+(si?' '+si:'')+'</span>';
   }).join('');
   const chips=(evChips+taskChips)||'<span style="font-size:.76rem;color:var(--muted)">Keine Aufgaben heute</span>';
@@ -34,7 +34,7 @@ function renderTodayBanner() {
 function renderBlockedBanners() {
   const today=new Date(); today.setHours(0,0,0,0);
   const todayKey=dk(today);
-  const blocked=allTasks().filter(t=>!t.onceDate&&taskOccursOn(t,todayKey)&&getStatus(t.id)==='blocked');
+  const blocked=allTasks().filter(t=>!t.onceDate&&taskOccursOn(t,todayKey)&&getStatus(t.id,todayKey)==='blocked');
   const el=document.getElementById('blocked-banners');
   if(el) el.innerHTML=blocked.map(t=>
     '<div class="blocked-banner" onclick="openTaskModal(\''+esc(t.id)+'\',\''+todayKey+'\')">🔴 <b>'+esc(t.emoji)+' '+esc(t.name)+'</b> ist blockiert'+
@@ -67,7 +67,7 @@ function renderWeekGrid() {
     const m2=String(date.getMonth()+1).padStart(2,'0'),d2=String(date.getDate()).padStart(2,'0');
     const dayBdays=(HP.birthdays||[]).filter(b=>b.date.slice(5)===m2+'-'+d2);
     const dayMeals=HP.meals[key]||{};
-    const doneT=dayT.filter(t=>isDone(date,t.id)||getStatus(t.id)==='done');
+    const doneT=dayT.filter(t=>getStatus(t.id,key)==='done');
     const pct=(dayT.length+dayEv.length)?Math.round(doneT.length/(dayT.length+dayEv.length)*100):0;
     const col=document.createElement('div');
     col.className='day-col'+(isToday(date)?' is-today':'')+(isPast(date)&&!isToday(date)?' is-past':'');
@@ -100,7 +100,7 @@ function renderWeekGrid() {
           (linkedNote?'<span style="font-size:.65rem;opacity:.7;flex-shrink:0;cursor:pointer" title="Verknüpfte Notiz öffnen" onclick="event.stopPropagation();openEditNote(\''+esc(linkedNote.id)+'\')">🔗</span>':'');
         chip.addEventListener('click',()=>openEventModal(e.id));
       } else {
-        const t=data, d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
+        const t=data, st=getStatus(t.id,key), d=st==='done';
         const si=st==='wip'?'🟡':st==='blocked'?'🔴':'';
         chip.className='task-chip '+(t.important?'c-important':'c'+t.who)+' s-'+st+(d?' done':'');
         const cmt=((HP.taskComments||{})[t.id]||{})[key]||'';
@@ -125,7 +125,7 @@ function renderPersonView(who) {
   const dates=getWeekDates(weekOffset), today=new Date(); today.setHours(0,0,0,0);
   const tasks=allTasks(who), n=HP.names[who], color=who==='p1'?'var(--p1)':'var(--p2)';
   let tot=0,done=0;
-  dates.forEach((date,di)=>{const dt=tasks.filter(t=>!t.onceDate&&taskOccursOn(t,dk(date)));tot+=dt.length;dt.forEach(t=>{if(isDone(date,t.id)||getStatus(t.id)==='done')done++;});});
+  dates.forEach((date,di)=>{const key=dk(date);const dt=tasks.filter(t=>!t.onceDate&&taskOccursOn(t,key));tot+=dt.length;dt.forEach(t=>{if(getStatus(t.id,key)==='done')done++;});});
   const pct=tot?Math.round(done/tot*100):0;
   const hd=document.getElementById('pv-hd');
   if(hd) hd.innerHTML='<div class="pv-av pv-av-'+who+'">'+esc(n.charAt(0).toUpperCase())+'</div>'+
@@ -136,7 +136,7 @@ function renderPersonView(who) {
     '<button onclick="openQuickAddTask(\''+who+'\')" style="margin-left:12px;background:var(--p1bg);border:1px solid var(--p1);border-radius:var(--rs);color:var(--p1);font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;padding:6px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Aufgabe</button>';
   const pvDays=document.getElementById('pv-days'); if(!pvDays) return; pvDays.innerHTML='';
   dates.forEach((date,di)=>{
-    const tl=isToday(date), dayT=tasks.filter(t=>!t.onceDate&&taskOccursOn(t,dk(date)));
+    const key=dk(date), tl=isToday(date), dayT=tasks.filter(t=>!t.onceDate&&taskOccursOn(t,key));
     const sorted=[...dayT].sort((a,b)=>a.prio&&!b.prio?-1:!a.prio&&b.prio?1:0);
     const row=document.createElement('div'); row.className='pv-day-row';
     row.innerHTML='<div class="pvdl'+(tl?' tlbl':'')+'"><div class="pvd">'+DS[di]+(tl?' · Heute':'')+'</div>'+
@@ -146,13 +146,13 @@ function renderPersonView(who) {
     const tc=row.querySelector('#pvt-'+di);
     if(!sorted.length){tc.innerHTML='<span class="empty-day">Frei 🎉</span>';return;}
     sorted.forEach(t=>{
-      const d=isDone(date,t.id)||getStatus(t.id)==='done', st=getStatus(t.id);
+      const st=getStatus(t.id,key), d=st==='done';
       const pill=document.createElement('div');
       pill.className='pv-pill '+(t.important?'p-important':(t.who==='shared'?'pshared':'p'+t.who[1]))+(d?' s-done':'')+(t.prio?' is-prio':'')+(st==='blocked'?' s-blocked':'');
       pill.innerHTML=esc(t.emoji)+' '+esc(t.name)+
         (st==='wip'?'<span class="pst wip">🟡</span>':st==='blocked'?'<span class="pst blk">🔴</span>':'')+
         (t.who==='shared'?'<span style="font-size:.62rem;opacity:.55"> gem.</span>':'');
-      pill.addEventListener('click',()=>openTaskModal(t.id,dk(date)));
+      pill.addEventListener('click',()=>openTaskModal(t.id,key));
       tc.appendChild(pill);
     });
   });

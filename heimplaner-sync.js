@@ -163,7 +163,21 @@ function mergeArrayById(local, remote, deletedMap) {
 // deletedIds (Tombstones der zugehörigen Liste, tasks bzw. events) entfernt
 // verwaiste Einträge, damit eine gelöschte Aufgabe/ein gelöschter Termin nicht
 // über taskStatus/taskNotes/... "auferstehen" kann.
-function mergeObjectMap(local, remote, deletedIds) {
+function mergeObjectMap(local, remote, deletedIds, nested) {
+  if (nested) {
+    // Zweistufige Maps (tid -> dateKey -> Wert): ein flacher Object.assign auf
+    // der äusseren Ebene würde bei gleicher tid die komplette innere Map der
+    // anderen Seite verwerfen — z.B. wenn Mauro Montag und Melissa Dienstag
+    // fürs gleiche Serien-Task abhakt, bevor der jeweils andere Poll lief.
+    // Deshalb auf der inneren Ebene ebenfalls mergen (lokal gewinnt bei
+    // Datums-Konflikt, neue Daten vom Partnergerät bleiben erhalten).
+    const out = {};
+    new Set([...Object.keys(remote||{}), ...Object.keys(local||{})]).forEach(id=>{
+      out[id] = Object.assign({}, (remote||{})[id], (local||{})[id]);
+    });
+    if (deletedIds) Object.keys(deletedIds).forEach(id=>delete out[id]);
+    return out;
+  }
   const out = Object.assign({}, remote||{}, local||{});
   if (deletedIds) Object.keys(deletedIds).forEach(id=>delete out[id]);
   return out;
@@ -176,6 +190,9 @@ const OBJECT_MAP_TYPES = {
   eventStatus: 'events', eventNotes: 'events', eventComments: 'events',
   colors: null, budgetLimits: null
 };
+
+// tid/eid -> dateKey -> Wert (im Gegensatz zu tid -> Wert bei den übrigen Maps).
+const NESTED_MAP_TYPES = new Set(['taskStatus', 'taskComments', 'taskExceptions']);
 
 // Merged zwei Tombstone-Maps (id -> Lösch-Zeitstempel): Union der Keys, jeweils
 // der jüngere Zeitstempel gewinnt.
@@ -218,7 +235,7 @@ function mergeData(remote) {
   HP.tasks = mergeTaskLists(localTasks, remote.tasks, mergedDeleted.tasks);
   Object.keys(OBJECT_MAP_TYPES).forEach(t => {
     const tombKey = OBJECT_MAP_TYPES[t];
-    HP[t] = mergeObjectMap(localMaps[t], remote[t], tombKey ? mergedDeleted[tombKey] : null);
+    HP[t] = mergeObjectMap(localMaps[t], remote[t], tombKey ? mergedDeleted[tombKey] : null, NESTED_MAP_TYPES.has(t));
   });
   if (!HP.budgetLimits.p1) HP.budgetLimits.p1 = {};
   if (!HP.budgetLimits.p2) HP.budgetLimits.p2 = {};
@@ -249,7 +266,7 @@ async function mergeBeforeSave() {
     HP.tasks = mergeTaskLists(HP.tasks, remote.tasks, mergedDeleted.tasks);
     Object.keys(OBJECT_MAP_TYPES).forEach(t => {
       const tombKey = OBJECT_MAP_TYPES[t];
-      HP[t] = mergeObjectMap(HP[t], remote[t], tombKey ? mergedDeleted[tombKey] : null);
+      HP[t] = mergeObjectMap(HP[t], remote[t], tombKey ? mergedDeleted[tombKey] : null, NESTED_MAP_TYPES.has(t));
     });
     try { localStorage.setItem(SK, JSON.stringify(HP)); } catch(e) {}
   } catch(e) { /* best effort – normaler Save läuft trotzdem weiter */ }

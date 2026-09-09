@@ -34,7 +34,7 @@ function renderMonth() {
           const e=data, est=getEventStatus(e.id), esi=est==='wip'?' 🟡':est==='blocked'?' 🔴':'';
           return '<div class="mc-event '+(e.important?'mc-event-important':'e'+(e.who==='shared'?'sh':e.who)+' mc-event-once')+'">'+esc(e.emoji)+' '+esc(e.name)+esi+'</div>';
         }
-        const t=data, tst=getStatus(t.id), tsi=tst==='wip'?' 🟡':tst==='blocked'?' 🔴':'';
+        const t=data, tst=getStatus(t.id,key), tsi=tst==='wip'?' 🟡':tst==='blocked'?' 🔴':'';
         return '<div class="mc-event '+(t.important?'mc-event-important':'e'+(t.who==='shared'?'sh':t.who))+'">'+esc(t.emoji)+' '+esc(t.name)+tsi+'</div>';
       })
     ].join('');
@@ -71,7 +71,7 @@ function openDayDetail(key) {
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.81rem;border-radius:6px;margin-bottom:2px;cursor:pointer" onclick="closeModal();openTaskModal(\''+esc(t.id)+'\',\''+key+'\')">'+
         '<span style="color:'+(t.who==='p1'?'var(--p1)':t.who==='p2'?'var(--p2)':'var(--shared)')+'">'+esc(t.emoji)+'</span>'+
         '<span style="flex:1">'+esc(t.name)+'</span>'+(t.time?'<span style="font-size:.7rem;color:var(--muted)">⏰'+esc(fmtTimeRange(t.time,t.timeEnd))+'</span>':'')+
-        (isDone(date,t.id)?'<span style="color:var(--green)">✓</span>':'')+'</div>';
+        (getStatus(t.id,key)==='done'?'<span style="color:var(--green)">✓</span>':'')+'</div>';
   }).join('') : '<div style="font-size:.78rem;color:var(--muted);padding:6px 0">Keine Termine oder Aufgaben</div>';
   const mealsHtml=['Frühstück','Mittag','Abend'].map(s=>'<div style="display:flex;gap:8px;padding:4px 0;font-size:.79rem">'+
     '<span style="color:var(--muted);width:70px;flex-shrink:0">'+s+'</span>'+

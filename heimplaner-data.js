@@ -708,6 +708,7 @@ function loadState() {
       if (!d.notes) d.notes = [];
       if (!d.customRecipes) d.customRecipes = [];
       if (!d.taskStatus) d.taskStatus = {};
+      migrateTaskStatus(d);
       if (!d.taskNotes) d.taskNotes = {};
       if (!d.colors) d.colors = {...DEFAULT_COLORS};
       if (!d.theme) d.theme = 'dark';
@@ -736,7 +737,7 @@ function loadState() {
     names: {p1:'Mauro', p2:'Melissa'},
     colors: {...DEFAULT_COLORS},
     theme: 'dark',
-    done: {}, taskStatus: {}, taskNotes: {},
+    taskStatus: {}, taskNotes: {},
     shop: [], meals: {}, notes: [], customRecipes: [],
     events: [], birthdays: [], taskComments: {},
     eventStatus: {}, eventNotes: {}, eventComments: {},
@@ -746,6 +747,18 @@ function loadState() {
   };
   migrateBuiltinRecipes(fresh);
   return fresh;
+}
+
+// Einmalige Migration: HP.taskStatus[tid] war früher ein einzelner Wert
+// ("done"/"wip"/"blocked") für die ganze Serie — dadurch blieb ein einmal
+// abgehakter Task für immer (auch für die Zukunft) abgehakt. Neu ist es eine
+// Map dateKey -> status. Ein alter, noch flacher Wert wird bestmöglich dem
+// heutigen Datum zugeordnet, statt ihn ersatzlos zu verwerfen.
+function migrateTaskStatus(d) {
+  const todayKey = dk(new Date());
+  Object.keys(d.taskStatus).forEach(tid => {
+    if (typeof d.taskStatus[tid] === 'string') d.taskStatus[tid] = {[todayKey]: d.taskStatus[tid]};
+  });
 }
 
 // Einmalige Migration: überführt die vormals fest im Code stehenden RECIPES
@@ -886,14 +899,17 @@ function wkNum(d) {
   const w1=new Date(dt.getFullYear(),0,4);
   return 1+Math.round(((dt-w1)/86400000-3+(w1.getDay()+6)%7)/7);
 }
-function isDone(date,tid) { const k=dk(date);return !!(HP.done[k]&&HP.done[k][tid]); }
 function taskOccursOn(t,dateKey) {
   const di=(new Date(dateKey+'T12:00:00').getDay()+6)%7;
   if(!t.days.includes(di)) return false;
   if(HP.taskExceptions && HP.taskExceptions[t.id] && HP.taskExceptions[t.id][dateKey]) return false;
   return true;
 }
-function getStatus(tid) { return HP.taskStatus[tid]||'open'; }
+// Status (offen/in Arbeit/blockiert/erledigt) gilt pro Vorkommen einer Serie,
+// nicht für die ganze Serie — sonst wäre ein am Montag abgehakter Task auch
+// am Dienstag und in aller Zukunft "erledigt". Deshalb HP.taskStatus[tid] als
+// Map dateKey -> status statt eines einzelnen Werts pro Task.
+function getStatus(tid,dateKey) { return (HP.taskStatus[tid]||{})[dateKey]||'open'; }
 function getEventStatus(eid) { return (HP.eventStatus||{})[eid]||'open'; }
 function fmtTime(t) { if(!t)return '';const[h,m]=t.split(':');return h+':'+m; }
 function fmtTimeRange(start,end) { if(!start)return ''; return end?fmtTime(start)+'–'+fmtTime(end):fmtTime(start); }

@@ -169,6 +169,29 @@ pruefe('Tombstone entfernt verwaisten Status-Eintrag', () => {
 });
 
 // ═══════════════════════════════════════════════════════════
+gruppe('Verschachtelter Merge pro Vorkommen (mergeObjectMap, nested=true)');
+
+pruefe('Status an verschiedenen Tagen derselben Serie bleibt von beiden Geräten erhalten', () => {
+  // Mauro hakt Montag ab, Melissa (noch nicht synchronisiert) Dienstag —
+  // ein flacher Merge auf tid-Ebene würde hier eine der beiden Vorkommen verwerfen.
+  const local = {t1: {'2026-09-08':'done'}};
+  const remote = {t1: {'2026-09-09':'done'}};
+  const r = mergeObjectMap(local, remote, null, true);
+  return gleich([r.t1['2026-09-08'], r.t1['2026-09-09']], ['done', 'done']);
+});
+
+pruefe('Bei Konflikt am selben Tag gewinnt der lokale Status', () => {
+  const local = {t1: {'2026-09-08':'done'}};
+  const remote = {t1: {'2026-09-08':'blocked'}};
+  return gleich(mergeObjectMap(local, remote, null, true), {t1: {'2026-09-08':'done'}});
+});
+
+pruefe('Tombstone entfernt die ganze verschachtelte Map einer gelöschten Aufgabe', () => {
+  const local = {t1: {'2026-09-08':'done'}};
+  return gleich(mergeObjectMap(local, null, {t1: Date.now()}, true), {});
+});
+
+// ═══════════════════════════════════════════════════════════
 gruppe('Tombstones (mergeDeletedMap, pruneTombstones)');
 
 pruefe('Union beider Seiten, jüngerer Zeitstempel gewinnt', () => {
@@ -224,6 +247,20 @@ pruefe('Gelöschte Aufgabe kommt über keine der drei Listen zurück', () => {
 pruefe('Fehlendes Aufgaben-Objekt wirft nicht', () => {
   const r = mergeTaskLists(null, null, null);
   return gleich([r.p1, r.p2, r.shared], [[],[],[]]);
+});
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Task-Status pro Vorkommen (getStatus)');
+
+pruefe('Ein an einem Tag abgehakter Task bleibt an anderen Tagen offen', () => {
+  HP.taskStatus = {};
+  HP.taskStatus['x1'] = {'2026-09-08':'done'};
+  return getStatus('x1','2026-09-08')==='done' && getStatus('x1','2026-09-09')==='open';
+});
+
+pruefe('Ohne Eintrag ist der Status "open"', () => {
+  HP.taskStatus = {};
+  return getStatus('unbekannt','2026-09-09')==='open';
 });
 
 // ═══════════════════════════════════════════════════════════

@@ -37,9 +37,10 @@ function buildNoteTaskSection(linkedEventId) {
   return '<div class="modal-row"><label>Bestehenden Termin verknüpfen</label>' +
     '<select class="modal-in" id="note-event-id">' + eventOpts + '</select></div>' +
     '<div class="modal-row"><label style="font-size:.7rem;color:var(--muted)">— oder neuen Termin erstellen —</label>' +
-    '<div style="display:flex;gap:6px">' +
-    '<input class="modal-in" id="note-new-event-name" placeholder="Terminname…" style="flex:1">' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+    '<input class="modal-in" id="note-new-event-name" placeholder="Terminname…" style="flex:1;min-width:140px">' +
     '<input class="modal-in" type="date" id="note-new-event-date" style="width:140px">' +
+    '<input class="modal-in" type="time" id="note-new-event-time" title="Uhrzeit (optional, für die Erinnerung nötig)" style="width:100px">' +
     '<select class="modal-in" id="note-new-event-who" style="width:110px">' +
     '<option value="p1">'+esc(HP.names.p1)+'</option><option value="p2">'+esc(HP.names.p2)+'</option>'+
     '<option value="shared" selected>Gemeinsam</option>'+
@@ -64,12 +65,13 @@ function saveNewNote(){
   // Handle new event creation
   const newEventName = document.getElementById('note-new-event-name')?.value.trim();
   const newEventDate = document.getElementById('note-new-event-date')?.value;
+  const newEventTime = document.getElementById('note-new-event-time')?.value || '';
   const newEventWho = document.getElementById('note-new-event-who')?.value || 'shared';
   let linkedEventId = document.getElementById('note-event-id')?.value || '';
   if(newEventName && newEventDate) {
     const eid = 'ev' + Date.now();
     if(!HP.events) HP.events = [];
-    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:'',who:newEventWho,important:false,note:'',updatedAt:Date.now()});
+    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:newEventTime,who:newEventWho,important:false,note:'',updatedAt:Date.now()});
     linkedEventId = eid;
     showToast('📅 Termin "' + newEventName + '" erstellt');
   } else if(newEventName && !newEventDate) {
@@ -107,12 +109,13 @@ function saveEditNote(id){
   // Handle new event
   const newEventName = document.getElementById('note-new-event-name')?.value.trim();
   const newEventDate = document.getElementById('note-new-event-date')?.value;
+  const newEventTime = document.getElementById('note-new-event-time')?.value || '';
   const newEventWho = document.getElementById('note-new-event-who')?.value || 'shared';
   let linkedEventId = document.getElementById('note-event-id')?.value || '';
   if(newEventName && newEventDate) {
     const eid = 'ev' + Date.now();
     if(!HP.events) HP.events = [];
-    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:'',who:newEventWho,important:false,note:'',updatedAt:Date.now()});
+    HP.events.push({id:eid,emoji:'📅',name:newEventName,date:newEventDate,time:newEventTime,who:newEventWho,important:false,note:'',updatedAt:Date.now()});
     linkedEventId = eid;
     showToast('📅 Termin "' + newEventName + '" erstellt');
   } else if(newEventName && !newEventDate) {
