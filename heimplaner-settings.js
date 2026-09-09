@@ -149,7 +149,7 @@ function exportDayICS(key){
   const date=new Date(key+'T12:00:00');
   const evs=[];
   // Recurring tasks with time
-  allTasks().filter(t=>!t.onceDate&&taskOccursOn(t,key)&&t.time).forEach(t=>{
+  allTasks().filter(t=>taskOccursOn(t,key)&&t.time).forEach(t=>{
     const[h,m]=t.time.split(':').map(Number), s=new Date(date); s.setHours(h,m,0,0);
     let e;
     if(t.timeEnd){const[eh,em]=t.timeEnd.split(':').map(Number);e=new Date(date);e.setHours(eh,em,0,0);if(e<=s)e.setHours(eh+24,em,0,0);}

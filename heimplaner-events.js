@@ -168,7 +168,7 @@ function openEventModal(id) {
     '<button class="mbtn mbtn-confirm" style="margin-top:8px;width:100%;background:var(--shared)" onclick="addBlockedEventToShop(\''+id+'\')">🛒 Zur Einkaufsliste</button></div>'+
     '<div class="modal-row" id="ev-comment-section">'+
     '<label>💬 Kommentar</label>'+
-    '<textarea class="modal-in" id="ev-comment" rows="2" placeholder="Notiz zum Termin…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+((HP.eventComments||{})[id]||'')+'</textarea>'+
+    '<textarea class="modal-in" id="ev-comment" rows="2" placeholder="Notiz zum Termin…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+esc((HP.eventComments||{})[id]||'')+'</textarea>'+
     '</div>'+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn" style="background:var(--surface);border:1px solid var(--border)" onclick="openEditEvent(\''+id+'\')">✏️ Bearbeiten</button>'+
@@ -195,7 +195,11 @@ function setEventStatus(id,status,btn) {
   if(e && e.chore && e.recur && status==='done'){
     e.date=advanceDateKey(e.date,e.recur.unit,e.recur.value,e.recur.weekday,e.recur.nth);
     e.updatedAt=Date.now();
+    // Status, Blockiert-Notiz und Kommentar gehören zum jetzigen Fälligkeitstermin —
+    // sonst taucht z.B. ein alter Blockiert-Grund beim nächsten Termin wieder auf.
     if(HP.eventStatus) delete HP.eventStatus[id];
+    if(HP.eventNotes) delete HP.eventNotes[id];
+    if(HP.eventComments) delete HP.eventComments[id];
     HP_save();closeModal();render();
     if(typeof renderMonth==='function')renderMonth();
     if(typeof renderHouseholdList==='function')renderHouseholdList();

@@ -77,9 +77,15 @@ async function upsertRow(url, key, row) {
  * Bewusst fail-open: Ist die Tabelle nicht vorhanden oder Supabase gerade
  * nicht erreichbar, greift weiterhin die reine Passwortprüfung. Ein Fehler
  * in der Bremse darf euch nicht aus eurer eigenen App aussperren.
+ *
+ * Standardmässig wird der x-app-password-Header zeitkonstant gegen
+ * `appPassword` geprüft (sync.js, push-subscribe.js). auth.js hat kein
+ * einzelnes Passwort, sondern schlägt einen Benutzernamen in HP_USERS nach —
+ * dafür überschreibt `verify(event)` die Prüfung, die Bremse (IP-Zähler,
+ * Sperre) bleibt dieselbe.
  */
-async function guardPassword(event, headers, { supabaseUrl, supabaseKey, appPassword }) {
-  const provided = (event.headers || {})['x-app-password'];
+async function guardPassword(event, headers, { supabaseUrl, supabaseKey, appPassword, verify }) {
+  const passes = () => (typeof verify === 'function' ? !!verify(event) : safeEqual((event.headers || {})['x-app-password'], appPassword));
   const ip = clientIp(event);
   const now = Date.now();
 
@@ -101,7 +107,7 @@ async function guardPassword(event, headers, { supabaseUrl, supabaseKey, appPass
     };
   }
 
-  if (safeEqual(provided, appPassword)) {
+  if (passes()) {
     // Erfolg: Zähler nur zurücksetzen, wenn tatsächlich etwas zu löschen ist.
     if (row && row.fails > 0) {
       try {

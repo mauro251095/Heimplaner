@@ -61,7 +61,7 @@ function setView(view, btn) {
   document.querySelectorAll('.vbtn,[data-view]').forEach(b=>{
     b.classList.toggle('active', b.dataset&&b.dataset.view===view);
   });
-  const views=['all','person','shop','budget','meals','recipes','manage','month','pinboard','ai','settings','birthdays','household'];
+  const views=['all','person','shop','budget','meals','recipes','manage','month','pinboard','settings','birthdays','household'];
   views.forEach(v=>document.getElementById('view-'+v)?.classList.add('hidden'));
   const target=document.getElementById('view-'+( view==='p1'||view==='p2'?'person':view ));
   if(target) target.classList.remove('hidden');

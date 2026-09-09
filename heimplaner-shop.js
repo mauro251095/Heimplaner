@@ -151,11 +151,11 @@ function clearBought(){
 function showDuplicateModal(existing,q,u) {
   showModal('<h3>🛒 Bereits auf der Liste</h3>'+
     '<div class="dup-warn">⚠️ <b>'+esc(existing.name)+'</b> ist bereits auf der Liste ('+esc([existing.qty,existing.unit].filter(Boolean).join(' '))+').</div>'+
-    '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Menge erhöhen'+(q?' (+'+q+(u?' '+u:'')+')':'')+' oder separat hinzufügen?</p>'+
+    '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Menge erhöhen'+(q?' (+'+esc(q)+(u?' '+esc(u):'')+')':'')+' oder separat hinzufügen?</p>'+
     '<div class="modal-btns" style="justify-content:space-between">'+
     '<button class="mbtn mbtn-cancel" onclick="closeModal()">Abbrechen</button>'+
     '<button class="mbtn" style="background:var(--surface);color:var(--text)" onclick="addSeparate(\''+esc(existing.name)+'\',\''+esc(q)+'\',\''+esc(u)+'\')">Separat</button>'+
-    '<button class="mbtn mbtn-confirm" onclick="increaseQty(\''+existing.id+'\',\''+q+'\')">Erhöhen</button></div>');
+    '<button class="mbtn mbtn-confirm" onclick="increaseQty(\''+existing.id+'\',\''+esc(q)+'\')">Erhöhen</button></div>');
 }
 function increaseQty(id,q){const i=HP.shop.find(x=>x.id===id);if(i){i.qty=i.qty?i.qty+'+'+q:q;i.updatedAt=Date.now();}HP_save();closeModal();renderShop();showToast('Menge angepasst');}
 function addSeparate(name,qty,unit){closeModal();HP.shop.push({id:'sh'+Date.now(),name,qty,unit,cat:'Sonstiges',bought:false,taskId:null,taskName:null,updatedAt:Date.now()});HP_save();renderShop();renderSidebarStats();showToast(name+' separat hinzugefügt');}

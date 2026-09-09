@@ -228,7 +228,7 @@ function openTaskModal(tid,dateKey='') {
     '<button class="mbtn mbtn-confirm" style="margin-top:8px;width:100%;background:var(--shared)" onclick="addBlockedToShop(\''+tid+'\')">🛒 Zur Einkaufsliste</button></div>'+
     '<div class="modal-row" id="comment-section">'+
     '<label>💬 Kommentar</label>'+
-    '<textarea class="modal-in" id="task-comment" rows="2" placeholder="Notiz zum Task…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+(((HP.taskComments||{})[tid]||{})[dateKey]||'')+'</textarea>'+
+    '<textarea class="modal-in" id="task-comment" rows="2" placeholder="Notiz zum Task…" style="resize:vertical;font-family:Inter,sans-serif;font-size:.79rem">'+esc(((HP.taskComments||{})[tid]||{})[dateKey]||'')+'</textarea>'+
     '</div>'+
     '<div class="modal-row" style="display:flex;flex-direction:column;gap:6px;background:var(--rbg);border:1px solid var(--red);border-radius:var(--rs);padding:10px">'+
     (dateKey?'<button class="mbtn" style="width:100%;background:none;border:1px solid var(--red);color:var(--red)" onclick="deleteTaskOccurrence(\''+tid+'\',\''+dateKey+'\')">🗑 Nur den Termin am '+occLabel+' aus der Serie löschen</button>':'')+

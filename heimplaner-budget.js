@@ -140,7 +140,7 @@ function openBudgetLimitsModal(person) {
     '<input class="modal-in" type="number" step="1" min="0" value="'+budgetLimit(person,cat)+'" '+
     'oninput="updateBudgetLimit(\''+person+'\',\''+cat+'\',this.value)"></div>'
   ).join('');
-  showModal('<h3>⚙️ Monatslimits – '+HP.names[person]+'</h3>'+
+  showModal('<h3>⚙️ Monatslimits – '+esc(HP.names[person])+'</h3>'+
     '<div style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Änderungen wirken sofort für den laufenden Monat, CHF.</div>'+
     rows+
     '<div class="modal-btns"><button class="mbtn mbtn-confirm" onclick="closeModal()">✓ Fertig</button></div>');

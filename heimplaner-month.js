@@ -22,8 +22,7 @@ function renderMonth() {
     const date=new Date(base.getFullYear(),base.getMonth(),day);
     date.setHours(12,0,0,0);
     const di=(date.getDay()+6)%7, key=dk(date), isT=dk(date)===dk(today);
-    // Include both recurring tasks AND once-tasks matching this date
-    const dayT=tasks.filter(t=>!t.onceDate&&taskOccursOn(t,key));
+    const dayT=tasks.filter(t=>taskOccursOn(t,key));
     const dayEvents=(HP.events||[]).filter(e=>e.date===key);
     const mm=String(date.getMonth()+1).padStart(2,'0'),dd2=String(date.getDate()).padStart(2,'0');
     const dayBdaysM=(HP.birthdays||[]).filter(b=>b.date.slice(5)===mm+'-'+dd2);
@@ -48,7 +47,7 @@ function goMonthToday(){monthViewOffset=0;renderMonth();}
 function openDayDetail(key) {
   // Fix: use noon time to avoid timezone off-by-one
   const date=new Date(key+'T12:00:00'), di=(date.getDay()+6)%7;
-  const tasks=allTasks().filter(t=>!t.onceDate&&taskOccursOn(t,key));
+  const tasks=allTasks().filter(t=>taskOccursOn(t,key));
   const events=(HP.events||[]).filter(e=>e.date===key);
   const meals=HP.meals[key]||{};
   const label=date.toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long'});

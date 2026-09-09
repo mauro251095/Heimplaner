@@ -3,7 +3,16 @@
 // Prüft Benutzername/Passwort serverseitig gegen HP_USERS.
 // HP_USERS verlässt den Server nie — nur ein Erfolg/Misserfolg
 // wird zurückgegeben.
+//
+// Gleiche Fehlversuchsbremse (IP-basiert, Supabase-gestützt) und
+// zeitkonstanter Vergleich wie sync.js/push-subscribe.js — vorher liess sich
+// dieser Endpunkt mit beliebig vielen Versuchen pro Sekunde durchprobieren.
 // ═══════════════════════════════════════════════
+
+const { guardPassword, safeEqual } = require('../lib/throttle');
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 function parseUsers(raw) {
   const users = {};
@@ -41,8 +50,13 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false }) };
     }
     const users = parseUsers(process.env.HP_USERS || '');
-    const ok = users[username] === password;
-    return { statusCode: 200, headers, body: JSON.stringify({ ok }) };
+    const denied = await guardPassword(event, headers, {
+      supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY,
+      verify: () => safeEqual(users[username], password)
+    });
+    if (denied) return denied;
+
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (e) {
     return { statusCode: 400, headers, body: JSON.stringify({ ok: false }) };
   }

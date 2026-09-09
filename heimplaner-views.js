@@ -34,7 +34,7 @@ function renderTodayBanner() {
 function renderBlockedBanners() {
   const today=new Date(); today.setHours(0,0,0,0);
   const todayKey=dk(today);
-  const blocked=allTasks().filter(t=>!t.onceDate&&taskOccursOn(t,todayKey)&&getStatus(t.id,todayKey)==='blocked');
+  const blocked=allTasks().filter(t=>taskOccursOn(t,todayKey)&&getStatus(t.id,todayKey)==='blocked');
   const el=document.getElementById('blocked-banners');
   if(el) el.innerHTML=blocked.map(t=>
     '<div class="blocked-banner" onclick="openTaskModal(\''+esc(t.id)+'\',\''+todayKey+'\')">🔴 <b>'+esc(t.emoji)+' '+esc(t.name)+'</b> ist blockiert'+
@@ -125,7 +125,7 @@ function renderPersonView(who) {
   const dates=getWeekDates(weekOffset), today=new Date(); today.setHours(0,0,0,0);
   const tasks=allTasks(who), n=HP.names[who], color=who==='p1'?'var(--p1)':'var(--p2)';
   let tot=0,done=0;
-  dates.forEach((date,di)=>{const key=dk(date);const dt=tasks.filter(t=>!t.onceDate&&taskOccursOn(t,key));tot+=dt.length;dt.forEach(t=>{if(getStatus(t.id,key)==='done')done++;});});
+  dates.forEach((date,di)=>{const key=dk(date);const dt=tasks.filter(t=>taskOccursOn(t,key));tot+=dt.length;dt.forEach(t=>{if(getStatus(t.id,key)==='done')done++;});});
   const pct=tot?Math.round(done/tot*100):0;
   const hd=document.getElementById('pv-hd');
   if(hd) hd.innerHTML='<div class="pv-av pv-av-'+who+'">'+esc(n.charAt(0).toUpperCase())+'</div>'+
@@ -136,7 +136,7 @@ function renderPersonView(who) {
     '<button onclick="openQuickAddTask(\''+who+'\')" style="margin-left:12px;background:var(--p1bg);border:1px solid var(--p1);border-radius:var(--rs);color:var(--p1);font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;padding:6px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Aufgabe</button>';
   const pvDays=document.getElementById('pv-days'); if(!pvDays) return; pvDays.innerHTML='';
   dates.forEach((date,di)=>{
-    const key=dk(date), tl=isToday(date), dayT=tasks.filter(t=>!t.onceDate&&taskOccursOn(t,key));
+    const key=dk(date), tl=isToday(date), dayT=tasks.filter(t=>taskOccursOn(t,key));
     const sorted=[...dayT].sort((a,b)=>a.prio&&!b.prio?-1:!a.prio&&b.prio?1:0);
     const row=document.createElement('div'); row.className='pv-day-row';
     row.innerHTML='<div class="pvdl'+(tl?' tlbl':'')+'"><div class="pvd">'+DS[di]+(tl?' · Heute':'')+'</div>'+
