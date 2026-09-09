@@ -1,0 +1,24 @@
+name: Tests
+
+# Führt die 75 Checks aus test.html headless aus (siehe scripts/run-tests.mjs).
+# Ersetzt nicht den manuellen Blick in den Browser vor einem Push, fängt aber
+# ab, wenn der vergessen geht. Braucht keine Secrets — die Checks laufen rein
+# gegen die Client-Logik, ohne Supabase/Netlify anzufassen.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test

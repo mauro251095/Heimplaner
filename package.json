@@ -1,7 +1,13 @@
 {
   "name": "heimplaner",
   "private": true,
+  "scripts": {
+    "test": "node scripts/run-tests.mjs"
+  },
   "dependencies": {
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
   }
 }
