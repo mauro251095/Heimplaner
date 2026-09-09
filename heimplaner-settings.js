@@ -194,9 +194,6 @@ function closeMobDrawer(e){if(e.target===e.currentTarget||e.target.classList.con
 function closeMobDrawerDirect(){document.getElementById('mob-drawer')?.classList.remove('open');}
 function syncMobDrawer(){
   renderMiniMonth('mini-cal-mob','mm-label-mob');
-  const rn=document.getElementById('mob-ring-num'); if(rn)rn.textContent=document.getElementById('ring-num')?.textContent||'';
-  const rs=document.getElementById('mob-streak'); if(rs)rs.textContent=document.getElementById('st-streak')?.textContent||'';
-  const rb=document.getElementById('mob-blocked'); if(rb)rb.textContent=document.getElementById('st-blocked')?.textContent||'';
 }
 function changeWeek(d){weekOffset+=d;render();}
 function goToday(){weekOffset=0;render();}

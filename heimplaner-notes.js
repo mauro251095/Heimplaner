@@ -140,19 +140,41 @@ function deleteNote(id){
   confirmDeleteNote(id,false);
 }
 function confirmDeleteNote(id,alsoEvent){
-  const n=(HP.notes||[]).find(x=>x.id===id);
-  if(alsoEvent && n && n.linkedEventId) {
-    markDeleted('events', n.linkedEventId);
-    HP.events=(HP.events||[]).filter(e=>e.id!==n.linkedEventId);
-    if(HP.eventStatus) delete HP.eventStatus[n.linkedEventId];
-    if(HP.eventNotes) delete HP.eventNotes[n.linkedEventId];
-    if(HP.eventComments) delete HP.eventComments[n.linkedEventId];
+  const n=(HP.notes||[]).find(x=>x.id===id); if(!n) return;
+  // Nebendaten mitsichern, sonst kämen Notiz (und ggf. Termin) beim
+  // Rückgängig ohne Status/Kommentare zurück.
+  let eventWeg=null, eventNebendaten=null;
+  if(alsoEvent && n.linkedEventId) {
+    eventWeg=(HP.events||[]).find(e=>e.id===n.linkedEventId);
+    if(eventWeg){
+      eventNebendaten={
+        status:(HP.eventStatus||{})[n.linkedEventId],
+        notiz:(HP.eventNotes||{})[n.linkedEventId],
+        kommentare:(HP.eventComments||{})[n.linkedEventId]
+      };
+      markDeleted('events', n.linkedEventId);
+      HP.events=(HP.events||[]).filter(e=>e.id!==n.linkedEventId);
+      if(HP.eventStatus) delete HP.eventStatus[n.linkedEventId];
+      if(HP.eventNotes) delete HP.eventNotes[n.linkedEventId];
+      if(HP.eventComments) delete HP.eventComments[n.linkedEventId];
+    }
   }
   markDeleted('notes', id);
   HP.notes=(HP.notes||[]).filter(x=>x.id!==id);
-  HP_save();closeModal();renderPinboard();render();
-  if(typeof renderMonth==='function')renderMonth();
-  showToast(alsoEvent?'🗑 Notiz & Termin gelöscht':'🗑 Notiz gelöscht');
+  const neuZeichnen=()=>{ renderPinboard(); render(); if(typeof renderMonth==='function')renderMonth(); };
+  HP_save();closeModal();neuZeichnen();
+  showUndoToast(eventWeg?'🗑 Notiz & Termin gelöscht':'🗑 Notiz gelöscht', ()=>{
+    unmarkDeleted('notes', id);
+    n.updatedAt=Date.now(); HP.notes.unshift(n);
+    if(eventWeg){
+      unmarkDeleted('events', eventWeg.id);
+      eventWeg.updatedAt=Date.now(); HP.events.push(eventWeg);
+      if(eventNebendaten.status!==undefined){ HP.eventStatus=HP.eventStatus||{}; HP.eventStatus[eventWeg.id]=eventNebendaten.status; }
+      if(eventNebendaten.notiz!==undefined){ HP.eventNotes=HP.eventNotes||{}; HP.eventNotes[eventWeg.id]=eventNebendaten.notiz; }
+      if(eventNebendaten.kommentare!==undefined){ HP.eventComments=HP.eventComments||{}; HP.eventComments[eventWeg.id]=eventNebendaten.kommentare; }
+    }
+    HP_save();neuZeichnen();showToast('Wiederhergestellt');
+  });
 }
 
 

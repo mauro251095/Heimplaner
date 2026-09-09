@@ -240,7 +240,12 @@ function openTaskModal(tid,dateKey='') {
 function deleteTaskOccurrence(tid,dateKey) {
   const task=allTasks().find(t=>t.id===tid); if(!task) return;
   const label=new Date(dateKey+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'});
-  if(!confirm('Nur "'+task.name+'" am '+label+' löschen?\nVergangene und zukünftige Termine dieser Serie bleiben bestehen.')) return;
+  // Nebendaten für diesen Tag mitsichern, sonst kämen Kommentar/Status beim
+  // Rückgängig nicht zurück.
+  const nebendaten={
+    kommentar:(HP.taskComments||{})[tid]?.[dateKey],
+    status:(HP.taskStatus||{})[tid]?.[dateKey]
+  };
   if(!HP.taskExceptions) HP.taskExceptions={};
   if(!HP.taskExceptions[tid]) HP.taskExceptions[tid]={};
   HP.taskExceptions[tid][dateKey]=true;
@@ -252,22 +257,48 @@ function deleteTaskOccurrence(tid,dateKey) {
     delete HP.taskStatus[tid][dateKey];
     if(!Object.keys(HP.taskStatus[tid]).length) delete HP.taskStatus[tid];
   }
-  HP_save();closeModal();render();
-  if(typeof renderMonth==='function') renderMonth();
-  showToast('🗑 Einzelner Termin entfernt');
+  const neuZeichnen=()=>{ render(); if(typeof renderMonth==='function') renderMonth(); };
+  HP_save();closeModal();neuZeichnen();
+  showUndoToast('🗑 "'+task.name+'" am '+label+' entfernt', ()=>{
+    if(HP.taskExceptions && HP.taskExceptions[tid]) {
+      delete HP.taskExceptions[tid][dateKey];
+      if(!Object.keys(HP.taskExceptions[tid]).length) delete HP.taskExceptions[tid];
+    }
+    if(nebendaten.kommentar!==undefined){ HP.taskComments=HP.taskComments||{}; HP.taskComments[tid]=HP.taskComments[tid]||{}; HP.taskComments[tid][dateKey]=nebendaten.kommentar; }
+    if(nebendaten.status!==undefined){ HP.taskStatus=HP.taskStatus||{}; HP.taskStatus[tid]=HP.taskStatus[tid]||{}; HP.taskStatus[tid][dateKey]=nebendaten.status; }
+    HP_save();neuZeichnen();showToast('Wiederhergestellt');
+  });
 }
 function deleteTaskSeries(tid) {
   const task=allTasks().find(t=>t.id===tid); if(!task) return;
-  if(!confirm('Die komplette Serie "'+task.name+'" (alle Wochentage) löschen?\nDies kann nicht rückgängig gemacht werden.')) return;
+  const who=task.who;
+  // Nebendaten mitsichern, sonst käme die Serie beim Rückgängig ohne Status,
+  // Notiz, Kommentare und Ausnahmen zurück.
+  const weg=HP.tasks[who].find(t=>t.id===tid);
+  const nebendaten={
+    status:HP.taskStatus[tid],
+    notiz:HP.taskNotes[tid],
+    kommentare:(HP.taskComments||{})[tid],
+    ausnahmen:(HP.taskExceptions||{})[tid]
+  };
   markDeleted('tasks', tid);
-  ['p1','p2','shared'].forEach(w=>{HP.tasks[w]=HP.tasks[w].filter(t=>t.id!==tid);});
+  HP.tasks[who]=HP.tasks[who].filter(t=>t.id!==tid);
   delete HP.taskStatus[tid];
   delete HP.taskNotes[tid];
   if(HP.taskComments) delete HP.taskComments[tid];
   if(HP.taskExceptions) delete HP.taskExceptions[tid];
-  HP_save();closeModal();render();
-  if(typeof renderMonth==='function') renderMonth();
-  showToast('🗑 Serie "'+task.name+'" gelöscht');
+  const neuZeichnen=()=>{ render(); if(typeof renderMonth==='function') renderMonth(); };
+  HP_save();closeModal();neuZeichnen();
+  showUndoToast('🗑 Serie "'+task.name+'" gelöscht', ()=>{
+    if(!weg) return;
+    unmarkDeleted('tasks',tid);
+    weg.updatedAt=Date.now(); HP.tasks[who].push(weg);
+    if(nebendaten.status!==undefined){ HP.taskStatus[tid]=nebendaten.status; }
+    if(nebendaten.notiz!==undefined){ HP.taskNotes[tid]=nebendaten.notiz; }
+    if(nebendaten.kommentare!==undefined){ HP.taskComments=HP.taskComments||{}; HP.taskComments[tid]=nebendaten.kommentare; }
+    if(nebendaten.ausnahmen!==undefined){ HP.taskExceptions=HP.taskExceptions||{}; HP.taskExceptions[tid]=nebendaten.ausnahmen; }
+    HP_save();neuZeichnen();showToast('Wiederhergestellt');
+  });
 }
 function setTaskStatus(tid,dateKey,status,btn) {
   if(!HP.taskStatus[tid]) HP.taskStatus[tid]={};
