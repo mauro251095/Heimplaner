@@ -28,3 +28,13 @@
 
 /index.html
   Cache-Control: no-cache
+
+# Die JS-Dateien tragen keinen Hash/keine Versionsnummer im Dateinamen (kein
+# Build-Schritt) - ohne explizite Regel entscheidet CDN/Browser nach eigenen,
+# fuer uns nicht einsehbaren Heuristiken, wie lange eine Version im Cache
+# bleibt. Das heisst: nach einem Deploy mit einem Bugfix waere nicht
+# garantiert, wann jedes Geraet die neue Version bekommt. no-cache erzwingt
+# eine Revalidierung bei jedem Laden (nicht "gar kein Caching" - der Server
+# kann per ETag weiterhin mit 304 antworten, wenn sich nichts geaendert hat).
+/heimplaner-*.js
+  Cache-Control: no-cache

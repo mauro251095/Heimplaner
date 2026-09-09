@@ -131,8 +131,8 @@ function renderPersonView(who) {
   if(hd) hd.innerHTML='<div class="pv-av pv-av-'+who+'">'+esc(n.charAt(0).toUpperCase())+'</div>'+
     '<div><div class="pv-name" style="color:'+color+'">'+esc(n)+'</div><div class="pv-sub">Persönliche Wochenübersicht</div></div>'+
     '<div class="pv-stats"><div class="pv-stat"><div class="psn" style="color:'+color+'">'+done+'</div><div class="psl">Erledigt</div></div>'+
-    '<div class="pv-stat"><div class="psn">'+tot+'</div><div class="psl">Gesamt</div></div>'+
-    '<div class="pv-stat"><div class="psn" style="color:var(--today)">'+pct+'%</div><div class="psl">Quote</div></div></div>'+
+    '<div class="pv-stat"><div class="psn">'+tot+'</div><div class="psl">Gesamt</div></div></div>'+
+    '<div class="ring-bg" style="background:conic-gradient(var(--today) 0% '+pct+'%, var(--subtle) '+pct+'% 100%)" title="'+pct+'% diese Woche erledigt"><span class="ring-pct">'+pct+'%</span></div>'+
     '<button onclick="openQuickAddTask(\''+who+'\')" style="margin-left:12px;background:var(--p1bg);border:1px solid var(--p1);border-radius:var(--rs);color:var(--p1);font-family:Inter,sans-serif;font-size:.75rem;font-weight:600;padding:6px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Aufgabe</button>';
   const pvDays=document.getElementById('pv-days'); if(!pvDays) return; pvDays.innerHTML='';
   dates.forEach((date,di)=>{

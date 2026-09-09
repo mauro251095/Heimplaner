@@ -120,6 +120,32 @@ async function syncSave() {
   setSyncStatus('🟢 Synchron', 'var(--green)');
 }
 
+// ═══════════════════════════════════════════════════════════
+// NEUES HP-FELD HINZUFÜGEN — CHECKLISTE
+//
+// Ein neues Top-Level-Feld auf HP (z.B. HP.irgendwas) ist erst dann sicher
+// synchronisiert, wenn ALLE drei Stellen angepasst sind. Wird eine vergessen,
+// gibt es keinen Fehler — das Feld wird einfach beim nächsten Poll (alle
+// 15-60 Sekunden!) stillschweigend durch den Serverstand überschrieben,
+// sobald zwei Geräte gleichzeitig daran etwas ändern. Genau das war die
+// Wurzel des Task-Status-Bugs vom 09.09.2026: taskStatus stand zwar schon in
+// Liste 2, aber erst als flacher Wert statt als verschachtelte Map — der
+// Merge griff, tat aber inhaltlich das Falsche.
+//
+// 1. heimplaner-data.js, loadState(): Default ergänzen
+//    (if (!d.irgendwas) d.irgendwas = {};) plus ggf. eine Migration für
+//    bereits gespeicherte alte Datensätze (siehe migrateTaskStatus()).
+// 2. Hier unten in GENAU EINER der drei Listen eintragen:
+//    - SYNCED_ARRAY_TYPES: Liste von Objekten mit eigener id (wie events)
+//    - OBJECT_MAP_TYPES: flache Map id -> Wert (wie taskNotes)
+//      + zugehörige Tombstone-Liste ('tasks'/'events'/null) angeben
+//    - zusätzlich NESTED_MAP_TYPES, falls es eine zweistufige Map
+//      id -> datum -> Wert ist (wie taskStatus, taskComments)
+// 3. Kurz testen: Feld auf Gerät A ändern, auf Gerät B pollen lassen
+//    (oder connectSync() manuell aufrufen) — Änderung muss ankommen, OHNE
+//    dass ein gleichzeitig auf Gerät B geändertes anderes Feld verloren geht.
+// ═══════════════════════════════════════════════════════════
+
 // Datentypen, die als flache id-Arrays gemerged werden (nicht blind überschrieben).
 // 'tasks' ist gesondert unten behandelt (Objekt aus 3 Arrays: p1/p2/shared).
 const SYNCED_ARRAY_TYPES = ['events','notes','birthdays','shop','savedShopItems','customRecipes','budgetEntries'];

@@ -83,6 +83,10 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .ring-row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
 .ring-bg{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
 .ring-bg::after{content:'';position:absolute;inset:5px;border-radius:50%;background:var(--panel)}
+/* In der Personenansicht liegt der Ring auf .pv-hd (Hintergrund --surface,
+   nicht --panel) - Ausschnitt entsprechend anpassen, sonst zeigt das "Loch"
+   die falsche Fläche. */
+.pv-hd .ring-bg::after{background:var(--surface)}
 .ring-pct{font-size:.58rem;font-weight:700;color:var(--today);position:relative;z-index:1}
 .ring-info .rl{font-size:.68rem;color:var(--muted)}
 .ring-info .rn{font-size:.85rem;font-weight:600}
