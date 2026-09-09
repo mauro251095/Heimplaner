@@ -24,7 +24,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 
 <!-- Description -->
-<meta name="description" content="Persönlicher Haushaltsplaner für Mauro & Lena">
+<meta name="description" content="Persönlicher Haushaltsplaner für Mauro & Melissa">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
@@ -51,7 +51,7 @@
       <span class="mob-sec-lbl">Planer</span>
       <button class="mob-nav-btn active" data-view="all" onclick="setView('all',this);closeMobDrawerDirect()"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Wochenplaner</button>
       <button class="mob-nav-btn" data-view="p1" onclick="setView('p1',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p1)"></span><span data-sync="p1">Mauro</span></button>
-      <button class="mob-nav-btn" data-view="p2" onclick="setView('p2',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2">Lena</span></button>
+      <button class="mob-nav-btn" data-view="p2" onclick="setView('p2',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2">Melissa</span></button>
       <button class="mob-nav-btn" data-view="month" onclick="setView('month',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p1)"></span>Monatsplaner</button>
     </div>
     <div class="mob-nav-sec">
@@ -100,7 +100,7 @@
       <span class="sb-edit-btn" onclick="event.stopPropagation();renamePerson('p1')" title="Umbenennen">✏️</span>
     </button>
     <button class="vbtn" data-view="p2" onclick="setView('p2',this)" style="justify-content:space-between">
-      <span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2" id="sb-lbl-p2">Lena</span></span>
+      <span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2" id="sb-lbl-p2">Melissa</span></span>
       <span class="sb-edit-btn" onclick="event.stopPropagation();renamePerson('p2')" title="Umbenennen">✏️</span>
     </button>
     <span class="sec-lbl" style="margin-top:12px">Planer</span>
@@ -257,7 +257,7 @@
             <input type="hidden" id="af-emoji" value="⭐">
           </div>
           <input class="af-in txt" id="af-name" maxlength="200" placeholder="Aufgabe…">
-          <select class="af-sel" id="af-who"><option value="p1" id="af-op1">Mauro</option><option value="p2" id="af-op2">Lena</option><option value="shared">Gemeinsam</option></select>
+          <select class="af-sel" id="af-who"><option value="p1" id="af-op1">Mauro</option><option value="p2" id="af-op2">Melissa</option><option value="shared">Gemeinsam</option></select>
         </div>
         <div class="emoji-picker-menu hidden" id="af-emoji-menu">
           <span class="emoji-opt" onclick="selectEmoji('af-emoji','🥪')">🥪</span>
@@ -313,7 +313,7 @@
 
       <div class="tm-grid" style="margin-top:18px">
         <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p1)"></div><span id="tm-h-p1">Mauro</span></div><div class="tm-list" id="tm-p1"></div></div>
-        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p2)"></div><span id="tm-h-p2">Lena</span></div><div class="tm-list" id="tm-p2"></div></div>
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p2)"></div><span id="tm-h-p2">Melissa</span></div><div class="tm-list" id="tm-p2"></div></div>
         <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--shared)"></div><span>Gemeinsam</span></div><div class="tm-list" id="tm-shared"></div></div>
       </div>
     </div>

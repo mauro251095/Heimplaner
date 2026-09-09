@@ -116,7 +116,16 @@ function saveCustomRecipeFromMeal(key,slot){
   HP_save();closeModal();renderMeals();showToast(emoji+' '+name+' zur Bibliothek hinzugefügt');
 }
 function pickFromLibrary(key,slot){pendingMealSlot={key,slot};closeModal();setView('recipes',null);showToast('Rezept wählen → "Zum Menüplan" tippen');}
-function removeMeal(key,slot){if(HP.meals[key])delete HP.meals[key][slot];HP_save();renderMeals();}
+function removeMeal(key,slot){
+  const weg=HP.meals[key]?.[slot]; if(!weg) return;
+  delete HP.meals[key][slot];
+  HP_save();renderMeals();
+  showUndoToast('Menüplan-Eintrag entfernt', ()=>{
+    if(!HP.meals[key])HP.meals[key]={};
+    HP.meals[key][slot]=weg;
+    HP_save();renderMeals();showToast('Wiederhergestellt');
+  });
+}
 function assignMealFromRecipe(recipe){
   if(!recipe||!pendingMealSlot)return;
   const {key,slot}=pendingMealSlot;

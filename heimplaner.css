@@ -24,6 +24,9 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex}
+/* Nur bei Tastaturfokus sichtbar (nicht bei Maus-/Touch-Klick) — verbessert
+   Tastaturbedienbarkeit ohne die Optik bei normaler Mausnutzung zu ändern. */
+:focus-visible{outline:2px solid var(--p1);outline-offset:2px}
 
 
 /* ── LIGHT THEME ── */
@@ -255,7 +258,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .is-today .mdow,.is-today .mnum{color:var(--today)}
 .meal-slots{padding:6px}
 .meal-slot{margin-bottom:5px}
-.ms-lbl{font-size:.56rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:2px}
+.ms-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:2px}
 .ms-content{min-height:30px;background:var(--panel);border:1px dashed var(--border);border-radius:5px;padding:4px 6px;cursor:pointer;transition:all .15s;font-size:.69rem;color:var(--muted);display:flex;align-items:center;gap:3px}
 .ms-content:hover{border-color:var(--muted);color:var(--text)}
 .ms-content.has-meal{border-style:solid;border-color:var(--border);color:var(--text);background:var(--subtle2)}
@@ -330,7 +333,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
 .mc-num{font-size:.8rem;font-weight:600;margin-bottom:4px;color:var(--muted)}
 .month-cell.today .mc-num::before{content:"● ";font-size:.5rem;vertical-align:middle;opacity:.7}
 .month-cell.today .mc-num{color:var(--today);font-weight:700}
-.mc-event{font-size:.63rem;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.mc-event{font-size:.68rem;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
 .mc-event.ep1{background:var(--p1bg);color:var(--p1)}
 .mc-event.ep2{background:var(--p2bg);color:var(--p2)}
 .mc-event.esh{background:var(--shbg);color:var(--shared)}
@@ -396,7 +399,6 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
   .bn-badge{position:absolute;top:-4px;right:-4px;background:var(--prio);color:#fff;font-size:.55rem;font-weight:700;padding:1px 4px;border-radius:99px}
   .today-banner{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 14px}
   .week-grid{grid-template-columns:1fr;gap:7px}
-  .day-col.is-past{display:none}
   .day-head{display:flex;align-items:center;gap:10px;padding:10px 12px}
   .dh-dow{font-size:.7rem;margin-bottom:0}
   .dh-num{font-size:1.1rem}
@@ -425,7 +427,7 @@ body.light .day-col.is-today{border-color:rgba(34,197,94,0.5);}
   .tm-grid{grid-template-columns:1fr;gap:10px}
   .month-cell{min-height:68px;padding:3px}
   .mc-num{font-size:.72rem;margin-bottom:2px}
-  .mc-event{font-size:.54rem;padding:1px 3px;margin-bottom:1px;line-height:1.3}
+  .mc-event{font-size:.6rem;padding:1px 3px;margin-bottom:1px;line-height:1.3}
   .pin-grid{grid-template-columns:1fr 1fr}
   .modal{padding:18px;border-radius:16px 16px 0 0;margin:0;max-width:100%;align-self:flex-end;max-height:85dvh}
   .modal-overlay{align-items:flex-end;padding:0}

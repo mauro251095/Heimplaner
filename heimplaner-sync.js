@@ -44,7 +44,7 @@ function setSyncStatus(status, color) {
 function openSyncModal() {
   showModal(
     '<h3>🔄 Synchronisation</h3>' +
-    '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Gemeinsames Passwort für Mauro & Lena. Beide müssen dasselbe Passwort eingeben.</p>' +
+    '<p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Gemeinsames Passwort für Mauro & Melissa. Beide müssen dasselbe Passwort eingeben.</p>' +
     '<div class="modal-row"><label>Passwort</label>' +
     '<input class="modal-in" type="password" id="sync-pw-input" placeholder="Euer gemeinsames Passwort" value="' + esc(syncPassword) + '"></div>' +
     (syncEnabled ? '<div style="background:var(--gbg);border:1px solid var(--green);border-radius:var(--rs);padding:9px 12px;font-size:.78rem;color:var(--green);margin-bottom:10px">✅ Verbunden</div>' : '') +
