@@ -20,9 +20,25 @@ create table if not exists auth_throttle (
   blocked_until timestamptz
 );
 
--- Kein Zugriff über die öffentliche API: nur die Netlify-Function
--- (mit dem Service-Key) darf hier lesen und schreiben.
+-- ACHTUNG, hier steckte ein Fehler drin (korrigiert am 08.09.2026):
+-- Ursprünglich stand hier nur "enable row level security" mit der Annahme,
+-- die Functions liefen mit dem service_role-Key. Sie laufen aber mit dem
+-- anon-Key. RLS ohne Policy sperrt den aus — und zwar lautlos: das Lesen
+-- liefert eine leere Liste statt eines Fehlers, das Schreiben wird
+-- abgewiesen. Die Bremse hätte nie gezählt und nie gesperrt.
+--
+-- RLS bleibt eingeschaltet, damit die Tabelle sofort geschützt ist, falls
+-- später auf den service_role-Key gewechselt wird (der umgeht RLS und
+-- bräuchte dann keine Policy). Bis dahin erlaubt die Policy den Zugriff,
+-- den die Function braucht.
+--
+-- Der eigentliche Schutz dieser Datenbank ist derzeit, dass der Key den
+-- Server nie verlässt — nicht RLS. Siehe Hinweis am Ende der Datei.
 alter table auth_throttle enable row level security;
+
+drop policy if exists "heimplaner_throttle_access" on auth_throttle;
+create policy "heimplaner_throttle_access" on auth_throttle
+  for all using (true) with check (true);
 
 
 -- ── 2. Aufräumen des Dedup-Logs der Push-Function (D10) ───────
