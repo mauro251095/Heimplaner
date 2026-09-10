@@ -4,6 +4,29 @@
 
 const SYNC_URL = '/.netlify/functions/sync';
 
+// Entfernt "__proto__"/"constructor"/"prototype" rekursiv aus Daten vom
+// Server, bevor sie irgendwo in mergeData/mergeArrayById/mergeObjectMap
+// landen. Diese Funktionen kopieren u.a. per Object.assign(HP, remote) bzw.
+// Object.assign({}, remote, local) - ein solcher Key im JSON würde dabei
+// (Object.assign nutzt normales [[Set]], nicht [[DefineOwnProperty]]) die
+// Prototype-Kette von HP bzw. des jeweiligen Eintrags umbiegen. Die Function
+// sync.js weist das serverseitig bereits zurück; das hier ist die zweite
+// Schicht, falls doch mal unsanierte Daten im Datensatz liegen (z.B. aus der
+// Zeit vor diesem Fix, oder wenn versehentlich Netlify umgangen wird).
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function sanitizeRemote(v) {
+  if (Array.isArray(v)) return v.map(sanitizeRemote);
+  if (v && typeof v === 'object') {
+    const out = {};
+    Object.keys(v).forEach(k => {
+      if (UNSAFE_KEYS.has(k)) return;
+      out[k] = sanitizeRemote(v[k]);
+    });
+    return out;
+  }
+  return v;
+}
+
 // Sichere Aufrufe - falls App-Funktionen noch nicht geladen sind
 function _toast(msg) {
   if (typeof showToast === 'function') showToast(msg);
@@ -105,7 +128,7 @@ async function syncLoad() {
   if (!res.ok) throw new Error('Server-Fehler ' + res.status);
   const json = await res.json();
   lastSyncedAt = json.updated_at;
-  return json.data;
+  return sanitizeRemote(json.data);
 }
 
 async function syncSave() {
@@ -281,7 +304,7 @@ async function mergeBeforeSave() {
     const res = await fetch(SYNC_URL, { headers: { 'x-app-password': syncPassword } });
     if (!res.ok) return;
     const json = await res.json();
-    const remote = json && json.data; if (!remote) return;
+    const remote = json && sanitizeRemote(json.data); if (!remote) return;
     const mergedDeleted = {};
     SYNCED_ARRAY_TYPES.concat('tasks').forEach(t => {
       mergedDeleted[t] = mergeDeletedMap((HP.deleted||{})[t], (remote.deleted||{})[t]);
@@ -316,7 +339,7 @@ async function syncPollOnce() {
     const json = await res.json();
     if (json.updated_at && json.updated_at !== lastSyncedAt) {
       lastSyncedAt = json.updated_at;
-      mergeData(json.data);
+      mergeData(sanitizeRemote(json.data));
       setSyncStatus('🟢 Aktualisiert', 'var(--green)');
       _toast('🔄 Daten aktualisiert');
     }

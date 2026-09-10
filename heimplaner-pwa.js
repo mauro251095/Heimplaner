@@ -25,7 +25,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const view = params.get('view');
   if (view) {
     setTimeout(() => {
-      const btn = document.querySelector('[data-view="'+view+'"]');
+      // CSS.escape: view kommt roh aus der URL - ohne das würde z.B. ?view="]
+      // den Attribut-Selektor aufbrechen und querySelector mit SyntaxError
+      // abbrechen lassen.
+      const btn = document.querySelector('[data-view="'+CSS.escape(view)+'"]');
       if (btn) setView(view, btn);
     }, 100);
   }

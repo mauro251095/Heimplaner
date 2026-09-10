@@ -9,6 +9,29 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const APP_PASSWORD = process.env.APP_PASSWORD;
 
+// Grosszügig über dem, was Rezepte/Budget/Notizen/Menüplan heute brauchen,
+// aber weit unter dem, was Netlify Functions synchron überhaupt annehmen -
+// verhindert, dass ein Bug oder wer auch immer das Passwort kennt, mit einem
+// beliebig grossen Body das Supabase-/Netlify-Kontingent sprengt.
+const MAX_BODY_CHARS = 2_000_000;
+
+// "__proto__"/"constructor"/"prototype" als eigener, aufzählbarer Objekt-Key
+// kann nur über JSON.parse oder absichtlich entstehen (ein normales
+// Objekt-Literal {__proto__: x} setzt stattdessen das Prototype, erzeugt also
+// nie so einen Key) - taucht einer davon auf, ist das kein legitimer
+// Datensatz. Ungefiltert würde er beim nächsten Poll via
+// Object.assign(HP, remote) auf dem Partnergerät dessen Prototype-Kette
+// umbiegen (heimplaner-sync.js, mergeData). Serverseitig geprüft, weil ein
+// Angriff hier auch direkt per HTTP ohne den Client laufen könnte.
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function hasUnsafeKey(v) {
+  if (Array.isArray(v)) return v.some(hasUnsafeKey);
+  if (v && typeof v === 'object') {
+    return Object.keys(v).some(k => UNSAFE_KEYS.has(k) || hasUnsafeKey(v[k]));
+  }
+  return false;
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': 'https://sage-salmiakki-4ab33e.netlify.app',
@@ -55,8 +78,16 @@ exports.handler = async (event) => {
 
     // POST — Daten speichern
     if (event.httpMethod === 'POST') {
+      if ((event.body || '').length > MAX_BODY_CHARS) {
+        return { statusCode: 413, headers, body: JSON.stringify({ error: 'Datensatz zu gross' }) };
+      }
       const body = JSON.parse(event.body || '{}');
-      if (!body.data) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Keine Daten' }) };
+      if (!body.data || typeof body.data !== 'object' || Array.isArray(body.data)) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Keine Daten' }) };
+      }
+      if (hasUnsafeKey(body.data)) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ungültige Daten' }) };
+      }
 
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/heimplaner_sync?id=eq.shared`,

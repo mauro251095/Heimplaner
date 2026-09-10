@@ -4,8 +4,8 @@ Shared household management PWA, built for personal use by Mauro and Melissa (pa
 
 ## Repo & Deployment
 
-- GitHub repo: `mauro251095/Heimplaner`, deployed via GitHub Pages
-- Also deployed on Netlify: `sage-salmiakki-4ab33e.netlify.app`
+- GitHub repo: `mauro251095/Heimplaner`
+- Deployed on Netlify: `sage-salmiakki-4ab33e.netlify.app` — the only deployment. GitHub Pages was disabled 2026-09-10 (it had been serving a stale, header-less mirror of the same static files — `_headers`, i.e. the CSP and all other security headers, is Netlify-only and was silently ignored there)
 - Netlify serverless functions proxy to Supabase (project ref `yzgkfcdlrdaspwybpule`) for real-time sync
 - Secrets (Supabase keys, auth passwords) live in Netlify environment variables — never hardcode keys in client-side JS
 - **Production branch is `main`** — Netlify auto-deploys on every push to `main`
@@ -19,26 +19,46 @@ Shared household management PWA, built for personal use by Mauro and Melissa (pa
 
 ## File Structure
 
-Five files, each with a defined responsibility:
-
 - `index.html` — markup and shell
 - `heimplaner-login.js` — login screen + auth handling
 - `heimplaner-data.js` — data model / local state
-- `heimplaner-app.js` — UI logic, rendering, event handling
+- `heimplaner-app.js` — remaining core UI logic, rendering, event handling (what's left after the split below)
+- `heimplaner-views.js` — weekly and per-person view
+- `heimplaner-shop.js` — shopping list incl. favorites
+- `heimplaner-budget.js` — budget entries, limits, yearly stats
+- `heimplaner-meals.js` — meal planner, recipe library, bettybossi.ch importer
+- `heimplaner-tasks.js` — task management, emoji picker, task modal
+- `heimplaner-month.js` — month calendar and day detail
+- `heimplaner-notes.js` — pinboard / notes
+- `heimplaner-events.js` — one-off events and household chores
+- `heimplaner-birthdays.js` — birthdays
+- `heimplaner-settings.js` — push subscription, import/export, theme, colors, init
 - `heimplaner-sync.js` — Supabase sync via Netlify function proxy
 - `heimplaner-pwa.js` — service worker registration, `?view=` deep link, install banner
 - `heimplaner.css` — all styles (extracted from `index.html`; the CSP depends on it staying a separate file)
-- `test.html` — 70 checks for merge, tombstone, date and escaping logic. Open it in a browser before pushing.
+- `test.html` — 75 checks for merge, tombstone, date and escaping logic. Open it in a browser before pushing, or run `npm test` (headless via Playwright).
 - `supabase-setup.sql` — table definitions to run in the Supabase SQL editor
 - `_headers` — CSP and security headers
 - `netlify/lib/` — shared code for the functions. Deliberately **not** inside `netlify/functions/`: files there each become a public endpoint.
 
-CRITICAL — do not reorder: `index.html` must always end with exactly these five script tags, in this order, directly before `</body>`:
+`heimplaner-views.js` through `heimplaner-settings.js` were split out of a single, then-2381-line `heimplaner-app.js` — pure code movement, no behavior change. Each carries a header comment naming what it holds.
+
+CRITICAL — do not reorder: `index.html` must always end with exactly these script tags, in this order, directly before `</body>`:
 
 ```html
 <script src="heimplaner-login.js"></script>
 <script src="heimplaner-data.js"></script>
 <script src="heimplaner-app.js"></script>
+<script src="heimplaner-views.js"></script>
+<script src="heimplaner-shop.js"></script>
+<script src="heimplaner-budget.js"></script>
+<script src="heimplaner-meals.js"></script>
+<script src="heimplaner-tasks.js"></script>
+<script src="heimplaner-month.js"></script>
+<script src="heimplaner-notes.js"></script>
+<script src="heimplaner-events.js"></script>
+<script src="heimplaner-birthdays.js"></script>
+<script src="heimplaner-settings.js"></script>
 <script src="heimplaner-sync.js"></script>
 <script src="heimplaner-pwa.js"></script>
 ```

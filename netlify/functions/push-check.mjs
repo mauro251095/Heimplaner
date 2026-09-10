@@ -4,6 +4,15 @@
 // Erinnerungen und verschickt Web-Push an die passenden Geräte.
 // Ein rückblickendes 5-Minuten-Fenster + Dedup-Tabelle sorgen dafür, dass
 // nichts verpasst wird und trotz überlappender Läufe nichts doppelt kommt.
+//
+// Bewusst OHNE guardPassword (anders als sync.js/push-subscribe.js/auth.js):
+// Netlify blockt bei Scheduled Functions den direkten Aufruf der
+// öffentlichen URL grundsätzlich mit 403 - nur der eigene Scheduler darf
+// auslösen (https://docs.netlify.com/build/functions/scheduled-functions/).
+// Der Schutz kommt hier also von der Plattform, nicht von dieser Datei. Falls
+// diese Function je zu einer regulären (nicht-geplanten) umgebaut wird, muss
+// guardPassword nachgerüstet werden - sonst kann jeder ohne Passwort beliebig
+// oft Push-Zustellungen an Mauro/Melissa auslösen.
 // ═══════════════════════════════════════════════
 
 import webpush from 'web-push';
