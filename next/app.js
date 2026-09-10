@@ -81,9 +81,32 @@ function closeDrawer() { document.getElementById('sidebar').classList.remove('op
 // es dafür nicht.
 function render() { VIEWS[currentView].render(); }
 
+// ── Kompakte Konto-Anzeige (nur Name + Status-Punkt) ──
+// #logout-btn wird von heimplaner-login.js selbst injiziert (👤 + Name);
+// hier nur das Emoji durch einen Punkt ersetzt, dessen Farbe vom (per CSS
+// versteckten, aber weiterhin aktiven) #sync-status übernommen wird. Läuft
+// bei jeder DOM-Änderung mit, weil weder der Zeitpunkt der Injektion noch
+// der Status-Wechsel selbst beeinflussbar sind, ohne die geteilten Dateien
+// anzufassen.
+function syncAccountDot() {
+  const btn = document.getElementById('logout-btn');
+  if (!btn) return;
+  let dot = btn.querySelector('.acct-dot');
+  if (!dot) {
+    btn.querySelector('.lb-icon')?.remove();
+    dot = document.createElement('span');
+    dot.className = 'acct-dot';
+    btn.insertBefore(dot, btn.firstChild);
+  }
+  const statusIcon = document.querySelector('#sync-status .sync-icon');
+  if (statusIcon) dot.style.background = statusIcon.style.color;
+}
+new MutationObserver(syncAccountDot).observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+
 document.addEventListener('DOMContentLoaded', () => {
   buildSidebar();
   VIEWS[currentView].render();
+  syncAccountDot();
 });
 
 // ═══════════════════════════════════════════════

@@ -71,6 +71,16 @@
   /* ── Rundungen ── */
   --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
   --r-pill: 999px; --r-circle: 50%;
+
+  /* Legacy-Farbnamen: heimplaner-sync.js (geteilt, unverändert) verweist per
+     Inline-style auf var(--green)/--amber/--red/--muted (alte
+     Heimplaner-Tokens). Hier nur neu auf next/-Tokens verdrahtet, damit der
+     im Hintergrund weiterlaufende Sync-Status (siehe .acct-dot in app.js)
+     eine sinnvolle Farbe bekommt, ohne die geteilte Datei anzufassen. */
+  --green: var(--accent);
+  --amber: var(--palette-amber);
+  --red:   var(--danger);
+  --muted: var(--text-3);
 }
 
 /* ═══════════════════════════════════════════════

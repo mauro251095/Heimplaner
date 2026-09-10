@@ -126,11 +126,20 @@ a{color:inherit}
    diese Skripte vorgegeben - nicht umbenennen, ohne next/CLAUDE.md und
    die geteilten Dateien gegenzuprüfen.
    ═══════════════════════════════════════════════ */
-#logout-btn,#sync-bar button{
+/* Volle Sync-Leiste (Status-Text + "Sync"-Button) ausgeblendet - Mauro
+   wollte nur Name + Status-Punkt sehen. heimplaner-sync.js aktualisiert
+   #sync-status im Hintergrund unverändert weiter, nur unsichtbar; app.js
+   liest dessen Farbe für .acct-dot mit. Der "Sync"-Button war bisher der
+   einzige Weg, das Sync-Passwort einzugeben - zieht nach next/CLAUDE.md in
+   die (noch nicht gebaute) Einstellungen-Ansicht um. */
+/* !important nötig: initSync() setzt display:flex direkt als Inline-Style
+   (höhere Spezifität als jede externe Regel ohne !important). */
+#sync-bar{display:none !important}
+#logout-btn{
   background:var(--bg) !important;border:1px solid var(--border-2) !important;color:var(--text-2) !important;
-  border-radius:var(--r-md) !important;font-family:var(--font-ui) !important;
+  border-radius:var(--r-pill) !important;font-family:var(--font-ui) !important;padding:5px 12px 5px 9px !important;
 }
-#sync-status{font-size:var(--fs-sm) !important;color:var(--text-2) !important}
+.acct-dot{width:7px;height:7px;border-radius:50%;background:var(--text-3);flex-shrink:0}
 /* openSyncModal() (in heimplaner-sync.js) generiert sein Formular fest mit
    diesen Klassennamen - hier nur neu eingefärbt, nicht umgebaut. */
 .modal-row{margin-bottom:var(--sp-6)}

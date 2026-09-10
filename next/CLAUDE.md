@@ -61,7 +61,15 @@ lokalen Server.
   UI-Text/Code sollte deshalb nie "blau = Mauro" annehmen, sondern immer
   "die aktuell gewählte Farbe dieser Person".
 - **Icons**: Tabler Icons (MIT-Lizenz), als einzelne SVGs unter `next/icons/`
-  selbst gehostet, nicht als Icon-Font/CDN-Referenz.
+  selbst gehostet, nicht als Icon-Font/CDN-Referenz. Gilt für Navigation/
+  Chrome (Sidebar, Buttons) — dort kein Emoji mehr.
+- **Emoji bleiben** für nutzergewählte Inhalte (Aufgaben-/Termin-/Rezept-Icon
+  wie bisher `e.emoji`/`task.emoji`) — bewusste Entscheidung, kein
+  Widerspruch zur Tabler-Umstellung oben, weil es dabei um Chrome/Navigation
+  geht, nicht um persönlich gewählte Inhalte. Eingabe aktuell reines
+  Textfeld ohne eigenes Auswahl-Raster (Windows-Emoji-Picker via Win+. tut's
+  vorerst); ein eigenes Emoji-Raster wie im alten Heimplaner ist ein
+  mögliches späteres Polish-Item, keine Baustelle mit Priorität.
 - **Monatsansicht**: Raster zeigt nur Punkte für datumsgebundene Dinge
   (Termine, Geburtstage, als wichtig markierte Aufgaben) — mehrere pro Tag,
   nicht nur einer. Wiederkehrende Wochenroutine erscheint NICHT im Raster,
@@ -77,6 +85,11 @@ lokalen Server.
   per Klasse (`body.light`), nicht nur `prefers-color-scheme` — die Mockups
   zeigen einen manuellen Schalter in den Einstellungen. In `muster.html` per
   Knopf oben rechts direkt vergleichbar.
+- **Konto-Anzeige**: nur Name + kleiner Status-Punkt (Farbe vom Sync-Status,
+  siehe `.acct-dot` in app.js), keine ausgeschriebene Sync-Leiste mehr. Der
+  bisherige "Sync"-Button (einziger Weg, das Sync-Passwort einzugeben) hat
+  dadurch kein UI mehr - zieht in die Einstellungen-Ansicht, sobald die
+  gebaut wird.
 - **Noch offen**: ob/wie "heute" im Kalender und "erledigt" bei Aufgaben
   farblich markiert werden (bewusst noch nicht auf Grün festgelegt);
   App-Icon-Bild wurde geliefert, noch nicht in `manifest.json`/Icon-Grössen
