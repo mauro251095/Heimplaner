@@ -1,0 +1,143 @@
+/* ═══════════════════════════════════════════════
+   Heimplaner V2 – App-Stylesheet
+   Baut auf tokens.css auf. Layout (Sidebar/Topbar/Drawer) + Bausteine
+   (aus muster.html übernommen) + ein kleiner Kompatibilitäts-Block für
+   Elemente, die die GETEILTEN Skripte (heimplaner-login.js/-sync.js)
+   selbst ins DOM einfügen (siehe unten, klar abgegrenzt).
+   ═══════════════════════════════════════════════ */
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);margin:0;overflow:hidden}
+button,input,select,textarea{font-family:inherit}
+a{color:inherit}
+
+/* ── App-Gerüst ── */
+#app{display:flex;height:100vh}
+
+.sidebar{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+  padding:var(--sp-6) var(--sp-5);display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.sidebar .brand{font-family:var(--font-display);font-weight:700;font-size:var(--fs-xl);padding:0 var(--sp-3) var(--sp-6)}
+.navitem{display:flex;align-items:center;gap:var(--sp-4);padding:9px var(--sp-3);border-radius:var(--r-md);
+  color:var(--text-2);font-size:var(--fs-base);cursor:pointer;border:none;background:none;width:100%;text-align:left}
+.navitem:hover{background:var(--bg)}
+.navitem.active{background:var(--accent-bg);color:var(--accent-text)}
+
+/* Immer sichtbar (auch Desktop!) - sonst hätten die von heimplaner-login.js/
+   -sync.js selbst injizierten Elemente (#logout-btn, #sync-bar) auf Desktop
+   keinen sichtbaren Platz, da sie ausschliesslich in .topbar landen. Auf
+   Desktop reduziert auf einen schmalen Streifen ohne Hamburger/Titel
+   (die Sidebar übernimmt dort die Navigation). */
+.topbar{display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);
+  border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:24px}
+.topbar .hamburger{background:none;border:none;color:var(--text);cursor:pointer;padding:4px;display:none}
+.topbar .hamburger .icon{width:20px;height:20px}
+.topbar .title{display:none;font-family:var(--font-display);font-weight:700;font-size:var(--fs-lg);flex:1}
+.topbar > :last-child{margin-left:auto}
+
+#main{flex:1;display:flex;flex-direction:column;min-width:0}
+#view-root{flex:1;overflow-y:auto;padding:var(--sp-9) 32px 60px}
+.view-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:var(--sp-8)}
+.view-head h1{font-family:var(--font-display);font-weight:700;font-size:var(--fs-2xl);margin:0}
+
+.drawer-scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
+.drawer-scrim.open{display:block}
+
+@media (max-width:860px){
+  .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:21;transform:translateX(-100%);transition:transform .18s}
+  .sidebar.open{transform:translateX(0)}
+  .topbar .hamburger,.topbar .title{display:flex}
+  #view-root{padding:var(--sp-7) var(--sp-5) 90px}
+}
+
+/* ── Icons (lokale SVGs via mask, erben currentColor) ── */
+.icon{display:inline-block;width:16px;height:16px;background-color:currentColor;flex-shrink:0;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;
+  -webkit-mask-size:contain;mask-size:contain}
+.i-home{-webkit-mask-image:url(icons/home.svg);mask-image:url(icons/home.svg)}
+.i-calendar{-webkit-mask-image:url(icons/calendar.svg);mask-image:url(icons/calendar.svg)}
+.i-users{-webkit-mask-image:url(icons/users.svg);mask-image:url(icons/users.svg)}
+.i-home-2{-webkit-mask-image:url(icons/home-2.svg);mask-image:url(icons/home-2.svg)}
+.i-cart{-webkit-mask-image:url(icons/shopping-cart.svg);mask-image:url(icons/shopping-cart.svg)}
+.i-money{-webkit-mask-image:url(icons/report-money.svg);mask-image:url(icons/report-money.svg)}
+.i-kitchen{-webkit-mask-image:url(icons/tools-kitchen-2.svg);mask-image:url(icons/tools-kitchen-2.svg)}
+.i-notebook{-webkit-mask-image:url(icons/notebook.svg);mask-image:url(icons/notebook.svg)}
+.i-pin{-webkit-mask-image:url(icons/pin.svg);mask-image:url(icons/pin.svg)}
+.i-cake{-webkit-mask-image:url(icons/cake.svg);mask-image:url(icons/cake.svg)}
+.i-settings{-webkit-mask-image:url(icons/settings.svg);mask-image:url(icons/settings.svg)}
+.i-plus{-webkit-mask-image:url(icons/plus.svg);mask-image:url(icons/plus.svg)}
+.i-check{-webkit-mask-image:url(icons/check.svg);mask-image:url(icons/check.svg)}
+.i-x{-webkit-mask-image:url(icons/x.svg);mask-image:url(icons/x.svg)}
+.i-pencil{-webkit-mask-image:url(icons/pencil.svg);mask-image:url(icons/pencil.svg)}
+.i-menu{-webkit-mask-image:url(icons/settings.svg);mask-image:url(icons/settings.svg)}
+
+/* ── Bausteine (aus muster.html übernommen) ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-7)}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:var(--r-md);padding:9px 16px;
+  font-size:var(--fs-base);font-weight:600;cursor:pointer;border:1px solid transparent}
+.btn-accent{background:var(--accent);color:var(--accent-ink)}
+.btn-outline{background:transparent;border-color:var(--border-2);color:var(--accent)}
+.fab{position:fixed;bottom:28px;right:28px;width:48px;height:48px;border-radius:50%;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.fab .icon{background-color:var(--accent-ink);width:20px;height:20px}
+
+.list-row{display:flex;align-items:center;gap:var(--sp-4);padding:10px 4px;border-bottom:1px solid var(--border);
+  font-size:var(--fs-md);cursor:pointer}
+.list-row:last-child{border-bottom:none}
+.list-row .meta{flex:1;min-width:0}
+.list-row .meta .name{font-size:var(--fs-md)}
+.list-row .meta .sub{font-size:var(--fs-sm);color:var(--text-3);margin-top:1px}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border-2);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;background:none;cursor:pointer;padding:0}
+.check.done{background:var(--accent);border-color:var(--accent)}
+.check.done .icon{width:13px;height:13px;background-color:var(--accent-ink)}
+.overdue{color:var(--danger)}
+
+.empty-state{padding:40px 20px;text-align:center;color:var(--text-3)}
+.empty-state .icon{width:32px;height:32px;margin:0 auto 12px;opacity:.5}
+.empty-state .msg{font-size:var(--fs-base)}
+
+.placeholder{padding:60px 20px;text-align:center;color:var(--text-3)}
+
+/* ── Modal (für die eigenen next/-Formulare) ── */
+.modal-scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;z-index:30;padding:20px}
+.modal-scrim.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--r-xl);border:1px solid var(--border);padding:var(--sp-8);width:100%;max-width:420px;max-height:85vh;overflow-y:auto}
+.modal h3{margin:0 0 var(--sp-7);font-size:var(--fs-lg);font-weight:700}
+.field{margin-bottom:var(--sp-6)}
+.field label{display:block;font-size:var(--fs-sm);color:var(--text-2);margin-bottom:6px}
+.field input,.field select{width:100%;background:var(--bg);border:1px solid var(--border-2);border-radius:var(--r-md);
+  color:var(--text);padding:9px 12px;font-size:var(--fs-md)}
+.field-row{display:flex;gap:var(--sp-5)}
+.field-row .field{flex:1}
+.modal-actions{display:flex;justify-content:space-between;gap:var(--sp-4);margin-top:var(--sp-8)}
+.check-row{display:flex;align-items:center;gap:8px;font-size:var(--fs-base);color:var(--text-2);cursor:pointer}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);
+  border:1px solid var(--border-2);border-radius:var(--r-pill);padding:10px 20px;font-size:var(--fs-base);
+  z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+
+/* ═══════════════════════════════════════════════
+   Kompatibilitäts-Block: NUR für Elemente, die heimplaner-login.js und
+   heimplaner-sync.js (geteilte, unveränderte Dateien) selbst per
+   Inline-style ins DOM setzen. Die Klassennamen/IDs hier sind fix durch
+   diese Skripte vorgegeben - nicht umbenennen, ohne next/CLAUDE.md und
+   die geteilten Dateien gegenzuprüfen.
+   ═══════════════════════════════════════════════ */
+#logout-btn,#sync-bar button{
+  background:var(--bg) !important;border:1px solid var(--border-2) !important;color:var(--text-2) !important;
+  border-radius:var(--r-md) !important;font-family:var(--font-ui) !important;
+}
+#sync-status{font-size:var(--fs-sm) !important;color:var(--text-2) !important}
+/* openSyncModal() (in heimplaner-sync.js) generiert sein Formular fest mit
+   diesen Klassennamen - hier nur neu eingefärbt, nicht umgebaut. */
+.modal-row{margin-bottom:var(--sp-6)}
+.modal-row label{display:block;font-size:var(--fs-sm);color:var(--text-2);margin-bottom:6px}
+.modal-in{width:100%;background:var(--bg);border:1px solid var(--border-2);border-radius:var(--r-md);
+  color:var(--text);padding:9px 12px;font-size:var(--fs-md)}
+.modal-btns{display:flex;justify-content:space-between;gap:var(--sp-4);margin-top:var(--sp-8)}
+.mbtn{border-radius:var(--r-md);padding:9px 16px;font-size:var(--fs-base);font-weight:600;cursor:pointer;border:1px solid var(--border-2);background:var(--bg);color:var(--text)}
+.mbtn-cancel{background:transparent}
+.mbtn-confirm{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
