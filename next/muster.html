@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Heimplaner V2 – Grundrezept</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<style>
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);margin:0;padding:32px 20px 80px}
+.wrap{max-width:960px;margin:0 auto}
+.eyebrow{font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.12em;color:var(--text-3);font-weight:600}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(1.7rem,4vw,2.2rem);margin:6px 0 8px;text-wrap:balance}
+.lede{color:var(--text-2);font-size:var(--fs-md);line-height:1.6;max-width:64ch;margin:0}
+section{margin-top:52px}
+section h2{font-size:var(--fs-xl);margin:0 0 4px;font-weight:700}
+section .desc{font-size:var(--fs-base);color:var(--text-2);margin:0 0 20px;line-height:1.55;max-width:64ch}
+.grid-row{display:flex;flex-wrap:wrap;gap:16px}
+
+/* ── Icons: lokale SVGs via mask, erben currentColor ── */
+.icon{display:inline-block;width:16px;height:16px;background-color:currentColor;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;
+  -webkit-mask-size:contain;mask-size:contain;flex-shrink:0}
+.i-home{-webkit-mask-image:url(icons/home.svg);mask-image:url(icons/home.svg)}
+.i-calendar{-webkit-mask-image:url(icons/calendar.svg);mask-image:url(icons/calendar.svg)}
+.i-home-2{-webkit-mask-image:url(icons/home-2.svg);mask-image:url(icons/home-2.svg)}
+.i-cart{-webkit-mask-image:url(icons/shopping-cart.svg);mask-image:url(icons/shopping-cart.svg)}
+.i-money{-webkit-mask-image:url(icons/report-money.svg);mask-image:url(icons/report-money.svg)}
+.i-kitchen{-webkit-mask-image:url(icons/tools-kitchen-2.svg);mask-image:url(icons/tools-kitchen-2.svg)}
+.i-notebook{-webkit-mask-image:url(icons/notebook.svg);mask-image:url(icons/notebook.svg)}
+.i-pin{-webkit-mask-image:url(icons/pin.svg);mask-image:url(icons/pin.svg)}
+.i-cake{-webkit-mask-image:url(icons/cake.svg);mask-image:url(icons/cake.svg)}
+.i-settings{-webkit-mask-image:url(icons/settings.svg);mask-image:url(icons/settings.svg)}
+.i-plus{-webkit-mask-image:url(icons/plus.svg);mask-image:url(icons/plus.svg)}
+.i-check{-webkit-mask-image:url(icons/check.svg);mask-image:url(icons/check.svg)}
+.i-star{-webkit-mask-image:url(icons/star.svg);mask-image:url(icons/star.svg)}
+.i-users{-webkit-mask-image:url(icons/users.svg);mask-image:url(icons/users.svg)}
+
+/* ── Farb-Swatches ── */
+.swatch{width:132px}
+.swatch .box{height:64px;border-radius:var(--r-md);border:1px solid var(--border)}
+.swatch .lbl{font-size:var(--fs-sm);margin-top:6px;color:var(--text-2)}
+.swatch .val{font-size:var(--fs-xs);color:var(--text-3);font-family:ui-monospace,Consolas,monospace}
+
+/* ── Typografie-Skala ── */
+.type-row{display:flex;align-items:baseline;gap:16px;padding:10px 0;border-bottom:1px solid var(--border)}
+.type-row .tag{width:90px;flex-shrink:0;font-size:var(--fs-xs);color:var(--text-3);font-family:ui-monospace,Consolas,monospace}
+.type-row .sample{color:var(--text)}
+
+/* ── Bausteine ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-7)}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:var(--r-md);padding:9px 16px;font-size:var(--fs-base);font-weight:600;cursor:pointer;border:1px solid transparent;font-family:var(--font-ui)}
+.btn-accent{background:var(--accent);color:var(--accent-ink)}
+.btn-outline{background:transparent;border-color:var(--border-2);color:var(--accent)}
+.fab{width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center}
+.fab .icon{background-color:var(--accent-ink)}
+
+.list-row{display:flex;align-items:center;gap:var(--sp-4);padding:9px 0;border-bottom:1px solid var(--border);font-size:var(--fs-md)}
+.list-row:last-child{border-bottom:none}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border-2);flex-shrink:0}
+.check.done{background:var(--accent);border-color:var(--accent);display:flex;align-items:center;justify-content:center}
+.check.done .icon{width:12px;height:12px;background-color:var(--accent-ink)}
+.muted{color:var(--text-3)}
+.done-text{color:var(--text-3);text-decoration:line-through}
+
+.toggle{width:34px;height:20px;border-radius:var(--r-pill);position:relative;background:var(--border-2)}
+.toggle.on{background:var(--accent)}
+.toggle .knob{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .15s}
+.toggle.on .knob{left:16px}
+
+.seg{display:inline-flex;background:var(--bg);border-radius:var(--r-md);padding:3px;gap:2px}
+.seg span{padding:6px 16px;font-size:var(--fs-xs);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer}
+.seg span.active{background:var(--accent);color:var(--accent-ink);font-weight:600}
+
+.bar-row{margin-bottom:14px}
+.bar-row .hd{display:flex;justify-content:space-between;font-size:var(--fs-base);margin-bottom:4px}
+.bar-track{height:5px;background:var(--bg);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px}
+
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:var(--fs-sm);font-weight:600;color:var(--accent-ink);flex-shrink:0}
+
+.chip{font-size:var(--fs-xs);padding:5px 12px;border-radius:var(--r-pill);background:var(--bg);color:var(--text-2)}
+.chip.active{background:var(--accent-bg);color:var(--accent-text)}
+
+.navitem{display:flex;align-items:center;gap:var(--sp-4);padding:8px;border-radius:var(--r-md);color:var(--text-2);font-size:var(--fs-base)}
+.navitem.active{background:var(--accent-bg);color:var(--accent-text)}
+.sidebar{width:180px;background:var(--surface);border-radius:var(--r-lg);padding:var(--sp-5);border:1px solid var(--border)}
+
+/* ── Monatsansicht-Konzept ── */
+.month-shell{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-7);max-width:390px}
+.dow-row,.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow-row{margin-bottom:6px}
+.dow{font-size:var(--fs-2xs);text-align:center;color:var(--text-3);font-weight:600}
+.mcell{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);min-height:52px;padding:5px 4px;display:flex;flex-direction:column;gap:3px}
+.mcell.today{border-color:var(--accent)}
+.mnum{font-size:var(--fs-base);font-weight:700}
+.mdots{display:flex;flex-wrap:wrap;gap:3px;margin-top:auto}
+.mdot{width:6px;height:6px;border-radius:50%}
+.week-strip{margin-top:var(--sp-7);padding-top:var(--sp-6);border-top:1px solid var(--border)}
+.week-strip .cap{font-size:var(--fs-sm);color:var(--text-2);margin-bottom:8px}
+.wcell{text-align:center}
+.wcell .d{font-size:var(--fs-2xs);color:var(--text-3);margin-bottom:4px}
+.wdots{display:flex;justify-content:center;flex-wrap:wrap;gap:3px}
+
+.open-list{font-size:var(--fs-base);color:var(--text-2);line-height:1.7;padding-left:18px;margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Heimplaner V2 · Fundament, Stand der Diskussion</div>
+  <h1>Grundrezept</h1>
+  <p class="lede">Farb-, Typo- und Abstands-Tokens aus den sieben gelieferten Mockups, plus die Bausteine, aus denen sich alle Ansichten zusammensetzen. Nichts hiervon ist final – jede Farbe hier ist über <code>tokens.css</code> steuerbar.</p>
+
+  <section>
+    <h2>Neutraltöne</h2>
+    <p class="desc">Bislang nur als Dark Mode spezifiziert – Hell-Theme ist offen (siehe unten).</p>
+    <div class="grid-row">
+      <div class="swatch"><div class="box" style="background:var(--bg)"></div><div class="lbl">Hintergrund</div><div class="val">--bg</div></div>
+      <div class="swatch"><div class="box" style="background:var(--surface)"></div><div class="lbl">Fläche</div><div class="val">--surface</div></div>
+      <div class="swatch"><div class="box" style="background:var(--text)"></div><div class="lbl">Text</div><div class="val">--text</div></div>
+      <div class="swatch"><div class="box" style="background:var(--text-2)"></div><div class="lbl">Text sekundär</div><div class="val">--text-2</div></div>
+      <div class="swatch"><div class="box" style="background:var(--text-3)"></div><div class="lbl">Text schwach</div><div class="val">--text-3</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Akzent &amp; Status</h2>
+    <p class="desc">Grün = was die App tut, nie wer etwas gehört. Rot ausschliesslich für Budget-Warnung (≥90&nbsp;% des Limits).</p>
+    <div class="grid-row">
+      <div class="swatch"><div class="box" style="background:var(--accent)"></div><div class="lbl">Akzent</div><div class="val">--accent</div></div>
+      <div class="swatch"><div class="box" style="background:var(--accent-bg);border-color:var(--border)"></div><div class="lbl">Akzent getönt</div><div class="val">--accent-bg</div></div>
+      <div class="swatch"><div class="box" style="background:var(--danger)"></div><div class="lbl">Warnung</div><div class="val">--danger</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Personenfarben — Auswahlpalette</h2>
+    <p class="desc">Keine Farbe ist fix einer Person zugeordnet. Mauro, Melissa und "Gemeinsam" wählen je eine aus dieser Palette in den Einstellungen. Unten als Demo: eine mögliche Auswahl, jederzeit änderbar.</p>
+    <div class="grid-row">
+      <div class="swatch"><div class="box" style="background:var(--palette-blau)"></div><div class="lbl">Blau</div><div class="val">--palette-blau</div></div>
+      <div class="swatch"><div class="box" style="background:var(--palette-pink)"></div><div class="lbl">Pink</div><div class="val">--palette-pink</div></div>
+      <div class="swatch"><div class="box" style="background:var(--palette-teal)"></div><div class="lbl">Teal</div><div class="val">--palette-teal</div></div>
+      <div class="swatch"><div class="box" style="background:var(--palette-amber)"></div><div class="lbl">Amber</div><div class="val">--palette-amber</div></div>
+      <div class="swatch"><div class="box" style="background:var(--palette-violett)"></div><div class="lbl">Violett</div><div class="val">--palette-violett</div></div>
+      <div class="swatch"><div class="box" style="background:var(--palette-terracotta)"></div><div class="lbl">Terracotta</div><div class="val">--palette-terracotta</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Typografie</h2>
+    <p class="desc">Inter für UI-Text, Playfair Display sparsam für Titel/grosse Zahlen. Acht Stufen, nicht 40+.</p>
+    <div class="type-row"><span class="tag">--fs-2xs 10</span><span class="sample" style="font-size:var(--fs-2xs)">Mo Di Mi Do Fr Sa So</span></div>
+    <div class="type-row"><span class="tag">--fs-xs 11</span><span class="sample" style="font-size:var(--fs-xs)">Tag · Woche · Monat</span></div>
+    <div class="type-row"><span class="tag">--fs-sm 12</span><span class="sample" style="font-size:var(--fs-sm)">September, verbleibend</span></div>
+    <div class="type-row"><span class="tag">--fs-base 13</span><span class="sample" style="font-size:var(--fs-base)">180 / 250</span></div>
+    <div class="type-row"><span class="tag">--fs-md 14</span><span class="sample" style="font-size:var(--fs-md)">Zahnarzt Mauro, 18:00</span></div>
+    <div class="type-row"><span class="tag">--fs-lg 16</span><span class="sample" style="font-size:var(--fs-lg)">Icon-Basisgrösse</span></div>
+    <div class="type-row"><span class="tag">--fs-xl 18</span><span class="sample" style="font-size:var(--fs-xl);font-weight:700">Budget</span></div>
+    <div class="type-row"><span class="tag">--fs-3xl 28</span><span class="sample" style="font-size:var(--fs-3xl);font-weight:600;font-family:var(--font-display)">CHF 640</span></div>
+  </section>
+
+  <section>
+    <h2>Bausteine</h2>
+    <p class="desc">Die wiederkehrenden Elemente, aus denen sich jede Ansicht zusammensetzt.</p>
+
+    <div class="grid-row" style="align-items:center;margin-bottom:28px">
+      <button class="btn btn-accent"><span class="icon i-plus" style="background-color:var(--accent-ink)"></span>Hinzufügen</button>
+      <button class="btn btn-outline"><span class="icon i-check"></span>Zutaten wählen</button>
+      <div class="fab"><span class="icon i-plus"></span></div>
+      <div class="toggle on"><div class="knob"></div></div>
+      <div class="toggle"><div class="knob"></div></div>
+      <div class="seg"><span class="active">Tag</span><span>Woche</span><span>Monat</span></div>
+    </div>
+
+    <div class="grid-row">
+      <div class="card" style="width:280px">
+        <div style="font-size:var(--fs-sm);color:var(--text-2);margin-bottom:8px">Aufgaben</div>
+        <label class="list-row"><div class="check done"><span class="icon i-check"></span></div><span class="dot" style="background:var(--person-mauro)"></span><span class="done-text">Mülltonnen rausstellen</span></label>
+        <label class="list-row"><div class="check"></div><span class="dot" style="background:var(--person-melissa)"></span><span>Badezimmer putzen</span></label>
+        <label class="list-row"><div class="check"></div><span class="dot" style="background:var(--person-shared)"></span><span>Pflanzen giessen</span></label>
+      </div>
+
+      <div class="card" style="width:280px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div class="avatar" style="background:var(--person-mauro)">M</div>
+          <div style="font-weight:600">Mauro</div>
+        </div>
+        <div class="grid-row" style="gap:6px;margin-bottom:14px">
+          <span class="chip active">Vegetarisch</span>
+          <span class="chip">Mealprep</span>
+          <span class="chip">Schnell</span>
+        </div>
+        <div class="bar-row" style="margin-bottom:0">
+          <div class="hd"><span>Restaurant</span><span class="muted">180 / 250 · 72%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:72%;background:var(--accent)"></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="width:280px">
+        <div style="font-size:var(--fs-sm);color:var(--text-2);margin-bottom:10px">Budget-Balken: Statusfarbe, keine Personenfarbe</div>
+        <div class="bar-row">
+          <div class="hd"><span>Transport</span><span class="muted">40 / 120 · 33%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:33%;background:var(--accent)"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="hd"><span>Restaurant</span><span class="muted">220 / 250 · 88%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:88%;background:var(--accent)"></div></div>
+        </div>
+        <div class="bar-row" style="margin-bottom:0">
+          <div class="hd"><span>Lieferservice</span><span style="color:var(--danger)">95 / 100 · 95%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:95%;background:var(--danger)"></div></div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="navitem active"><span class="icon i-home"></span>Heute</div>
+        <div class="navitem"><span class="icon i-calendar"></span>Planer</div>
+        <div class="navitem"><span class="icon i-users"></span>Personen</div>
+        <div class="navitem"><span class="icon i-home-2"></span>Haushalt</div>
+        <div class="navitem"><span class="icon i-cart"></span>Einkaufsliste</div>
+        <div class="navitem"><span class="icon i-money"></span>Budget</div>
+        <div class="navitem"><span class="icon i-kitchen"></span>Menüplan</div>
+        <div class="navitem"><span class="icon i-notebook"></span>Rezepte</div>
+        <div class="navitem"><span class="icon i-pin"></span>Pinnwand</div>
+        <div class="navitem"><span class="icon i-cake"></span>Geburtstage</div>
+        <div class="navitem"><span class="icon i-settings"></span>Einstellungen</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Monatsansicht — Konzept</h2>
+    <p class="desc">Raster zeigt nur datumsgebundene Dinge (Termine, Geburtstage, wichtige Aufgaben) als Punkte, mehrere pro Tag. Die wöchentliche Routine erscheint einmalig darunter, nicht wiederholt in jeder Zelle.</p>
+    <div class="month-shell">
+      <div class="dow-row" id="dow"></div>
+      <div class="month-grid" id="grid"></div>
+      <div class="week-strip">
+        <div class="cap">Wöchentliches Muster</div>
+        <div class="dow-row" id="wgrid"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Offene Punkte</h2>
+    <ul class="open-list">
+      <li>Hell-Theme: noch keine Farbwerte, nur Dark Mode ist spezifiziert.</li>
+      <li>Farbe für "heute" im Kalender und "erledigt" bei Aufgaben – bewusst noch nicht auf Grün festgelegt, folgt nach eurer Rückmeldung.</li>
+      <li>App-Icon (geliefertes Bild) – noch nicht in <code>manifest.json</code>/Icon-Grössen umgesetzt.</li>
+      <li>Kalender-Abo (ICS): einmaliger Import oder laufendes Abo? Einzige Komponente mit Backend-Auswirkung, deshalb bewusst zurückgestellt.</li>
+      <li>Mobile Hauptnavigation (Bottom-Nav + "Mehr"-Schublade wie bisher, oder anders?) – noch nicht entschieden, welche der 11 Punkte einen festen Platz bekommen.</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+const DOW = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+document.getElementById('dow').innerHTML = DOW.map(d=>'<div class="dow">'+d+'</div>').join('');
+document.getElementById('wgrid').innerHTML = DOW.map(d=>'<div class="dow">'+d+'</div>').join('');
+
+// Datumsgebundene Beispieldaten (Termine/Geburtstage/wichtige Aufgaben) –
+// mehrere Punkte pro Tag, wie besprochen.
+const DATED = {
+  2:['mauro'], 5:['shared','melissa'], 8:['mauro','shared'], 10:['mauro'],
+  13:['melissa'], 19:['bday'], 23:['mauro','melissa','shared']
+};
+const FIRST_DOW = 1, DAYS = 30, TODAY = 10;
+const COLORS = {mauro:'var(--person-mauro)', melissa:'var(--person-melissa)', shared:'var(--person-shared)', bday:'var(--palette-amber)'};
+
+let gridHtml = '';
+for (let i=0;i<FIRST_DOW;i++) gridHtml += '<div class="mcell" style="opacity:.3"></div>';
+for (let day=1; day<=DAYS; day++){
+  const items = DATED[day] || [];
+  const dots = items.map(k=>'<span class="mdot" style="background:'+COLORS[k]+'"></span>').join('');
+  gridHtml += '<div class="mcell'+(day===TODAY?' today':'')+'"><div class="mnum">'+day+'</div><div class="mdots">'+dots+'</div></div>';
+}
+document.getElementById('grid').innerHTML = gridHtml;
+
+// Wöchentliches Muster: einmal pro Wochentag, nicht pro Kalendertag.
+const WEEKLY = [
+  ['mauro','mauro'], ['mauro'], ['mauro','melissa','shared'], ['mauro','shared'],
+  ['mauro','melissa'], ['mauro','melissa'], ['mauro','melissa','shared']
+];
+document.getElementById('wgrid').innerHTML = WEEKLY.map(items=>
+  '<div class="wcell"><div class="wdots">'+items.map(k=>'<span class="mdot" style="background:'+COLORS[k]+'"></span>').join('')+'</div></div>'
+).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+/* ═══════════════════════════════════════════════
+   Heimplaner V2 – Design-Tokens
+   Quelle: die 7 gelieferten Mockup-Dateien (Dark Mode + Desktop/Sidebar).
+   Bewusst eine kleine, feste Skala statt Werten pro Element – das war beim
+   alten Heimplaner nicht der Fall (36+ Schriftgrössen, 8-10 Radien) und
+   sollte hier von Anfang an vermieden werden.
+   ═══════════════════════════════════════════════ */
+
+:root{
+
+  /* ── Neutralpalette (Dark, bislang einziges bestätigtes Theme) ──
+     s1 = Grundfläche/App-Hintergrund UND "eingesenkte" Fläche innerhalb
+          einer Karte (z.B. Suchfeld). s2 = erhöhte Fläche/Karte. */
+  --bg:        #34332f;
+  --surface:   #3d3c38;
+  --text:      #F1EFE8;
+  --text-2:    #B4B2A9;
+  --text-3:    #888780;
+  --border:    rgba(255,255,255,0.08);
+  --border-2:  rgba(255,255,255,0.18);
+
+  /* ── Akzentfarbe: was die App tut, nie wer etwas gehört ──
+     Grün = FAB, aktiver Tab/Segment, Toggle-an, Budget-Balken im Rahmen. */
+  --accent:      #6FB876;   /* dark-mode-optimiert, heller für Kontrast */
+  --accent-text: #B6E6BB;   /* Text auf getöntem Grün-Hintergrund */
+  --accent-ink:  #16311c;   /* dunkler Text AUF vollflächigem Grün (FAB-Icon etc.) */
+  --accent-bg:   rgba(111,184,118,0.18);  /* getönter Hintergrund, z.B. Filter-Chip aktiv */
+
+  /* Budget-Balken: Rot ab 90% des Limits (Vorwarnung, nicht erst bei
+     Überschreitung – Wert bewusst gewählt, siehe next/CLAUDE.md). */
+  --budget-warn-threshold: 0.9;
+  --danger:    #F09595;
+
+  /* ── Personenfarben: AUSWAHL-Palette, keiner Person fix zugeordnet ──
+     Jede Person wählt eine davon in den Einstellungen. Die drei
+     --person-*-Variablen unten sind nur der DEMO-Stand für diese
+     Musterseite, keine feste Bedeutung im Code. */
+  --palette-blau:       #6C8EFF;
+  --palette-pink:       #FF7EB3;
+  --palette-teal:       #4ECDC4;
+  --palette-amber:      #F0B860;
+  --palette-violett:    #B79FF0;
+  --palette-terracotta: #E08A5C;
+
+  --person-mauro:   var(--palette-blau);    /* Demo-Auswahl, änderbar */
+  --person-melissa: var(--palette-pink);    /* Demo-Auswahl, änderbar */
+  --person-shared:  var(--palette-teal);    /* Demo-Auswahl, änderbar */
+
+  /* ── Typografie ──
+     Inter als Bewusste Wahl (nicht "weil der alte Heimplaner das tut") –
+     bewährt für UI-Text, gute Lesbarkeit in kleinen Grössen. Playfair
+     Display sparsam für Zahlen/Überschriften, die etwas Wärme vertragen –
+     passt zur wärmeren Neutralpalette hier sogar noch besser als vorher. */
+  --font-ui:      'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
+
+  --fs-2xs: 10px;  /* Wochentags-Kürzel im Kalender */
+  --fs-xs:  11px;  /* Tab-/Segment-Labels, kleine Meta-Angaben */
+  --fs-sm:  12px;  /* Sekundärtext, Kategorie-Überschriften */
+  --fs-base:13px;  /* Standard-Fliesstext in Listenzeilen */
+  --fs-md:  14px;  /* betonter Listentext, primärer Zeileninhalt */
+  --fs-lg:  16px;  /* Icon-Basisgrösse, kleine Betonung */
+  --fs-xl:  18px;  /* Ansichtstitel (h3) */
+  --fs-2xl: 22px;  /* reserviert für grössere Betonung */
+  --fs-3xl: 28px;  /* grosse Kennzahl (z.B. Budget "verbleibend") */
+
+  /* ── Abstände ── */
+  --sp-1: 4px; --sp-2: 6px; --sp-3: 8px; --sp-4: 10px;
+  --sp-5: 12px; --sp-6: 14px; --sp-7: 16px; --sp-8: 20px; --sp-9: 24px;
+
+  /* ── Rundungen ── */
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+  --r-pill: 999px; --r-circle: 50%;
+}
