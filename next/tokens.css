@@ -72,3 +72,37 @@
   --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
   --r-pill: 999px; --r-circle: 50%;
 }
+
+/* ═══════════════════════════════════════════════
+   Hell-Theme – Umschaltung per Klasse (body.light), nicht nur per
+   Systemeinstellung: die Mockups zeigen einen manuellen Dark-Mode-Schalter
+   in den Einstellungen, das Theme ist also eine bewusste Wahl der
+   Nutzer:innen, kein reiner OS-Automatismus.
+
+   Gleiche warme Grundhaltung wie im Dark-Theme (kein reines Weiss/Schwarz,
+   das würde hier wie zwei verschiedene Apps wirken) – nur invertiert:
+   Fläche heller als Hintergrund (dort: dunkler), analog zur "Karte hebt
+   sich ab"-Logik im Dark-Theme.
+
+   Akzentgrün, Personenfarben-Palette und alle Grössen-/Abstands-Tokens
+   bleiben identisch – nur was tatsächlich hell/dunkel sein muss, wechselt.
+   ═══════════════════════════════════════════════ */
+body.light{
+  --bg:        #F7F5F0;
+  --surface:   #FFFFFF;
+  --text:      #2B2A26;
+  --text-2:    #6B6A62;
+  --text-3:    #98968C;
+  --border:    rgba(0,0,0,0.08);
+  --border-2:  rgba(0,0,0,0.15);
+
+  /* Wert aus dem ursprünglichen Vorschlagsdokument ("Hell: #4C9A5A") –
+     kräftiger/dunkler als die Dark-Mode-Variante, weil er auf hellem statt
+     dunklem Grund genug Kontrast tragen muss. */
+  --accent:      #4C9A5A;
+  --accent-text: #2F6B3B;
+  --accent-ink:  #FFFFFF;   /* helle Schrift AUF vollflächigem Grün, hier umgekehrt zu dunkel */
+  --accent-bg:   rgba(76,154,90,0.14);
+
+  --danger: #D14343;        /* auf Weiss kräftiger als #F09595, sonst zu blass für Text/Kontrast */
+}

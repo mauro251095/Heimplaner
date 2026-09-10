@@ -70,12 +70,19 @@ lokalen Server.
 - **Sidebar-Reihenfolge (Desktop) / Hauptnavigation**: Heute, Planer,
   Personen, Haushalt, Einkaufsliste, Budget, Menüplan, Rezepte, Pinnwand,
   Geburtstage, Einstellungen.
-- **Noch offen**: Farbwerte fürs Hell-Theme (bisher nur Dark-Mode-Mockups
-  vorhanden); ob/wie "heute" im Kalender und "erledigt" bei Aufgaben farblich
-  markiert werden (bewusst noch nicht auf Grün festgelegt); App-Icon-Bild
-  wurde geliefert, noch nicht in `manifest.json`/Icon-Grössen umgesetzt;
-  Kalender-Abo-Import (ICS) — einmaliger Import oder laufendes Abo ist noch
-  nicht geklärt, das ist der einzige Punkt mit Backend-Auswirkung.
+- **Hell-Theme** ist in `tokens.css` umgesetzt (`body.light`-Override) — warme
+  Grundhaltung wie im Dark-Theme, nur invertiert (Fläche heller als
+  Hintergrund statt dunkler), Akzentgrün auf den helleren, kräftigeren Wert
+  `#4C9A5A` aus dem ursprünglichen Vorschlagsdokument gesetzt. Umschaltung
+  per Klasse (`body.light`), nicht nur `prefers-color-scheme` — die Mockups
+  zeigen einen manuellen Schalter in den Einstellungen. In `muster.html` per
+  Knopf oben rechts direkt vergleichbar.
+- **Noch offen**: ob/wie "heute" im Kalender und "erledigt" bei Aufgaben
+  farblich markiert werden (bewusst noch nicht auf Grün festgelegt);
+  App-Icon-Bild wurde geliefert, noch nicht in `manifest.json`/Icon-Grössen
+  umgesetzt; Kalender-Abo-Import (ICS) — einmaliger Import oder laufendes
+  Abo ist noch nicht geklärt, das ist der einzige Punkt mit
+  Backend-Auswirkung.
 
 ## Nächste Schritte (nicht ohne Rückfrage weitermachen)
 
