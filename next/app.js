@@ -308,6 +308,9 @@ function saveChore(id) {
   if (!HP.events) HP.events = [];
   if (id) {
     const e = HP.events.find(x => x.id === id);
+    // Kann fehlen, wenn die Aufgabe währenddessen auf dem anderen Gerät
+    // gelöscht wurde und ein Poll dazwischenkam.
+    if (!e) { showToast('Aufgabe existiert nicht mehr'); closeModal(); render(); return; }
     Object.assign(e, { name, emoji, date, who, recur: { unit, value: parseInt(value) }, updatedAt: Date.now() });
   } else {
     HP.events.push({ id: 'ev' + Date.now(), emoji, name, date, time: '', timeEnd: '', who, reminder: '', important: false, note: '', chore: true, recur: { unit, value: parseInt(value) }, updatedAt: Date.now() });

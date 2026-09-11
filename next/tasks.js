@@ -193,7 +193,14 @@ function deleteTaskSeries(tid) {
 }
 
 // ── Termin-Formular ───────────────────────────
-function openEventForm(id, prefillDate) {
+// rueckweg: wird ein Termin aus einem anderen Formular heraus angelegt oder
+// bearbeitet (aktuell aus einer Notiz), springt das Formular nach Speichern,
+// Abbrechen oder Löschen dorthin zurück, statt einfach zuzugehen. Wird bei
+// jedem normalen Aufruf wieder geleert, damit kein alter Rückweg hängenbleibt.
+let terminRueckweg = null;
+
+function openEventForm(id, prefillDate, rueckweg) {
+  terminRueckweg = rueckweg || null;
   const e = id ? (HP.events || []).find(x => x.id === id) : null;
   if (e && e.chore) { openChoreForm(id); return; }
   showModal(
@@ -216,11 +223,17 @@ function openEventForm(id, prefillDate) {
     '<div class="modal-actions">' +
     (e ? '<button class="btn btn-danger" onclick="deleteEventV2(\'' + esc(e.id) + '\')">Löschen</button>' : '<span></span>') +
     '<div style="display:flex;gap:8px">' +
-    '<button class="btn btn-outline" onclick="closeModal()">Abbrechen</button>' +
+    '<button class="btn btn-outline" onclick="terminAbbrechen()">Abbrechen</button>' +
     '<button class="btn btn-accent" onclick="saveEventForm(' + (e ? "'" + esc(e.id) + "'" : 'null') + ')">Speichern</button>' +
     '</div></div>'
   );
   setTimeout(() => document.getElementById('ef-name')?.focus(), 50);
+}
+
+function terminAbbrechen() {
+  const zurueck = terminRueckweg;
+  terminRueckweg = null;
+  if (zurueck) zurueck(null); else closeModal();
 }
 
 function saveEventForm(id) {
@@ -236,16 +249,24 @@ function saveEventForm(id) {
   if (!name) { showToast('Bitte Name eingeben'); return; }
   if (!date) { showToast('Bitte Datum wählen'); return; }
   if (!HP.events) HP.events = [];
+  let eid = id;
   if (id) {
     const e = HP.events.find(x => x.id === id);
+    // Kann fehlen, wenn der Termin währenddessen auf dem anderen Gerät
+    // gelöscht wurde und ein Poll dazwischenkam.
+    if (!e) { showToast('Termin existiert nicht mehr'); terminRueckweg = null; closeModal(); render(); return; }
     Object.assign(e, { name, emoji, date, who, time, timeEnd, reminder, note, important, updatedAt: Date.now() });
   } else {
-    HP.events.push({ id: 'ev' + Date.now(), emoji, name, date, time, timeEnd, who, reminder, important, note, updatedAt: Date.now() });
+    eid = 'ev' + Date.now();
+    HP.events.push({ id: eid, emoji, name, date, time, timeEnd, who, reminder, important, note, updatedAt: Date.now() });
   }
   HP_save();
+  showToast(emoji + ' ' + name + ' gespeichert');
+  const zurueck = terminRueckweg;
+  terminRueckweg = null;
+  if (zurueck) { zurueck(eid); return; }
   closeModal();
   render();
-  showToast(emoji + ' ' + name + ' gespeichert');
 }
 
 function deleteEventV2(id) {
@@ -261,8 +282,9 @@ function deleteEventV2(id) {
   if (HP.eventNotes) delete HP.eventNotes[id];
   if (HP.eventComments) delete HP.eventComments[id];
   HP_save();
-  closeModal();
-  render();
+  const zurueck = terminRueckweg;
+  terminRueckweg = null;
+  if (zurueck) zurueck(null); else { closeModal(); render(); }
   showUndoToast('Termin gelöscht', () => {
     unmarkDeleted('events', id);
     e.updatedAt = Date.now();

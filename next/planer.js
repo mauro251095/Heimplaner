@@ -87,7 +87,8 @@ function weekItemHtml(item, key) {
   const toggle = item.kind === 'task'
     ? 'toggleTaskFromRow(\'' + esc(d.id) + '\',\'' + esc(key) + '\')'
     : 'toggleEventDone(\'' + esc(d.id) + '\')';
-  return '<div class="witem' + (done ? ' is-done' : '') + '" style="--c:' + getColor(d.who) + '" onclick="' + onclick + '">' +
+  return '<div class="witem' + (item.kind === 'event' ? ' ev' : '') + (done ? ' is-done' : '') +
+    '" style="--c:' + getColor(d.who) + '" onclick="' + onclick + '">' +
     '<button class="wcheck' + (done ? ' done' : '') + '" onclick="event.stopPropagation();' + toggle + '"></button>' +
     '<span class="wtxt">' + (d.time ? '<b>' + esc(fmtTime(d.time)) + '</b> ' : '') + esc(d.emoji) + ' ' + esc(d.name) + '</span>' +
     '</div>';
@@ -135,10 +136,17 @@ function planerMonatHtml() {
     if (i >= 35 && d.getMonth() !== month) break;
     const key = dk(d);
     const fremd = d.getMonth() !== month;
-    cells += '<button class="mcell' + (fremd ? ' out' : '') + (key === heute ? ' is-today' : '') + '" ' +
+    const eintraege = monatsEintraege(key);
+    const sichtbar = eintraege.slice(0, 3);
+    cells += '<div class="mcell' + (fremd ? ' out' : '') + (key === heute ? ' is-today' : '') + '" ' +
       'onclick="planerOeffneTag(\'' + key + '\')">' +
       '<span class="mnum">' + d.getDate() + '</span>' +
-      '<span class="mdots">' + monatsPunkte(key) + '</span></button>';
+      '<div class="mitems">' +
+      sichtbar.map(e => '<button class="mitem" style="--c:' + e.farbe + '" onclick="event.stopPropagation();' + e.klick + '">' +
+        (e.zeit ? '<b>' + esc(fmtTime(e.zeit)) + '</b> ' : '') + esc(e.text) + '</button>').join('') +
+      (eintraege.length > sichtbar.length ? '<span class="mmore">+' + (eintraege.length - sichtbar.length) + '</span>' : '') +
+      '</div>' +
+      '<span class="mdots">' + monatsPunkte(key) + '</span></div>';
   }
   const wochentage = DS.map(d => '<div class="mdow">' + d + '</div>').join('');
   return navRow('planerMonatShift(-1)', MONTH_NAMES[month] + ' ' + year, 'planerMonatShift(1)',
@@ -147,14 +155,35 @@ function planerMonatHtml() {
     wochenmusterHtml();
 }
 
-// Punkte im Raster: nur datumsgebundene Dinge. Wiederkehrende Wochenroutine
-// bleibt bewusst draussen (sonst wäre jeder Tag voll) - dafür der Streifen
-// darunter.
+// Was an einem Tag im Raster steht: nur datumsgebundene Dinge. Die
+// wiederkehrende Wochenroutine bleibt bewusst draussen (sonst wäre jeder Tag
+// voll) - dafür der Wochenmuster-Streifen darunter. Sortiert nach Uhrzeit,
+// Einträge ohne Uhrzeit (ganztägig, Geburtstage) ans Ende.
+function monatsEintraege(key) {
+  const termine = (HP.events || []).filter(e => !e.chore && e.date === key).map(e => ({
+    zeit: e.time || '', farbe: getColor(e.who), text: e.emoji + ' ' + e.name,
+    klick: 'openEventForm(\'' + esc(e.id) + '\')'
+  }));
+  const wichtig = allTasks().filter(t => t.important && taskOccursOn(t, key)).map(t => ({
+    zeit: t.time || '', farbe: getColor(t.who), text: t.emoji + ' ' + t.name,
+    klick: 'openTaskForm(\'' + esc(t.id) + '\',\'' + key + '\')'
+  }));
+  const chores = (HP.events || []).filter(e => e.chore && e.date === key).map(e => ({
+    zeit: '', farbe: getColor(e.who), text: e.emoji + ' ' + e.name,
+    klick: 'openChoreForm(\'' + esc(e.id) + '\')'
+  }));
+  const bdays = birthdaysOn(key).map(b => ({
+    zeit: '', farbe: 'var(--palette-amber)', text: '🎂 ' + b.name,
+    klick: 'switchView(\'geburtstage\')'
+  }));
+  return [...termine, ...wichtig, ...chores, ...bdays]
+    .sort((a, b) => (a.zeit || '99:99').localeCompare(b.zeit || '99:99'));
+}
+
+// Punkt-Variante derselben Einträge - auf dem Handy ist eine Rasterzelle rund
+// 50px breit, da ist für Text kein Platz (siehe @media-Block in app.css).
 function monatsPunkte(key) {
-  const dots = [];
-  (HP.events || []).filter(e => e.date === key).forEach(e => dots.push(getColor(e.who)));
-  allTasks().filter(t => t.important && taskOccursOn(t, key)).forEach(t => dots.push(getColor(t.who)));
-  birthdaysOn(key).forEach(() => dots.push('var(--palette-amber)'));
+  const dots = monatsEintraege(key).map(e => e.farbe);
   const sichtbar = dots.slice(0, 4).map(c => '<i style="background:' + c + '"></i>').join('');
   return sichtbar + (dots.length > 4 ? '<i class="more"></i>' : '');
 }
@@ -215,18 +244,21 @@ function renderPersonen() {
     '<div class="card"><div class="card-head"><span class="card-title">Heute anstehend</span>' +
     '<button class="btn btn-outline btn-sm" onclick="openTaskForm(null,\'' + key + '\',{who:\'' + who + '\'})">+ Aufgabe</button></div>' +
     (dayEntriesHtml(key, who) || emptyState('i-check', 'Für heute ist nichts eingetragen.')) + '</div>' +
+    '<div class="card"><div class="card-head"><span class="card-title">Nächste Termine</span>' +
+    '<button class="btn btn-outline btn-sm" onclick="openEventForm(null,\'' + key + '\')">+ Termin</button></div>' +
+    (termine.length
+      ? termine.map(e => '<div class="list-row" onclick="openEventForm(\'' + esc(e.id) + '\')">' +
+        '<div class="meta"><div class="name">' + esc(e.emoji) + ' ' + esc(e.name) + '</div>' +
+        '<div class="sub">' + esc(dateLabel(e.date, { weekday: 'short', day: 'numeric', month: 'short' })) +
+        (e.time ? ' · ' + esc(fmtTime(e.time)) : '') + '</div></div>' + personDot(e.who) + '</div>').join('')
+      : emptyState('i-calendar', 'Keine kommenden Termine.')) + '</div>' +
     '<div class="card"><div class="card-head"><span class="card-title">Alle Aufgaben</span></div>' +
     (eigene.length
       ? eigene.map(t => '<div class="list-row" onclick="openTaskForm(\'' + esc(t.id) + '\')">' +
         '<div class="meta"><div class="name">' + esc(t.emoji) + ' ' + esc(t.name) + '</div>' +
         '<div class="sub">' + t.days.map(d => DS[d]).join(', ') + (t.time ? ' · ' + esc(fmtTime(t.time)) : '') + '</div></div>' +
         personDot(t.who) + '</div>').join('')
-      : emptyState('i-check', 'Noch keine Aufgaben angelegt.')) + '</div>' +
-    (termine.length ? '<div class="card"><div class="card-head"><span class="card-title">Nächste Termine</span></div>' +
-      termine.map(e => '<div class="list-row" onclick="openEventForm(\'' + esc(e.id) + '\')">' +
-        '<div class="meta"><div class="name">' + esc(e.emoji) + ' ' + esc(e.name) + '</div>' +
-        '<div class="sub">' + esc(dateLabel(e.date, { weekday: 'short', day: 'numeric', month: 'short' })) +
-        (e.time ? ' · ' + esc(fmtTime(e.time)) : '') + '</div></div>' + personDot(e.who) + '</div>').join('') + '</div>' : '');
+      : emptyState('i-check', 'Noch keine Aufgaben angelegt.')) + '</div>';
 }
 
 function ringHtml(pct, farbe) {

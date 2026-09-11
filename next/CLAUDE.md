@@ -86,11 +86,31 @@ lokalen Server.
   Textfeld ohne eigenes Auswahl-Raster (Windows-Emoji-Picker via Win+. tut's
   vorerst); ein eigenes Emoji-Raster wie im alten Heimplaner ist ein
   mögliches späteres Polish-Item, keine Baustelle mit Priorität.
-- **Monatsansicht**: Raster zeigt nur Punkte für datumsgebundene Dinge
-  (Termine, Geburtstage, als wichtig markierte Aufgaben) — mehrere pro Tag,
-  nicht nur einer. Wiederkehrende Wochenroutine erscheint NICHT im Raster,
-  sondern einmalig darunter in einem kompakten 7-Spalten-Wochenmuster-Streifen.
-  Abhaken einzelner Tage bleibt Sache von Heute/Tag-Ansicht.
+- **Monatsansicht**: Das Raster zeigt datumsgebundene Dinge (Termine,
+  Geburtstage, Haushaltsfälligkeiten, als wichtig markierte Aufgaben) — auf
+  Desktop als Textzeilen mit Uhrzeit, **nach Uhrzeit sortiert**, ohne Uhrzeit
+  ans Ende, ab dem vierten Eintrag als "+n". Auf dem Handy ist eine Zelle rund
+  50px breit, dort dieselben Einträge als farbige Punkte (`monatsEintraege()`
+  liefert beides, `monatsPunkte()` leitet sich davon ab — die zwei Darstellungen
+  dürfen nicht auseinanderlaufen). Wiederkehrende Wochenroutine erscheint NICHT
+  im Raster, sondern darunter im 7-Spalten-Wochenmuster-Streifen. Abhaken
+  einzelner Tage bleibt Sache von Heute/Tag-Ansicht.
+- **Termine heben sich in der Wochenspalte leicht ab** (`--item-ev-bg`,
+  dickerer Farbbalken, etwas kräftigere Schrift) — bewusst keine eigene Farbe:
+  die Farbe gehört dort der Person, nicht dem Eintragstyp.
+- **Reihenfolge in der Personenansicht**: Heute anstehend → Nächste Termine →
+  Alle Aufgaben. Termine stehen über den Aufgaben, weil sie den Tag fixieren.
+- **Termine aus der Notiz** werden über das normale Termin-Formular angelegt
+  und bearbeitet (Knopf "Neuer Termin" / "Termin bearbeiten"), nicht über
+  eigene Felder in der Notiz: sonst gäbe es zwei Formulare für dieselbe Sache,
+  und Uhrzeit/Erinnerung müssten dort nachgebaut werden. Der Rückweg läuft
+  über `terminRueckweg` (dritter Parameter von `openEventForm`), der
+  Notiz-Entwurf über den zweiten Parameter von `openNoteForm` — sonst wäre
+  der getippte Text nach dem Umweg weg.
+- **Die JSON-Momentaufnahme bleibt** (Einstellungen → Sicherung). Supabase ist
+  kein Backup, sondern eine Live-Kopie: eine versehentliche Löschung ist dort
+  nach dem nächsten Sync ebenfalls weg (genau dafür gibt es Tombstones). Die
+  Datei ist der einzige Weg zurück zu einem früheren Stand.
 - **Sidebar-Reihenfolge (Desktop) / Hauptnavigation**: Heute, Planer,
   Personen, Haushalt, Einkaufsliste, Budget, Menüplan, Rezepte, Pinnwand,
   Geburtstage, Einstellungen.

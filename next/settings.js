@@ -73,8 +73,10 @@ function renderEinstellungen() {
     '<div class="setting-row"><div>Kalender exportieren (.ics)<div class="muted small">Termine, Aufgaben mit Uhrzeit und Menüplan der nächsten 4 Wochen.</div></div>' +
     '<button class="btn btn-outline" onclick="exportICSV2()">Exportieren</button></div></div>' +
 
-    '<div class="card"><div class="card-head"><span class="card-title">Daten</span></div>' +
-    '<div class="setting-row"><div>Backup als JSON<div class="muted small">Sichert den kompletten Datenbestand dieses Geräts.</div></div>' +
+    '<div class="card"><div class="card-head"><span class="card-title">Sicherung</span></div>' +
+    '<div class="setting-row"><div>Momentaufnahme als JSON<div class="muted small">' +
+    'Supabase hält nur den <b>aktuellen</b> Stand – eine versehentliche Löschung ist dort Sekunden später ebenfalls weg. ' +
+    'Diese Datei ist der einzige Weg zurück zu einem früheren Stand.</div></div>' +
     '<div style="display:flex;gap:8px">' +
     '<button class="btn btn-outline" onclick="exportJSONV2()">Export</button>' +
     '<label class="btn btn-outline">Import<input type="file" accept="application/json" hidden onchange="importJSONV2(this)"></label>' +

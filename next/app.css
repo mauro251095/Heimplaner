@@ -191,6 +191,9 @@ a{color:inherit}
   font-size:var(--fs-xs);line-height:1.35}
 .witem.is-done .wtxt{text-decoration:line-through;color:var(--text-3)}
 .witem.bday{border-left-color:var(--palette-amber)}
+/* Termine sind die Ausnahme im Tag, Serien-Aufgaben die Regel - eine Nuance
+   heller/kräftiger reicht, um sie im Blick zuerst zu treffen. */
+.witem.ev{background:var(--item-ev-bg);border-left-width:3px;font-weight:500}
 .wcheck{width:13px;height:13px;border-radius:4px;border:1.5px solid var(--border-2);background:none;cursor:pointer;
   flex-shrink:0;padding:0;margin-top:2px}
 .wcheck.done{background:var(--accent);border-color:var(--accent)}
@@ -214,14 +217,19 @@ a{color:inherit}
 /* ── Monat ── */
 .month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:var(--sp-6)}
 .mdow{text-align:center;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);padding-bottom:2px}
-.mcell{height:76px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
-  display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:4px;cursor:pointer;
-  font-family:inherit;color:inherit;padding:6px 8px}
+.mcell{min-height:108px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
+  display:flex;flex-direction:column;align-items:stretch;gap:3px;cursor:pointer;
+  font-family:inherit;color:inherit;padding:6px;overflow:hidden}
 .mcell.out{opacity:.35}
 .mcell.is-today{border-color:var(--accent);background:var(--accent-bg)}
 .mcell.is-today .mnum{color:var(--accent-text);font-weight:700}
-.mnum{font-size:var(--fs-base)}
-.mdots{display:flex;gap:3px;min-height:5px;align-items:center;flex-wrap:wrap}
+.mnum{font-size:var(--fs-base);padding-left:2px}
+.mitems{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mitem{display:block;width:100%;text-align:left;background:var(--bg);border:none;border-left:2px solid var(--c,var(--border-2));
+  border-radius:0 var(--r-sm) var(--r-sm) 0;color:inherit;font-family:inherit;font-size:var(--fs-2xs);
+  line-height:1.4;padding:2px 4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mmore{font-size:var(--fs-2xs);color:var(--text-3);padding-left:4px}
+.mdots{display:none;gap:3px;min-height:5px;align-items:center;flex-wrap:wrap}
 .mdots i{width:5px;height:5px;border-radius:50%;display:block}
 .mdots i.more{background:var(--text-3);width:3px;height:3px;align-self:center}
 .wm-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:var(--sp-3)}
@@ -338,6 +346,8 @@ a{color:inherit}
 /* ── Formular-Ergänzungen ── */
 .field textarea{width:100%;background:var(--bg);border:1px solid var(--border-2);border-radius:var(--r-md);
   color:var(--text);padding:9px 12px;font-size:var(--fs-md);font-family:inherit;resize:vertical}
+.field-actions{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin-top:var(--sp-4)}
+.field-actions .icon{width:13px;height:13px}
 .daypills{display:flex;gap:4px;flex-wrap:wrap}
 .daypill{flex:1;min-width:36px;background:var(--bg);border:1px solid var(--border-2);color:var(--text-2);
   border-radius:var(--r-md);padding:7px 0;font-size:var(--fs-sm);cursor:pointer;font-family:inherit}
@@ -350,7 +360,10 @@ a{color:inherit}
 @media (max-width:860px){
   .cols-2{grid-template-columns:1fr}
   .week-grid{grid-template-columns:1fr}
-  .mcell{height:auto;aspect-ratio:1/1;align-items:center;justify-content:center;padding:2px}
+  /* Rund 50px pro Zelle - für Text zu schmal, deshalb hier die Punkte. */
+  .mcell{min-height:0;aspect-ratio:1/1;align-items:center;justify-content:center;padding:2px}
+  .mitems{display:none}
+  .mdots{display:flex}
   .month-grid{gap:3px}
   .day-col{flex-direction:row;flex-wrap:wrap;align-items:flex-start;min-height:0}
   .day-col .day-head{min-width:64px}

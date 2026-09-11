@@ -31,6 +31,11 @@
   --budget-warn-threshold: 0.9;
   --danger:    #F09595;
 
+  /* Termine heben sich in der Wochenspalte leicht von den (viel häufigeren)
+     Serien-Aufgaben ab – bewusst nur eine Nuance heller, keine eigene Farbe:
+     die Farbe gehört dort der Person, nicht dem Eintragstyp. */
+  --item-ev-bg: rgba(255,255,255,0.07);
+
   /* ── Personenfarben: AUSWAHL-Palette, keiner Person fix zugeordnet ──
      Jede Person wählt eine davon in den Einstellungen. Die drei
      --person-*-Variablen unten sind nur der DEMO-Stand für diese
@@ -115,4 +120,7 @@ body.light{
   --accent-bg:   rgba(76,154,90,0.14);
 
   --danger: #D14343;        /* auf Weiss kräftiger als #F09595, sonst zu blass für Text/Kontrast */
+
+  /* Aufhellen wirkt auf hellem Grund nicht – hier abdunkeln, gleiche Stärke. */
+  --item-ev-bg: rgba(0,0,0,0.05);
 }
