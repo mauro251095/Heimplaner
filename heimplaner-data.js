@@ -720,6 +720,7 @@ function loadState() {
       if (!d.eventComments) d.eventComments = {};
       if (!d.savedShopItems) d.savedShopItems = [];
       if (!d.taskExceptions) d.taskExceptions = {};
+      if (!d.taskExtras) d.taskExtras = {};
       if (!d.budgetEntries) d.budgetEntries = [];
       if (!d.budgetLimits) d.budgetLimits = {p1:{}, p2:{}};
       if (!d.deleted) d.deleted = {};
@@ -741,7 +742,7 @@ function loadState() {
     shop: [], meals: {}, notes: [], customRecipes: [],
     events: [], birthdays: [], taskComments: {},
     eventStatus: {}, eventNotes: {}, eventComments: {},
-    savedShopItems: [], taskExceptions: {},
+    savedShopItems: [], taskExceptions: {}, taskExtras: {},
     budgetEntries: [], budgetLimits: {p1:{}, p2:{}},
     deleted: {}
   };
@@ -899,11 +900,18 @@ function wkNum(d) {
   const w1=new Date(dt.getFullYear(),0,4);
   return 1+Math.round(((dt-w1)/86400000-3+(w1.getDay()+6)%7)/7);
 }
+// Eine Aufgabe ist eine Serie über Wochentage, kein Eintrag pro Tag. Zwei
+// Ausnahmen biegen einzelne Vorkommen zurecht, ohne die Serie anzufassen:
+//   taskExceptions[id][datum]  faellt an diesem Tag aus
+//   taskExtras[id][datum]      findet an diesem Tag zusaetzlich statt
+// "Verschieben" ist beides zusammen - am alten Tag streichen, am neuen
+// hinzufuegen. Deshalb braucht es dafuer keine dritte Datenstruktur, und
+// Rueckgaengig ist einfach das Entfernen der zwei Eintraege.
 function taskOccursOn(t,dateKey) {
-  const di=(new Date(dateKey+'T12:00:00').getDay()+6)%7;
-  if(!t.days.includes(di)) return false;
   if(HP.taskExceptions && HP.taskExceptions[t.id] && HP.taskExceptions[t.id][dateKey]) return false;
-  return true;
+  if(HP.taskExtras && HP.taskExtras[t.id] && HP.taskExtras[t.id][dateKey]) return true;
+  const di=(new Date(dateKey+'T12:00:00').getDay()+6)%7;
+  return t.days.includes(di);
 }
 // Status (offen/in Arbeit/blockiert/erledigt) gilt pro Vorkommen einer Serie,
 // nicht für die ganze Serie — sonst wäre ein am Montag abgehakter Task auch

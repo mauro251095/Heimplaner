@@ -363,6 +363,7 @@ a{color:inherit}
 .ent-flag{color:var(--palette-amber);font-size:var(--fs-sm)}
 .ent-note{width:14px;height:14px;color:var(--text-3)}
 .ent-state{color:var(--danger);font-size:var(--fs-xs);font-weight:600;letter-spacing:.02em}
+.tag-aktion{margin:calc(-1 * var(--sp-4)) 0 var(--sp-5);text-align:right}
 .rowhint{color:var(--text-3);width:14px;height:14px;flex-shrink:0}
 .check.sm{width:18px;height:18px;border-width:1.5px}
 .check.sm .icon{width:11px;height:11px}

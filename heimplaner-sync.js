@@ -235,13 +235,14 @@ function mergeObjectMap(local, remote, deletedIds, nested) {
 // Ordnet jede Plain-Object-Map ihrer Tombstone-Liste zu (null = keine, weil die
 // Keys keine gelöschten Entity-IDs sind, sondern z.B. 'p1'/'p2').
 const OBJECT_MAP_TYPES = {
-  taskStatus: 'tasks', taskNotes: 'tasks', taskComments: 'tasks', taskExceptions: 'tasks',
+  taskStatus: 'tasks', taskNotes: 'tasks', taskComments: 'tasks',
+  taskExceptions: 'tasks', taskExtras: 'tasks',
   eventStatus: 'events', eventNotes: 'events', eventComments: 'events',
   colors: null, budgetLimits: null
 };
 
 // tid/eid -> dateKey -> Wert (im Gegensatz zu tid -> Wert bei den übrigen Maps).
-const NESTED_MAP_TYPES = new Set(['taskStatus', 'taskComments', 'taskExceptions']);
+const NESTED_MAP_TYPES = new Set(['taskStatus', 'taskComments', 'taskExceptions', 'taskExtras']);
 
 // Merged zwei Tombstone-Maps (id -> Lösch-Zeitstempel): Union der Keys, jeweils
 // der jüngere Zeitstempel gewinnt.

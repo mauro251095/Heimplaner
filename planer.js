@@ -122,6 +122,10 @@ function planerTagHtml() {
   return navRow('planerTagShift(-1)', dateLabel(key), 'planerTagShift(1)',
     (isHeute ? '<span class="heute-chip">Heute</span>' : '<button class="linkbtn" onclick="planerHeute()">Heute</button>')) +
     wochenStreifenHtml(key) +
+    // Ganzer Tag getauscht (Arbeitstag gegen freien Tag) - hier, nicht in der
+    // Heute-Ansicht: man verschiebt fast immer einen anderen als den heutigen.
+    '<div class="tag-aktion"><button class="linkbtn" onclick="openTagVerschieben(\'' + esc(key) + '\')">' +
+    'Aufgaben auf einen anderen Tag verschieben</button></div>' +
     tagAbschnitteHtml(key);
 }
 

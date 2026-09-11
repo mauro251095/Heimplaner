@@ -252,7 +252,11 @@ function openTaskForm(tid, dateKey, prefill) {
       '<textarea id="tf-comment" rows="2" maxlength="5000">' + esc(taskKommentar(t.id, key)) + '</textarea></div>'
       : '') +
     (t ? '<div class="field" style="margin-top:14px"><label>Nur an diesem Tag</label>' +
-      '<button class="btn btn-outline btn-block" onclick="skipTaskOccurrence(\'' + esc(t.id) + '\',\'' + esc(key) + '\')">Am ' + esc(dateLabel(key, { day: 'numeric', month: 'short' })) + ' überspringen</button></div>' : '') +
+      '<button class="btn btn-outline btn-block" onclick="skipTaskOccurrence(\'' + esc(t.id) + '\',\'' + esc(key) + '\')">Am ' + esc(dateLabel(key, { day: 'numeric', month: 'short' })) + ' überspringen</button>' +
+      '<div class="if-row" style="margin-top:8px">' +
+      '<input type="date" id="tf-move-date" value="' + esc(shiftDateKey(key, 1)) + '">' +
+      '<button class="btn btn-outline" onclick="verschiebeVorkommen(\'' + esc(t.id) + '\',\'' + esc(key) + '\')">Verschieben</button>' +
+      '</div></div>' : '') +
     '<div class="modal-actions">' +
     (t ? '<button class="btn btn-danger" onclick="deleteTaskSeries(\'' + esc(t.id) + '\')">Serie löschen</button>' : '<span></span>') +
     '<div style="display:flex;gap:8px">' +
@@ -310,19 +314,95 @@ function skipTaskOccurrence(tid, dateKey) {
   });
 }
 
+// ── Vorkommen verschieben ─────────────────────
+// Streichen am alten Tag, zusätzlich eintragen am neuen - siehe taskOccursOn
+// in heimplaner-data.js. Der Status bleibt bewusst am alten Datum liegen: er
+// gilt pro Tag, und beim Rückgängigmachen soll er wieder stimmen.
+function vorkommenVerschieben(tid, vonKey, nachKey) {
+  if (!HP.taskExceptions[tid]) HP.taskExceptions[tid] = {};
+  if (!HP.taskExtras[tid]) HP.taskExtras[tid] = {};
+  HP.taskExceptions[tid][vonKey] = true;
+  HP.taskExtras[tid][nachKey] = true;
+}
+
+function vorkommenZuruecknehmen(tid, vonKey, nachKey) {
+  leereDatumsmap(HP.taskExceptions, tid, vonKey);
+  leereDatumsmap(HP.taskExtras, tid, nachKey);
+}
+
+// Den Tag austragen und die Aufgabe gleich mit, wenn danach kein Tag mehr
+// drinsteht: leere Maps würden sonst bei jedem Sync mitgeschleppt.
+function leereDatumsmap(map, tid, dateKey) {
+  if (!map || !map[tid]) return;
+  delete map[tid][dateKey];
+  if (!Object.keys(map[tid]).length) delete map[tid];
+}
+
+function verschiebeVorkommen(tid, vonKey) {
+  const nachKey = document.getElementById('tf-move-date')?.value;
+  if (!nachKey) { showToast('Bitte Zieldatum wählen'); return; }
+  if (nachKey === vonKey) { showToast('Das ist derselbe Tag'); return; }
+  const t = findTask(tid)?.task;
+  vorkommenVerschieben(tid, vonKey, nachKey);
+  HP_save(); closeModal(); render();
+  showUndoToast((t ? t.name : 'Aufgabe') + ' → ' + dateLabel(nachKey, { weekday: 'short', day: 'numeric', month: 'short' }), () => {
+    vorkommenZuruecknehmen(tid, vonKey, nachKey);
+    HP_save(); render(); showToast('Zurückgeschoben');
+  });
+}
+
+// Ganzer Tag: nur die Aufgaben der gewählten Person. Gemeinsame bleiben
+// stehen - die betreffen beide, und nur einer hat den Tag getauscht.
+function openTagVerschieben(dateKey) {
+  const ich = loggedInPersonKey();
+  showModal('<h3>Aufgaben verschieben</h3>' +
+    '<p class="muted small">Verschiebt die Aufgaben von ' +
+    esc(dateLabel(dateKey, { weekday: 'long', day: 'numeric', month: 'long' })) +
+    ' auf einen anderen Tag. Gemeinsame Aufgaben bleiben stehen — die lassen sich einzeln verschieben.</p>' +
+    '<div class="field-row">' +
+    '<div class="field"><label>Wessen Aufgaben</label><select id="mv-who">' +
+    '<option value="p1"' + (ich === 'p1' ? ' selected' : '') + '>' + esc(HP.names.p1) + '</option>' +
+    '<option value="p2"' + (ich === 'p2' ? ' selected' : '') + '>' + esc(HP.names.p2) + '</option>' +
+    '</select></div>' +
+    '<div class="field"><label>Auf welchen Tag</label><input type="date" id="mv-date" value="' + esc(shiftDateKey(dateKey, 1)) + '"></div>' +
+    '</div>' +
+    '<div class="modal-actions"><span></span><div style="display:flex;gap:8px">' +
+    '<button class="btn btn-outline" onclick="closeModal()">Abbrechen</button>' +
+    '<button class="btn btn-accent" onclick="tagVerschieben(\'' + esc(dateKey) + '\')">Verschieben</button>' +
+    '</div></div>');
+}
+
+function tagVerschieben(vonKey) {
+  const who = document.getElementById('mv-who').value;
+  const nachKey = document.getElementById('mv-date').value;
+  if (!nachKey) { showToast('Bitte Zieldatum wählen'); return; }
+  if (nachKey === vonKey) { showToast('Das ist derselbe Tag'); return; }
+  const betroffen = (HP.tasks[who] || []).filter(t => taskOccursOn(t, vonKey));
+  if (!betroffen.length) { showToast('An diesem Tag steht nichts an'); return; }
+  betroffen.forEach(t => vorkommenVerschieben(t.id, vonKey, nachKey));
+  HP_save(); closeModal(); render();
+  showUndoToast(betroffen.length + ' Aufgabe' + (betroffen.length === 1 ? '' : 'n') + ' → ' +
+    dateLabel(nachKey, { weekday: 'short', day: 'numeric', month: 'short' }), () => {
+      betroffen.forEach(t => vorkommenZuruecknehmen(t.id, vonKey, nachKey));
+      HP_save(); render(); showToast('Zurückgeschoben');
+    });
+}
+
 function deleteTaskSeries(tid) {
   const found = findTask(tid);
   if (!found) { closeModal(); return; }
   const { task, who } = found;
   const nebendaten = {
     status: HP.taskStatus[tid], notiz: HP.taskNotes[tid],
-    kommentare: (HP.taskComments || {})[tid], ausnahmen: HP.taskExceptions[tid]
+    kommentare: (HP.taskComments || {})[tid], ausnahmen: HP.taskExceptions[tid],
+    zusatztage: (HP.taskExtras || {})[tid]
   };
   markDeleted('tasks', tid);
   HP.tasks[who] = HP.tasks[who].filter(x => x.id !== tid);
   delete HP.taskStatus[tid]; delete HP.taskNotes[tid];
   if (HP.taskComments) delete HP.taskComments[tid];
   delete HP.taskExceptions[tid];
+  if (HP.taskExtras) delete HP.taskExtras[tid];
   HP_save();
   closeModal();
   render();
@@ -334,6 +414,7 @@ function deleteTaskSeries(tid) {
     if (nebendaten.notiz) HP.taskNotes[tid] = nebendaten.notiz;
     if (nebendaten.kommentare) { HP.taskComments = HP.taskComments || {}; HP.taskComments[tid] = nebendaten.kommentare; }
     if (nebendaten.ausnahmen) HP.taskExceptions[tid] = nebendaten.ausnahmen;
+    if (nebendaten.zusatztage) { HP.taskExtras = HP.taskExtras || {}; HP.taskExtras[tid] = nebendaten.zusatztage; }
     HP_save(); render(); showToast('Wiederhergestellt');
   });
 }

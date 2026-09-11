@@ -228,6 +228,18 @@ störungsfrei läuft, kann der Ordner ersatzlos weg.
   geworden: "In Arbeit" ist weg, Offen/Blockiert/Erledigt bleiben. Bei
   "Blockiert" erscheint das Grund-Feld samt "Zur Einkaufsliste" — der Grund ist
   fast immer das, was fehlt, und steht deshalb schon als Artikelname im Formular.
+- **Ein einzelnes Vorkommen lässt sich auf einen anderen Tag verschieben** —
+  ohne die Serie anzufassen. Dafür gibt es zwei gegenläufige Maps in
+  `heimplaner-data.js`: `taskExceptions[id][datum]` (fällt aus, gab es schon)
+  und `taskExtras[id][datum]` (findet zusätzlich statt). **Verschieben ist
+  beides zusammen**, deshalb braucht es dafür keine dritte Datenstruktur und
+  Rückgängig ist schlicht das Entfernen der zwei Einträge. Die Ausnahme wird
+  in `taskOccursOn()` **zuerst** geprüft: ein verschobenes und dann doch
+  gestrichenes Vorkommen bleibt sonst sichtbar. Der Status bleibt am alten
+  Datum liegen — er gilt pro Tag, und beim Rückgängigmachen soll er stimmen.
+  Der Fall dahinter: ein getauschter freier Tag. Deshalb gibt es in der
+  Tagesansicht zusätzlich "Aufgaben auf einen anderen Tag verschieben", das
+  **nur die Aufgaben einer Person** mitnimmt — gemeinsame betreffen beide.
 - **Die Termin-Notiz schreibt nach `HP.eventComments`**, nicht ins Feld
   `e.note` am Termin selbst. `e.note` wird nirgends angezeigt und nur noch als
   Rückfall **gelesen**, damit ein dort liegender Text nicht stillschweigend

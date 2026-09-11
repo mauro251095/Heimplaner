@@ -340,6 +340,45 @@ pruefe('Heutiger Geburtstag ist heute, nicht in einem Jahr', () => {
   return gleich(tageBisGeburtstag(bdayAm(heute)), 0);
 });
 
+// ═══════════════════════════════════════════════════════════
+gruppe('Vorkommen einer Aufgabe (Ausnahme / Zusatztag)');
+
+// 11.09.2026 ist ein Freitag (Index 4), 14.09.2026 ein Montag (Index 0).
+const FR = '2026-09-11', MO = '2026-09-14';
+const freitagsAufgabe = { id: 'tv1', days: [4], name: 'Wäsche' };
+function mitVorkommen(ausnahmen, zusatz, fn) {
+  const a = HP.taskExceptions, z = HP.taskExtras;
+  HP.taskExceptions = ausnahmen; HP.taskExtras = zusatz;
+  try { return fn(); } finally { HP.taskExceptions = a; HP.taskExtras = z; }
+}
+
+pruefe('Aufgabe erscheint an ihrem Wochentag', () =>
+  mitVorkommen({}, {}, () => gleich(taskOccursOn(freitagsAufgabe, FR), true)));
+
+pruefe('Aufgabe erscheint nicht an einem anderen Wochentag', () =>
+  mitVorkommen({}, {}, () => gleich(taskOccursOn(freitagsAufgabe, MO), false)));
+
+pruefe('Ausnahme streicht das Vorkommen', () =>
+  mitVorkommen({ tv1: { [FR]: true } }, {}, () => gleich(taskOccursOn(freitagsAufgabe, FR), false)));
+
+pruefe('Zusatztag lässt sie an einem fremden Wochentag erscheinen', () =>
+  mitVorkommen({}, { tv1: { [MO]: true } }, () => gleich(taskOccursOn(freitagsAufgabe, MO), true)));
+
+pruefe('Verschieben: alter Tag weg, neuer Tag da', () =>
+  mitVorkommen({ tv1: { [FR]: true } }, { tv1: { [MO]: true } }, () =>
+    gleich([taskOccursOn(freitagsAufgabe, FR), taskOccursOn(freitagsAufgabe, MO)], [false, true])));
+
+// Sonst bliebe ein verschobenes und dann gestrichenes Vorkommen sichtbar.
+pruefe('Ausnahme schlägt Zusatztag am selben Tag', () =>
+  mitVorkommen({ tv1: { [MO]: true } }, { tv1: { [MO]: true } }, () =>
+    gleich(taskOccursOn(freitagsAufgabe, MO), false)));
+
+pruefe('Ohne die beiden Maps wirft taskOccursOn nicht', () =>
+  mitVorkommen(undefined, undefined, () => gleich(taskOccursOn(freitagsAufgabe, FR), true)));
+
+// ═══════════════════════════════════════════════════════════
+gruppe('Geburtstage – zusätzlich');
+
 pruefe('birthdaysOn findet den Geburtstag unabhängig vom Jahr', () => {
   HP.birthdays = [{ id: 'b1', name: 'Test', date: '0000-03-05', year: '1990' }];
   const treffer = birthdaysOn('2027-03-05').length && !birthdaysOn('2027-03-06').length;
