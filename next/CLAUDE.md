@@ -145,8 +145,31 @@ lokalen Server.
   Serien (RRULE) werden bis 12 Monate im Voraus ausgerollt, Deckel bei 500
   Terminen bzw. 200 Vorkommen je Serie, damit der synchronisierte Datensatz
   nicht explodiert.
+- **Listen statt Kacheln** (Stand der Mockups, zuerst in Rezepte umgesetzt):
+  eine Fläche je Ansicht (`.list-page`), darauf Zeilen mit Haarlinie
+  (`.flat-row`) und kleinen Abschnitts-Überschriften (`.section-label`).
+  Eingesenkte Elemente (Suchfeld, Emoji-Kachel) nehmen `--bg`. Die übrigen
+  Ansichten benutzen noch die Karten-Blöcke und ziehen nach.
+- **Chips filtern nach Tag, die Liste gruppiert nach Kategorie** — zwei
+  Dimensionen. Beides nach Kategorie wäre dieselbe Achse doppelt. Gezeigt
+  werden die acht häufigsten Tags; Herkunfts-Tags (`eigenes`, `importiert`,
+  `bettybossi`) sind ausgenommen, sie sagen nichts über das Essen.
+- **"Zuletzt gekocht" kommt aus dem Menüplan** (`zuletztGekocht()`, nur
+  Einträge bis heute — geplant ist nicht gekocht) und ersetzt in der Zeile die
+  Portionenangabe. Sortierung wahlweise A–Z (gruppiert) oder "lange nicht
+  gekocht" (durchgehende Liste, nie Gekochtes zuerst — eine Gruppierung würde
+  die Rangfolge zerreissen).
+- **Zutatensuche vergleicht am Wortanfang**, sonst findet "Lauch" jede
+  "Knoblauchzehe". Weil deutsche Komposita damit durchfallen ("spinat" findet
+  kein "Blattspinat"), lockert die Suche auf "enthält", **wenn sonst gar
+  nichts gefunden würde** — mit sichtbarem Hinweis darüber.
+- **Detail rechts statt im Dialog**, sobald über 1100px Platz ist
+  (`.split` + `.detail-page`). Darunter blendet CSS die Spalte aus, und
+  `openRezeptDetail()` merkt das an `offsetParent === null` und öffnet wieder
+  den Dialog. Beide Wege rendern dasselbe `rezeptDetailHtml()`.
 - **Noch offen**: App-Icon-Bild wurde geliefert, aber noch nicht in
-  `manifest.json`/Icon-Grössen umgesetzt.
+  `manifest.json`/Icon-Grössen umgesetzt. Die 36px-Kachel in der Rezeptliste
+  ist im Mockup ein Platzhalter für ein Foto — aktuell steht das Emoji darin.
 
 ## Nächste Schritte
 

@@ -311,7 +311,27 @@ a{color:inherit}
    Teilen, statt dort als zwei knappe Knöpfe am Rand zu kleben. */
 .list-page .view-head{flex-wrap:wrap;row-gap:var(--sp-4)}
 
-.chips{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-bottom:var(--sp-5)}
+/* Liste links, Detail rechts - der Platz rechts steht auf dem Desktop ohnehin
+   leer, und das Blättern durch Rezepte braucht dann keinen Dialog mehr.
+   Unterhalb von 1100px wird die Spalte ausgeblendet; openRezeptDetail()
+   erkennt das (offsetParent === null) und öffnet wieder den Dialog. */
+.split{display:flex;gap:var(--sp-6);align-items:flex-start;max-width:1400px}
+.split .list-page{flex:1 1 440px;min-width:0;max-width:none}
+.detail-page{flex:1 1 520px;min-width:0;position:sticky;top:0;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-8);
+  max-height:calc(100vh - 130px);overflow-y:auto}
+.detail-page h3{margin:0 0 var(--sp-3);font-size:var(--fs-lg);font-weight:700}
+.detail-leer{display:flex;align-items:center;justify-content:center;min-height:220px}
+.flat-row.is-selected{background:var(--accent-bg);border-radius:var(--r-sm);
+  box-shadow:inset 2px 0 0 var(--accent);padding-left:6px}
+@media (max-width:1099px){
+  .detail-page{display:none}
+  .split{display:block}
+}
+
+.sortsel{margin-left:auto;background:var(--bg);border:1px solid var(--border);color:var(--text-2);
+  border-radius:12px;padding:4px 8px;font-size:var(--fs-xs);font-family:inherit;cursor:pointer}
+.chips{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;margin-bottom:var(--sp-5)}
 .chip{background:var(--bg);border:1px solid var(--border);color:var(--text-2);border-radius:12px;
   padding:4px 10px;font-size:var(--fs-xs);cursor:pointer;font-family:inherit}
 .chip.active{background:var(--accent-bg);border-color:transparent;color:var(--accent-text)}

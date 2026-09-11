@@ -7,8 +7,10 @@
 
 const MEAL_SLOTS = ['Frühstück', 'Mittag', 'Abend'];
 let menuOffset = 0;
-let rezeptFilter = 'Alle';
+let rezeptFilter = 'Alle';      // aktiver Tag-Chip
+let rezeptSort = 'az';          // 'az' | 'lange' (lange nicht gekocht)
 let rezeptSuche = '';
+let offenesRezept = null;       // in der Detailspalte gezeigtes Rezept
 
 function menuWoche(d) { menuOffset += d; renderMenueplan(); }
 
@@ -138,62 +140,160 @@ function rezeptSuchen(v) {
 // Haarlinie dazwischen und kleinen Abschnitts-Überschriften - keine Kachel
 // je Rezept. Dadurch passen bei gleicher Höhe rund dreimal so viele Rezepte
 // auf den Schirm, und der Blick läuft eine Kante entlang statt über ein Raster.
+// Woran ein Rezept hängt, statt woher es kam: Herkunfts-Tags taugen nicht als
+// Filter, weil sie nichts über das Essen aussagen.
+const TAG_AUSBLENDEN = new Set(['eigenes', 'importiert', 'bettybossi']);
+
+// Chips filtern nach Tag, die Liste gruppiert nach Kategorie - zwei
+// Dimensionen. Beides nach Kategorie wäre dieselbe Achse doppelt.
+function haeufigsteTags(rezepte, anzahl) {
+  const zaehler = {};
+  rezepte.forEach(r => (r.tags || []).forEach(t => {
+    if (TAG_AUSBLENDEN.has(t.toLowerCase())) return;
+    zaehler[t] = (zaehler[t] || 0) + 1;
+  }));
+  return Object.keys(zaehler)
+    .sort((a, b) => zaehler[b] - zaehler[a] || a.localeCompare(b))
+    .slice(0, anzahl);
+}
+
+// Wann ein Rezept zuletzt tatsächlich auf dem Tisch stand - aus dem Menüplan.
+// Zukünftige Einträge zählen nicht: geplant ist nicht gekocht.
+function zuletztGekocht() {
+  const heute = todayKey();
+  const out = {};
+  Object.entries(HP.meals || {}).forEach(([key, slots]) => {
+    if (key > heute) return;
+    Object.values(slots).forEach(m => {
+      if (!m.recipeId) return;
+      if (!out[m.recipeId] || out[m.recipeId] < key) out[m.recipeId] = key;
+    });
+  });
+  return out;
+}
+
+function gekochtLabel(dateKey) {
+  if (!dateKey) return 'noch nie gekocht';
+  const tage = Math.round((new Date(todayKey() + 'T00:00:00') - new Date(dateKey + 'T00:00:00')) / 86400000);
+  if (tage <= 0) return 'heute gekocht';
+  if (tage === 1) return 'gestern gekocht';
+  if (tage < 14) return 'vor ' + tage + ' Tagen';
+  if (tage < 60) return 'vor ' + Math.round(tage / 7) + ' Wochen';
+  return 'vor ' + Math.round(tage / 30) + ' Monaten';
+}
+
+function setRezeptSort(s) { rezeptSort = s; renderRezepte(); }
+
 function renderRezepte() {
   const alle = allRecipes();
-  const kategorien = ['Alle', ...Array.from(new Set(alle.map(r => r.cat))).sort()];
+  const tags = ['Alle', ...haeufigsteTags(alle, 8)];
+  const r = offenesRezept ? alle.find(x => x.id === offenesRezept) : null;
   document.getElementById('view-root').innerHTML =
+    '<div class="split">' +
     '<div class="list-page">' +
     viewHead('Rezepte',
       '<span class="head-count">' + alle.length + ' Rezepte</span>' +
       '<button class="btn btn-ghost btn-sm" onclick="openRezeptForm()"><span class="icon i-plus"></span> Eigenes Rezept</button>' +
       '<button class="btn btn-ghost btn-sm" onclick="openRezeptImport()"><span class="icon i-clipboard"></span> Rezept einfügen</button>') +
     '<div class="searchbar"><span class="icon i-search"></span>' +
-    '<input id="rz-suche" placeholder="Rezept suchen" value="' + esc(rezeptSuche) + '" oninput="rezeptSuchen(this.value)">' +
+    '<input id="rz-suche" placeholder="Rezept, Zutat oder Tag suchen" value="' + esc(rezeptSuche) + '" oninput="rezeptSuchen(this.value)">' +
     (rezeptSuche ? '<button class="rowbtn" onclick="rezeptSuchen(\'\');renderRezepte()"><span class="icon i-x"></span></button>' : '') +
     '</div>' +
-    '<div class="chips">' + kategorien.map(c =>
-      '<button class="chip' + (c === rezeptFilter ? ' active' : '') + '" onclick="setRezeptFilter(\'' + esc(c) + '\')">' + esc(c) + '</button>').join('') + '</div>' +
+    '<div class="chips">' +
+    tags.map(t => '<button class="chip' + (t === rezeptFilter ? ' active' : '') + '" onclick="setRezeptFilter(\'' + esc(t) + '\')">' + esc(t) + '</button>').join('') +
+    '<select class="sortsel" onchange="setRezeptSort(this.value)">' +
+    '<option value="az"' + (rezeptSort === 'az' ? ' selected' : '') + '>A–Z</option>' +
+    '<option value="lange"' + (rezeptSort === 'lange' ? ' selected' : '') + '>Lange nicht gekocht</option>' +
+    '</select></div>' +
     '<div id="rezept-liste">' + rezeptListeHtml() + '</div>' +
-    '</div>';
+    '</div>' +
+    '<aside class="detail-page" id="rezept-detail">' +
+    (r ? rezeptDetailHtml(r) : '<div class="detail-leer">' + emptyState('i-notebook', 'Rezept auswählen') + '</div>') +
+    '</aside></div>';
+}
+
+// Zutaten werden am Wortanfang verglichen, nicht irgendwo im Wort: sonst
+// findet "Lauch" jede "Knoblauchzehe" - bei 34 Rezepten genug Rauschen, um
+// die Suche unbrauchbar zu machen. Beim Rezeptnamen bleibt es bei "enthält",
+// dort ist die Trefferzahl klein und Teilwörter sind eher gewollt.
+function zutatTrifft(name, q) {
+  return (name || '').toLowerCase().split(/[^a-zäöüßàáâéèêíóôúç0-9]+/)
+    .some(wort => wort.startsWith(q));
+}
+
+function rezeptTreffer(q, ungenau) {
+  return allRecipes().filter(r =>
+    (rezeptFilter === 'Alle' || (r.tags || []).includes(rezeptFilter)) &&
+    (!q || r.name.toLowerCase().includes(q) ||
+      (r.tags || []).some(t => t.toLowerCase().includes(q)) ||
+      (r.ing || []).some(i => ungenau
+        ? (i.n || '').toLowerCase().includes(q)
+        : zutatTrifft(i.n, q))));
 }
 
 function rezeptListeHtml() {
-  const q = rezeptSuche.toLowerCase();
-  const gefiltert = allRecipes().filter(r =>
-    (rezeptFilter === 'Alle' || r.cat === rezeptFilter) &&
-    (!q || r.name.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q))));
+  const q = rezeptSuche.toLowerCase().trim();
+  const zg = zuletztGekocht();
+  let gefiltert = rezeptTreffer(q, false);
+  // Zusammengesetzte Wörter fallen bei der Wortanfang-Suche durch
+  // ("spinat" findet kein "Blattspinat"). Erst wenn gar nichts gefunden wird,
+  // lockern wir auf "enthält" - dann ist Rauschen besser als eine leere Liste.
+  let ungenau = false;
+  if (!gefiltert.length && q) {
+    gefiltert = rezeptTreffer(q, true);
+    ungenau = gefiltert.length > 0;
+  }
   if (!gefiltert.length) return emptyState('i-notebook', 'Kein Rezept gefunden.');
+  const hinweis = ungenau
+    ? '<div class="section-label">Keine genauen Treffer – Zutaten, die „' + esc(rezeptSuche.trim()) + '“ enthalten</div>'
+    : '';
+
+  if (rezeptSort === 'lange') {
+    // Nie Gekochtes zuerst (leerer String sortiert vor jedem Datum), dann das
+    // am längsten Zurückliegende. Gruppieren nach Kategorie würde die
+    // Rangfolge zerreissen, deshalb hier eine durchgehende Liste.
+    gefiltert.sort((a, b) => (zg[a.id] || '').localeCompare(zg[b.id] || '') || a.name.localeCompare(b.name));
+    return hinweis + gefiltert.map(r => rezeptZeileHtml(r, zg, q, ungenau)).join('');
+  }
   gefiltert.sort((a, b) => a.name.localeCompare(b.name));
-  // Nach Kategorie gruppieren, solange kein Kategorie-Chip aktiv ist - sonst
-  // wäre die Überschrift über jeder Gruppe dieselbe wie der aktive Chip.
-  if (rezeptFilter !== 'Alle') return gefiltert.map(rezeptZeileHtml).join('');
   const gruppen = {};
   gefiltert.forEach(r => { (gruppen[r.cat] = gruppen[r.cat] || []).push(r); });
-  return Object.keys(gruppen).sort().map(cat =>
+  return hinweis + Object.keys(gruppen).sort().map(cat =>
     '<div class="section-label">' + esc(cat) + ' · ' + gruppen[cat].length + '</div>' +
-    gruppen[cat].map(rezeptZeileHtml).join('')).join('');
+    gruppen[cat].map(r => rezeptZeileHtml(r, zg, q, ungenau)).join('')).join('');
 }
 
-function rezeptZeileHtml(r) {
-  return '<div class="flat-row" onclick="openRezeptDetail(\'' + esc(r.id) + '\')">' +
+function rezeptZeileHtml(r, zg, q, ungenau) {
+  // Wenn der Treffer nur in den Zutaten steckt, wäre sonst nicht erkennbar,
+  // warum das Rezept in der Liste steht.
+  const zutatTreffer = q && !r.name.toLowerCase().includes(q)
+    ? (r.ing || []).find(i => ungenau ? (i.n || '').toLowerCase().includes(q) : zutatTrifft(i.n, q))
+    : null;
+  const meta = [r.time + ' Min', gekochtLabel(zg[r.id]), zutatTreffer ? 'mit ' + zutatTreffer.n : '']
+    .filter(Boolean).join(' · ');
+  return '<div class="flat-row' + (r.id === offenesRezept ? ' is-selected' : '') + '" data-rid="' + esc(r.id) + '" ' +
+    'onclick="openRezeptDetail(\'' + esc(r.id) + '\')">' +
     '<span class="tile">' + esc(r.emoji) + '</span>' +
     '<span class="fr-name">' + esc(r.name) + '</span>' +
-    '<span class="fr-meta">' + esc(r.time) + ' Min · ' + esc(r.pers) + ' Pers.</span>' +
+    '<span class="fr-meta">' + esc(meta) + '</span>' +
     '<button class="rowbtn" onclick="event.stopPropagation();openRezeptForm(\'' + esc(r.id) + '\')" title="Bearbeiten">' +
     '<span class="icon i-pencil"></span></button>' +
     '</div>';
 }
 
-function openRezeptDetail(rid) {
-  const r = allRecipes().find(x => x.id === rid); if (!r) return;
+// Gleicher Inhalt für beide Wege: rechte Spalte auf dem Desktop, Dialog auf
+// schmalen Schirmen. Die Zutaten-Checkboxen heissen in beiden Fällen ing-N -
+// es ist immer nur eine Darstellung im DOM.
+function rezeptDetailHtml(r) {
   const zutaten = r.ing.map((ing, i) =>
     '<label class="ing-row"><input type="checkbox" id="ing-' + i + '" checked>' +
     '<span class="ing-name">' + esc(ing.n) + '</span>' +
     '<span class="ing-qty">' + esc([ing.q, ing.u].filter(Boolean).join(' ')) + '</span></label>').join('');
   const schritte = (r.steps || []).map((s, i) =>
     '<div class="step-row"><span class="step-num">' + (i + 1) + '</span><span>' + esc(s) + '</span></div>').join('');
-  showModal('<h3>' + esc(r.emoji) + ' ' + esc(r.name) + '</h3>' +
-    '<p class="muted small">' + esc(r.cat) + ' · ' + esc(r.time) + ' Min · ' + esc(r.pers) + ' Personen</p>' +
+  return '<h3>' + esc(r.emoji) + ' ' + esc(r.name) + '</h3>' +
+    '<p class="muted small">' + esc(r.cat) + ' · ' + esc(r.time) + ' Min · ' + esc(r.pers) + ' Personen · ' +
+    esc(gekochtLabel(zuletztGekocht()[r.id])) + '</p>' +
     '<div class="card-head"><span class="card-title">Zutaten</span>' +
     '<button class="btn btn-outline btn-sm" onclick="alleZutatenUmschalten(' + r.ing.length + ')">Alle an/aus</button></div>' +
     zutaten +
@@ -203,7 +303,22 @@ function openRezeptDetail(rid) {
     '<button class="btn btn-outline" onclick="openRezeptForm(\'' + esc(r.id) + '\')">Bearbeiten</button>' +
     '<button class="btn btn-outline" onclick="rezeptInMenueplan(\'' + esc(r.id) + '\')">Menüplan</button>' +
     '<button class="btn btn-accent" onclick="ausgewaehlteZutaten(\'' + esc(r.id) + '\')">Zutaten zur Liste</button>' +
-    '</div>', true);
+    '</div>';
+}
+
+function openRezeptDetail(rid) {
+  const r = allRecipes().find(x => x.id === rid); if (!r) return;
+  offenesRezept = rid;
+  const pane = document.getElementById('rezept-detail');
+  // offsetParent === null heisst: per CSS ausgeblendet (schmaler Schirm).
+  if (pane && pane.offsetParent !== null) {
+    pane.innerHTML = rezeptDetailHtml(r);
+    pane.scrollTop = 0;
+    document.querySelectorAll('#rezept-liste .flat-row').forEach(el =>
+      el.classList.toggle('is-selected', el.dataset.rid === rid));
+    return;
+  }
+  showModal(rezeptDetailHtml(r), true);
 }
 
 function alleZutatenUmschalten(n) {
@@ -313,6 +428,7 @@ function deleteRezept(id) {
   const weg = (HP.customRecipes || []).find(x => x.id === id); if (!weg) return;
   markDeleted('customRecipes', id);
   HP.customRecipes = HP.customRecipes.filter(x => x.id !== id);
+  if (offenesRezept === id) offenesRezept = null;
   HP_save(); closeModal(); render();
   showUndoToast('Rezept gelöscht', () => {
     unmarkDeleted('customRecipes', id);
