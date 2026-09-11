@@ -107,7 +107,9 @@ a{color:inherit}
 .i-users{-webkit-mask-image:url(icons/users.svg);mask-image:url(icons/users.svg)}
 .i-home-2{-webkit-mask-image:url(icons/home-2.svg);mask-image:url(icons/home-2.svg)}
 .i-cart{-webkit-mask-image:url(icons/shopping-cart.svg);mask-image:url(icons/shopping-cart.svg)}
-.i-money{-webkit-mask-image:url(icons/report-money.svg);mask-image:url(icons/report-money.svg)}
+/* Geldsack statt Beleg-mit-Dollarzeichen: das Motiv kennen beide aus der
+   alten App (💰), und ein Sack ist auf 22px eindeutiger als ein Blatt Papier. */
+.i-money{-webkit-mask-image:url(icons/moneybag.svg);mask-image:url(icons/moneybag.svg)}
 .i-kitchen{-webkit-mask-image:url(icons/tools-kitchen-2.svg);mask-image:url(icons/tools-kitchen-2.svg)}
 .i-notebook{-webkit-mask-image:url(icons/notebook.svg);mask-image:url(icons/notebook.svg)}
 .i-pin{-webkit-mask-image:url(icons/pin.svg);mask-image:url(icons/pin.svg)}
