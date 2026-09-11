@@ -111,7 +111,9 @@ function shopRowHtml(i, favNamen) {
     '</div>';
 }
 
-function addShopItemV2(name, qty, unit, cat, taskName) {
+// taskId/taskName setzen die Aufrufer, die den Artikel aus etwas anderem
+// heraus anlegen (blockierte Aufgabe, Zutat aus einem Rezept).
+function addShopItemV2(name, qty, unit, cat, taskName, taskId) {
   const n = kappen((name !== undefined ? name : document.getElementById('sh-name').value).trim(), FELD_MAX.name);
   if (!n) { showToast('Bitte Artikel eingeben'); return; }
   const q = (qty !== undefined ? qty : document.getElementById('sh-qty').value).trim();
@@ -130,7 +132,7 @@ function addShopItemV2(name, qty, unit, cat, taskName) {
   HP.shop.push({
     id: 'sh' + Date.now() + Math.random().toString(36).slice(2, 6),
     name: n, qty: q, unit: u, cat: c, bought: false,
-    taskId: null, taskName: taskName || null, updatedAt: Date.now()
+    taskId: taskId || null, taskName: taskName || null, updatedAt: Date.now()
   });
   HP_save();
   render();

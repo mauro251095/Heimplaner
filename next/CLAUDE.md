@@ -189,6 +189,23 @@ lokalen Server.
   zwei Dimensionen (gleiches Prinzip wie Tag-Chips + Kategorien bei den
   Rezepten). Verschwindet das Gericht von der Liste, fällt der Filter still
   weg, statt eine leere Liste ohne sichtbare Ursache zu zeigen.
+- **Status, Blockiert-Grund und Kommentar liegen in denselben Töpfen wie im
+  Hauptprojekt** — `HP.taskStatus[tid][dateKey]` / `HP.eventStatus[id]`,
+  `HP.taskNotes[tid]` / `HP.eventNotes[id]` (Grund), `HP.taskComments[tid][dateKey]`
+  (pro Tag!) / `HP.eventComments[id]`. Das ist der Grund, warum beide Versionen
+  dasselbe sehen; ein eigener Topf in V2 hiesse, dass in V1 Geschriebenes
+  unsichtbar wird. Aus V1s vier Zuständen sind **drei** geworden: "In Arbeit"
+  ist weg, Offen/Blockiert/Erledigt bleiben. Bei "Blockiert" erscheint das
+  Grund-Feld samt "Zur Einkaufsliste" — der Grund ist fast immer das, was
+  fehlt, und steht deshalb schon als Artikelname im Formular.
+- **Die Termin-Notiz schreibt nach `HP.eventComments`, nicht ins Feld `e.note`**
+  am Termin selbst. `e.note` wird von keiner der beiden Versionen angezeigt; es
+  wird nur noch als Rückfall **gelesen**, damit ein dort liegender Text nicht
+  stillschweigend verschwindet.
+- **Zeilen zeigen nur an, dass es etwas gibt**, nicht was: rotes "blockiert",
+  Notizbuch-Symbol für einen Kommentar, Pinnadel für eine verknüpfte
+  Pinnwand-Notiz. Zwei verschiedene Symbole bewusst — das eine heisst "hier
+  steht ein Kommentar", das andere "dazu gibt es eine Notiz auf der Pinnwand".
 - **Der Weg zwischen Termin und Notiz geht in beide Richtungen**: die Notiz
   verlinkt den Termin (`note.linkedEventId`), der Termin findet die Notiz
   über `notizZuTermin()` — **kein zweites Feld am Termin**, sonst laufen die

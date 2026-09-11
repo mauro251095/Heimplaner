@@ -140,6 +140,8 @@ a{color:inherit}
 .field-row .field{flex:1}
 .modal-actions{display:flex;justify-content:space-between;gap:var(--sp-4);margin-top:var(--sp-8)}
 .check-row{display:flex;align-items:center;gap:8px;font-size:var(--fs-base);color:var(--text-2);cursor:pointer}
+/* Ein Häkchen bringt keinen Abstand mit - ohne das klebt das nächste Feld daran. */
+.check-row + .field{margin-top:var(--sp-5)}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);
   border:1px solid var(--border-2);border-radius:var(--r-pill);padding:10px 20px;font-size:var(--fs-base);
@@ -324,6 +326,7 @@ a{color:inherit}
 .ent-row.is-done .ent-name small{text-decoration:none}
 .ent-flag{color:var(--palette-amber);font-size:var(--fs-sm)}
 .ent-note{width:14px;height:14px;color:var(--text-3)}
+.ent-state{color:var(--danger);font-size:var(--fs-xs);font-weight:600;letter-spacing:.02em}
 .rowhint{color:var(--text-3);width:14px;height:14px;flex-shrink:0}
 .check.sm{width:18px;height:18px;border-width:1.5px}
 .check.sm .icon{width:11px;height:11px}

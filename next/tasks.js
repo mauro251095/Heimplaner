@@ -15,6 +15,103 @@ function reminderOptions(opts, selected) {
   return opts.map(([v, l]) => '<option value="' + v + '"' + ((selected || '') === v ? ' selected' : '') + '>' + l + '</option>').join('');
 }
 
+// ── Status, Blockiert-Grund, Kommentar ────────
+// Dieselben Töpfe wie im Hauptprojekt, damit beide Versionen dasselbe sehen:
+//   Status            HP.taskStatus[tid][dateKey] / HP.eventStatus[id]
+//   Blockiert-Grund   HP.taskNotes[tid]           / HP.eventNotes[id]
+//   Kommentar         HP.taskComments[tid][dateKey] (pro Tag!) / HP.eventComments[id]
+// "In Arbeit" aus V1 ist bewusst weg - drei Zustände reichen.
+const STATUS_OPTS = [['open', 'Offen'], ['blocked', 'Blockiert'], ['done', 'Erledigt']];
+
+function statusFeldHtml(aktiv, onclickFuer) {
+  return '<div class="field"><label>Status</label><div class="seg">' +
+    STATUS_OPTS.map(([k, l]) => '<button type="button" class="' + (k === aktiv ? 'active' : '') + '" ' +
+      'onclick="' + onclickFuer(k) + '">' + l + '</button>').join('') +
+    '</div></div>';
+}
+
+function blockGrundHtml(aktiv, grund, shopOnclick) {
+  return '<div class="field" id="block-sec" style="display:' + (aktiv === 'blocked' ? '' : 'none') + '">' +
+    '<label>Was fehlt / warum blockiert?</label>' +
+    '<input id="block-note" maxlength="300" value="' + esc(grund || '') + '" placeholder="z.B. Blumenerde fehlt">' +
+    '<div class="field-actions"><button class="btn btn-outline btn-sm" onclick="' + shopOnclick + '">' +
+    '<span class="icon i-cart"></span> Zur Einkaufsliste</button></div></div>';
+}
+
+function statusKnopfMarkieren(btn, status) {
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const sec = document.getElementById('block-sec');
+  if (sec) sec.style.display = status === 'blocked' ? '' : 'none';
+}
+
+function taskStatusWaehlen(tid, dateKey, status, btn) {
+  if (!HP.taskStatus[tid]) HP.taskStatus[tid] = {};
+  if (status === 'open') delete HP.taskStatus[tid][dateKey];
+  else HP.taskStatus[tid][dateKey] = status;
+  if (!Object.keys(HP.taskStatus[tid]).length) delete HP.taskStatus[tid];
+  HP_save();
+  statusKnopfMarkieren(btn, status);
+}
+
+function eventStatusWaehlen(id, status, btn) {
+  if (!HP.eventStatus) HP.eventStatus = {};
+  if (status === 'open') delete HP.eventStatus[id];
+  else HP.eventStatus[id] = status;
+  HP_save();
+  statusKnopfMarkieren(btn, status);
+}
+
+function taskKommentar(tid, dateKey) { return ((HP.taskComments || {})[tid] || {})[dateKey] || ''; }
+
+function taskKommentarSetzen(tid, dateKey, text) {
+  if (!HP.taskComments) HP.taskComments = {};
+  if (text) {
+    if (!HP.taskComments[tid]) HP.taskComments[tid] = {};
+    HP.taskComments[tid][dateKey] = text;
+  } else if (HP.taskComments[tid]) {
+    // Leeres Feld heisst "weg", nicht "leerer Kommentar" - sonst sammeln sich
+    // im synchronisierten Datensatz leere Einträge pro Tag an.
+    delete HP.taskComments[tid][dateKey];
+    if (!Object.keys(HP.taskComments[tid]).length) delete HP.taskComments[tid];
+  }
+}
+
+// Der Blockiert-Grund ist fast immer das, was fehlt - deshalb steht er schon
+// als Artikelname im Feld. Vorher sichern: der Dialog wechselt gleich.
+function blockiertZurListe(art, id) {
+  const grund = (document.getElementById('block-note')?.value || '').trim();
+  if (art === 'task') HP.taskNotes[id] = grund;
+  else { if (!HP.eventNotes) HP.eventNotes = {}; HP.eventNotes[id] = grund; }
+  HP_save();
+  showModal('<h3>Zur Einkaufsliste</h3>' +
+    '<div class="field"><label>Artikel</label><input id="bl-name" maxlength="60" value="' + esc(grund) + '" placeholder="z.B. Blumenerde"></div>' +
+    '<div class="field-row">' +
+    '<div class="field"><label>Menge</label><input id="bl-qty" maxlength="12"></div>' +
+    '<div class="field"><label>Einheit</label><input id="bl-unit" maxlength="10"></div>' +
+    '</div>' +
+    '<div class="field"><label>Kategorie</label><select id="bl-cat"><option value="">automatisch</option>' +
+    CATS.map(c => '<option value="' + esc(c) + '">' + CAT_EMOJI[c] + ' ' + esc(c) + '</option>').join('') + '</select></div>' +
+    '<div class="modal-actions"><span></span><div style="display:flex;gap:8px">' +
+    '<button class="btn btn-outline" onclick="closeModal()">Abbrechen</button>' +
+    '<button class="btn btn-accent" onclick="blockiertArtikelSpeichern(\'' + esc(art) + '\',\'' + esc(id) + '\')">Hinzufügen</button>' +
+    '</div></div>');
+  setTimeout(() => document.getElementById('bl-name')?.focus(), 50);
+}
+
+function blockiertArtikelSpeichern(art, id) {
+  const name = document.getElementById('bl-name').value.trim();
+  if (!name) { showToast('Bitte Artikel eingeben'); return; }
+  const eintrag = art === 'task' ? allTasks().find(t => t.id === id) : (HP.events || []).find(e => e.id === id);
+  addShopItemV2(name,
+    document.getElementById('bl-qty').value.trim(),
+    document.getElementById('bl-unit').value.trim(),
+    document.getElementById('bl-cat').value,
+    eintrag ? eintrag.emoji + ' ' + eintrag.name : null,
+    id);
+  closeModal();
+}
+
 function findTask(tid) {
   for (const w of ['p1', 'p2', 'shared']) {
     const t = (HP.tasks[w] || []).find(x => x.id === tid);
@@ -40,8 +137,9 @@ function entryRowHtml(opts) {
 }
 
 function taskRowHtml(t, dateKey) {
+  const status = getStatus(t.id, dateKey);
   return entryRowHtml({
-    done: getStatus(t.id, dateKey) === 'done',
+    done: status === 'done',
     toggle: 'toggleTaskFromRow(\'' + esc(t.id) + '\',\'' + esc(dateKey) + '\')',
     onclick: 'openTaskForm(\'' + esc(t.id) + '\',\'' + esc(dateKey) + '\')',
     farbe: getColor(t.who), wer: whoLabelV2(t.who),
@@ -49,8 +147,16 @@ function taskRowHtml(t, dateKey) {
     // Zeitspalte, und das Ende steht im Formular.
     zeit: fmtTime(t.time),
     text: t.emoji + ' ' + t.name,
-    rechts: t.important ? '<span class="ent-flag">★</span>' : ''
+    rechts: (t.important ? '<span class="ent-flag">★</span>' : '') +
+      zeilenZeichen(status === 'blocked', taskKommentar(t.id, dateKey))
   });
+}
+
+// Blockiert und Kommentar sind das, was man der Zeile ansehen muss, ohne sie
+// zu öffnen - mehr nicht: der Text selbst steht im Formular.
+function zeilenZeichen(blockiert, kommentar) {
+  return (blockiert ? '<span class="ent-state">blockiert</span>' : '') +
+    (kommentar ? '<span class="ent-note icon i-notebook" title="' + esc(kommentar) + '"></span>' : '');
 }
 
 function toggleTaskFromRow(tid, dateKey) {
@@ -59,18 +165,21 @@ function toggleTaskFromRow(tid, dateKey) {
 }
 
 function eventRowHtml(e) {
-  const notiz = notizZuTermin(e.id);
+  const status = getEventStatus(e.id);
+  const pinnwand = notizZuTermin(e.id);
   return entryRowHtml({
-    done: getEventStatus(e.id) === 'done',
+    done: status === 'done',
     toggle: 'toggleEventDone(\'' + esc(e.id) + '\')',
     onclick: 'openEventForm(\'' + esc(e.id) + '\')',
     farbe: getColor(e.who), wer: whoLabelV2(e.who),
     zeit: fmtTime(e.time) || 'ganztags',
     text: e.emoji + ' ' + e.name,
     rechts: (e.important ? '<span class="ent-flag">★</span>' : '') +
-      // Zeigt nur an, dass es eine Notiz gibt; geöffnet wird sie im Termin-
-      // Formular, damit die Zeile einen einzigen Klick-Zweck behält.
-      (notiz ? '<span class="ent-note icon i-notebook" title="Notiz auf der Pinnwand"></span>' : '')
+      zeilenZeichen(status === 'blocked', (HP.eventComments || {})[e.id] || '') +
+      // Pinnwand-Zeichen ist bewusst ein anderes als das Notizbuch oben: das
+      // eine heisst "hier steht ein Kommentar", das andere "dazu gibt es eine
+      // Notiz auf der Pinnwand". Geöffnet werden beide im Termin-Formular.
+      (pinnwand ? '<span class="ent-note icon i-pin" title="Notiz auf der Pinnwand"></span>' : '')
   });
 }
 
@@ -128,19 +237,28 @@ function openTaskForm(tid, dateKey, prefill) {
     '</div>' +
     '<div class="field"><label>Erinnerung</label><select id="tf-reminder">' + reminderOptions(TASK_REMINDER_OPTS, t ? t.reminder : '') + '</select></div>' +
     '<label class="check-row"><input type="checkbox" id="tf-important"' + (t && t.important ? ' checked' : '') + '> Wichtig (erscheint im Monatsraster)</label>' +
+    // Status, Grund und Kommentar gelten für ein Vorkommen, nicht für die
+    // Serie - bei einer neuen Aufgabe gibt es noch keins.
+    (t ? statusFeldHtml(getStatus(t.id, key),
+        k => 'taskStatusWaehlen(\'' + esc(t.id) + '\',\'' + esc(key) + '\',\'' + k + '\',this)') +
+      blockGrundHtml(getStatus(t.id, key), HP.taskNotes[t.id],
+        'blockiertZurListe(\'task\',\'' + esc(t.id) + '\')') +
+      '<div class="field"><label>Kommentar · nur für ' + esc(dateLabel(key, { day: 'numeric', month: 'short' })) + '</label>' +
+      '<textarea id="tf-comment" rows="2" maxlength="5000">' + esc(taskKommentar(t.id, key)) + '</textarea></div>'
+      : '') +
     (t ? '<div class="field" style="margin-top:14px"><label>Nur an diesem Tag</label>' +
       '<button class="btn btn-outline btn-block" onclick="skipTaskOccurrence(\'' + esc(t.id) + '\',\'' + esc(key) + '\')">Am ' + esc(dateLabel(key, { day: 'numeric', month: 'short' })) + ' überspringen</button></div>' : '') +
     '<div class="modal-actions">' +
     (t ? '<button class="btn btn-danger" onclick="deleteTaskSeries(\'' + esc(t.id) + '\')">Serie löschen</button>' : '<span></span>') +
     '<div style="display:flex;gap:8px">' +
     '<button class="btn btn-outline" onclick="closeModal()">Abbrechen</button>' +
-    '<button class="btn btn-accent" onclick="saveTaskForm(' + (t ? "'" + esc(t.id) + "'" : 'null') + ')">Speichern</button>' +
+    '<button class="btn btn-accent" onclick="saveTaskForm(' + (t ? "'" + esc(t.id) + "','" + esc(key) + "'" : 'null') + ')">Speichern</button>' +
     '</div></div>'
   );
   setTimeout(() => document.getElementById('tf-name')?.focus(), 50);
 }
 
-function saveTaskForm(tid) {
+function saveTaskForm(tid, dateKey) {
   const name = kappen(document.getElementById('tf-name').value.trim(), FELD_MAX.name);
   const emoji = document.getElementById('tf-emoji').value.trim() || '⭐';
   const who = document.getElementById('tf-who').value;
@@ -155,6 +273,8 @@ function saveTaskForm(tid) {
     const found = findTask(tid);
     if (!found) { closeModal(); return; }
     Object.assign(found.task, { name, emoji, days, time, timeEnd, reminder, important, updatedAt: Date.now() });
+    HP.taskNotes[tid] = document.getElementById('block-note')?.value.trim() || '';
+    taskKommentarSetzen(tid, dateKey, kappen(document.getElementById('tf-comment').value.trim(), FELD_MAX.notiz));
     // Personenwechsel = Umzug zwischen den drei Listen, die ID bleibt.
     if (found.who !== who) {
       HP.tasks[found.who] = HP.tasks[found.who].filter(x => x.id !== tid);
@@ -239,7 +359,17 @@ function openEventForm(id, prefillDate, rueckweg) {
     '<div class="field"><label>Bis</label><input type="time" id="ef-timeend" value="' + esc(e ? e.timeEnd || '' : '') + '"></div>' +
     '</div>' +
     '<div class="field"><label>Erinnerung</label><select id="ef-reminder">' + reminderOptions(EVENT_REMINDER_OPTS, e ? e.reminder : '') + '</select></div>' +
-    '<div class="field"><label>Notiz</label><textarea id="ef-note" rows="3" maxlength="5000">' + esc(e ? e.note || '' : '') + '</textarea>' +
+    (e ? statusFeldHtml(getEventStatus(e.id), k => 'eventStatusWaehlen(\'' + esc(e.id) + '\',\'' + k + '\',this)') +
+      blockGrundHtml(getEventStatus(e.id), (HP.eventNotes || {})[e.id],
+        'blockiertZurListe(\'event\',\'' + esc(e.id) + '\')')
+      : '') +
+    // Notiz liegt in HP.eventComments - derselbe Topf, den auch die alte
+    // Version anzeigt. Das Feld e.note am Termin selbst wird von keiner der
+    // beiden Versionen dargestellt und bleibt deshalb unbenutzt.
+    '<div class="field"><label>Notiz</label><textarea id="ef-note" rows="3" maxlength="5000">' +
+    // e.note als Rückfall gelesen, nie geschrieben: falls doch irgendwo ein
+    // Text in diesem alten Feld liegt, verschwindet er nicht stillschweigend.
+    esc(e ? (HP.eventComments || {})[e.id] || e.note || '' : '') + '</textarea>' +
     // Gegenstück zu "Neuer Termin" in der Notiz: von dort führt der Weg schon
     // zum Termin, hier führt er zurück auf die Pinnwand-Notiz.
     (notizZuTermin(id)
@@ -281,7 +411,8 @@ function saveEventForm(id) {
   const time = document.getElementById('ef-time').value;
   const timeEnd = document.getElementById('ef-timeend').value;
   const reminder = document.getElementById('ef-reminder').value;
-  const note = kappen(document.getElementById('ef-note').value.trim(), FELD_MAX.notiz);
+  const notiz = kappen(document.getElementById('ef-note').value.trim(), FELD_MAX.notiz);
+  const blockGrund = document.getElementById('block-note')?.value.trim();
   const important = document.getElementById('ef-important').checked;
   if (!name) { showToast('Bitte Name eingeben'); return; }
   if (!date) { showToast('Bitte Datum wählen'); return; }
@@ -292,11 +423,14 @@ function saveEventForm(id) {
     // Kann fehlen, wenn der Termin währenddessen auf dem anderen Gerät
     // gelöscht wurde und ein Poll dazwischenkam.
     if (!e) { showToast('Termin existiert nicht mehr'); terminRueckweg = null; closeModal(); render(); return; }
-    Object.assign(e, { name, emoji, date, who, time, timeEnd, reminder, note, important, updatedAt: Date.now() });
+    Object.assign(e, { name, emoji, date, who, time, timeEnd, reminder, important, updatedAt: Date.now() });
+    if (blockGrund !== undefined) { HP.eventNotes = HP.eventNotes || {}; HP.eventNotes[eid] = blockGrund; }
   } else {
     eid = 'ev' + Date.now();
-    HP.events.push({ id: eid, emoji, name, date, time, timeEnd, who, reminder, important, note, updatedAt: Date.now() });
+    HP.events.push({ id: eid, emoji, name, date, time, timeEnd, who, reminder, important, note: '', updatedAt: Date.now() });
   }
+  HP.eventComments = HP.eventComments || {};
+  if (notiz) HP.eventComments[eid] = notiz; else delete HP.eventComments[eid];
   HP_save();
   showToast(emoji + ' ' + name + ' gespeichert');
   const zurueck = terminRueckweg;
