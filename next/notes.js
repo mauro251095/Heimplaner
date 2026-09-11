@@ -5,23 +5,37 @@
 
 const NOTE_COLORS = [['yellow', 'Gelb'], ['blue', 'Blau'], ['pink', 'Pink'], ['green', 'Grün'], ['purple', 'Violett']];
 
+// Notizen mit Termin zuoberst und nach Datum sortiert: eine Notiz zu Dienstag
+// ist am Montag wichtiger als eine Idee ohne Datum.
 function renderPinnwand() {
   const notes = HP.notes || [];
+  const terminFuer = n => n.linkedEventId ? (HP.events || []).find(e => e.id === n.linkedEventId) : null;
+  const mitTermin = notes.filter(n => terminFuer(n))
+    .sort((a, b) => terminFuer(a).date.localeCompare(terminFuer(b).date));
+  const ohne = notes.filter(n => !terminFuer(n));
+
   document.getElementById('view-root').innerHTML =
-    viewHead('Pinnwand') +
+    '<div class="list-page">' +
+    viewHead('Pinnwand',
+      '<button class="btn btn-ghost btn-sm" onclick="openNoteForm()"><span class="icon i-plus"></span> Notiz</button>') +
     (notes.length
-      ? '<div class="pin-grid">' + notes.map(pinNoteHtml).join('') + '</div>'
-      : emptyState('i-pin', 'Noch keine Notizen. Mit "+" unten rechts eine erste anlegen.')) +
-    '<button class="fab" onclick="openNoteForm()" title="Neue Notiz"><span class="icon i-plus"></span></button>';
+      ? (mitTermin.length ? '<div class="section-label">Mit Termin</div>' +
+          '<div class="pin-grid">' + mitTermin.map(pinNoteHtml).join('') + '</div>' : '') +
+        (ohne.length ? '<div class="section-label">Notizen</div>' +
+          '<div class="pin-grid">' + ohne.map(pinNoteHtml).join('') + '</div>' : '')
+      : emptyState('i-pin', 'Noch keine Notizen.')) +
+    '</div>';
 }
 
 function pinNoteHtml(n) {
   const termin = n.linkedEventId ? (HP.events || []).find(e => e.id === n.linkedEventId) : null;
   return '<div class="pin-note note-' + esc(n.color || 'yellow') + '" onclick="openNoteForm(\'' + esc(n.id) + '\')">' +
+    (termin ? '<div class="pin-date"><span class="icon i-calendar"></span>' +
+      esc(dateLabel(termin.date, { day: 'numeric', month: 'long' })) +
+      (termin.time ? ', ' + esc(fmtTime(termin.time)) : '') + '</div>' : '') +
     (n.title ? '<div class="pin-title">' + esc(n.title) + '</div>' : '') +
     (n.body ? '<div class="pin-body">' + esc(n.body) + '</div>' : '') +
-    (termin ? '<div class="pin-link">' + esc(termin.emoji) + ' ' + esc(termin.name) + ' · ' +
-      esc(dateLabel(termin.date, { day: 'numeric', month: 'short' })) + '</div>' : '') +
+    (termin ? '<div class="pin-link">' + esc(termin.emoji) + ' ' + esc(termin.name) + '</div>' : '') +
     '</div>';
 }
 

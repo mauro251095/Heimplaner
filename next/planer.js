@@ -26,9 +26,12 @@ function renderPlaner() {
       : planerWocheHtml();
   const fabDate = planerModus === 'tag' ? planerDatum : todayKey();
   document.getElementById('view-root').innerHTML =
-    viewHead('Planer', segHtml([['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat']], planerModus, 'setPlanerModus')) +
+    '<div class="list-page' + (planerModus === 'tag' ? '' : ' wide') + '">' +
+    viewHead('Planer',
+      '<button class="btn btn-ghost btn-sm" onclick="openAddSheet(\'' + esc(fabDate) + '\')"><span class="icon i-plus"></span> Neu</button>') +
+    segHtml([['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat']], planerModus, 'setPlanerModus') +
     body +
-    '<button class="fab" onclick="openAddSheet(\'' + esc(fabDate) + '\')" title="Neu"><span class="icon i-plus"></span></button>';
+    '</div>';
 }
 
 // FAB-Auswahl: Termin oder Aufgabe - beides landet in unterschiedlichen
@@ -74,7 +77,7 @@ function planerWocheHtml() {
       '</div>';
   }).join('');
   return navRow('planerWocheShift(-1)', label, 'planerWocheShift(1)',
-    '<button class="btn btn-outline" onclick="planerHeute()">Heute</button>') +
+    (wochenOffset === 0 ? '' : '<button class="linkbtn" onclick="planerHeute()">Heute</button>')) +
     '<div class="week-grid">' + cols + '</div>';
 }
 
@@ -95,6 +98,21 @@ function weekItemHtml(item, key) {
 }
 
 // ── Tag ───────────────────────────────────────
+// Der Wochenstreifen über der Tagesliste stammt aus dem Mockup: er zeigt,
+// wo man in der Woche steht, und springt mit einem Tipp zum Nachbartag -
+// ohne den Umweg über die Wochenansicht.
+function wochenStreifenHtml(key) {
+  const d = new Date(key + 'T12:00:00');
+  const montag = shiftDateKey(key, -((d.getDay() + 6) % 7));
+  return '<div class="daystrip">' + DS.map((kurz, i) => {
+    const k = shiftDateKey(montag, i);
+    const zahl = parseInt(k.slice(8, 10));
+    return '<button class="ds-day' + (k === key ? ' sel' : '') + (k === todayKey() ? ' heute' : '') + '" ' +
+      'onclick="planerOeffneTag(\'' + k + '\')">' +
+      '<span class="ds-dow">' + kurz + '</span><span class="ds-num">' + zahl + '</span></button>';
+  }).join('') + '</div>';
+}
+
 function planerTagHtml() {
   const key = planerDatum;
   const entries = dayEntriesHtml(key);
@@ -102,26 +120,25 @@ function planerTagHtml() {
     .sort((a, b) => a.date.localeCompare(b.date));
   const bdays = birthdaysOn(key);
   const meals = HP.meals[key] || {};
-  const mealCards = ['Frühstück', 'Mittag', 'Abend'].map(slot => {
-    const m = meals[slot];
-    return '<button class="slot-card' + (m ? ' filled' : '') + '" onclick="openMealPicker(\'' + key + '\',\'' + slot + '\')">' +
-      '<span class="slot-label">' + slot + '</span>' +
-      '<span class="slot-value">' + (m ? esc(m.emoji || '🍽️') + ' ' + esc(m.name) : '+ eintragen') + '</span></button>';
-  }).join('');
   const isHeute = key === todayKey();
   return navRow('planerTagShift(-1)', dateLabel(key), 'planerTagShift(1)',
-    (isHeute ? '' : '<button class="btn btn-outline" onclick="planerHeute()">Heute</button>')) +
-    (isHeute ? '<div class="today-flag">Heute</div>' : '') +
-    '<div class="card"><div class="card-head"><span class="card-title">Termine &amp; Aufgaben</span>' +
-    '<button class="btn btn-outline btn-sm" onclick="openAddSheet(\'' + key + '\')">+ Neu</button></div>' +
-    (entries || emptyState('i-calendar', 'Nichts geplant für diesen Tag.')) + '</div>' +
-    (bdays.length ? '<div class="card"><div class="card-head"><span class="card-title">Geburtstage</span></div>' +
-      bdays.map(b => '<div class="list-row"><div class="meta"><div class="name">🎂 ' + esc(b.name) + '</div>' +
-        (b.year ? '<div class="sub">wird ' + (parseInt(key.slice(0, 4)) - parseInt(b.year)) + '</div>' : '') + '</div></div>').join('') + '</div>' : '') +
-    '<div class="card"><div class="card-head"><span class="card-title">Menüplan</span></div>' +
-    '<div class="slot-row">' + mealCards + '</div></div>' +
-    (chores.length ? '<div class="card"><div class="card-head"><span class="card-title">Haushalt fällig</span></div>' +
-      chores.slice(0, 6).map(choreRowHtml).join('') + '</div>' : '');
+    (isHeute ? '<span class="heute-chip">Heute</span>' : '<button class="linkbtn" onclick="planerHeute()">Heute</button>')) +
+    wochenStreifenHtml(key) +
+    '<div class="section-label">Termine &amp; Aufgaben</div>' +
+    (entries || '<div class="leer-zeile">Nichts geplant für diesen Tag</div>') +
+    (bdays.length ? '<div class="section-label">Geburtstage</div>' +
+      bdays.map(b => '<div class="ent-row" onclick="switchView(\'geburtstage\')">' +
+        '<span class="avatar">🎂</span><span class="ent-name">' + esc(b.name) +
+        (b.year ? '<small>wird ' + (parseInt(key.slice(0, 4)) - parseInt(b.year)) + '</small>' : '') + '</span></div>').join('') : '') +
+    '<div class="section-label">Menüplan</div>' +
+    MEAL_SLOTS.map(slot => {
+      const m = meals[slot];
+      return '<div class="ent-row" onclick="openMealPicker(\'' + key + '\',\'' + slot + '\')">' +
+        '<span class="ent-time wide">' + slot + '</span>' +
+        '<span class="ent-name' + (m ? '' : ' muted') + '">' + (m ? esc(m.emoji || '🍽️') + ' ' + esc(m.name) : 'eintragen') + '</span></div>';
+    }).join('') +
+    (chores.length ? '<div class="section-label">Haushalt fällig</div>' +
+      chores.slice(0, 6).map(choreRowHtml).join('') : '');
 }
 
 // ── Monat ─────────────────────────────────────
@@ -150,7 +167,7 @@ function planerMonatHtml() {
   }
   const wochentage = DS.map(d => '<div class="mdow">' + d + '</div>').join('');
   return navRow('planerMonatShift(-1)', MONTH_NAMES[month] + ' ' + year, 'planerMonatShift(1)',
-    (monatsOffset === 0 ? '' : '<button class="btn btn-outline" onclick="planerHeute()">Heute</button>')) +
+    (monatsOffset === 0 ? '' : '<button class="linkbtn" onclick="planerHeute()">Heute</button>')) +
     '<div class="month-grid">' + wochentage + cells + '</div>' +
     wochenmusterHtml();
 }
@@ -197,9 +214,9 @@ function wochenmusterHtml() {
           esc(t.emoji) + ' ' + esc(t.name) + '</div>').join('')
         : '<div class="wm-empty">–</div>') + '</div>';
   }).join('');
-  return '<div class="card"><div class="card-head"><span class="card-title">Wochenmuster</span>' +
-    '<span class="card-note">Wiederkehrende Aufgaben – Abhaken in Tag/Heute</span></div>' +
-    '<div class="wm-grid">' + spalten + '</div></div>';
+  return '<div class="section-label with-action">Wochenmuster' +
+    '<span class="sl-note">Wiederkehrende Aufgaben – Abhaken in Tag/Heute</span></div>' +
+    '<div class="wm-grid">' + spalten + '</div>';
 }
 
 // ═══════════════════════════════════════════════
@@ -212,60 +229,56 @@ function setPersonTab(p) { personTab = p; renderPersonen(); }
 function renderPersonen() {
   const who = personTab;
   const key = todayKey();
-  const farbe = getColor(who);
   const eigene = allTasks(who);
-  const heuteTasks = eigene.filter(t => taskOccursOn(t, key));
-  const erledigt = heuteTasks.filter(t => getStatus(t.id, key) === 'done').length;
-  const pct = heuteTasks.length ? Math.round(erledigt / heuteTasks.length * 100) : 0;
 
-  const wochenTage = getWeekDates(0).map((d, i) => {
-    const k = dk(d);
-    const tags = eigene.filter(t => taskOccursOn(t, k));
-    const done = tags.filter(t => getStatus(t.id, k) === 'done').length;
-    const anteil = tags.length ? done / tags.length : 0;
-    return '<div class="pw-day' + (isToday(d) ? ' is-today' : '') + '" onclick="planerOeffneTag(\'' + k + '\')">' +
-      '<div class="pw-dow">' + DS[i] + '</div>' +
-      '<div class="pw-bar"><div class="pw-fill" style="height:' + Math.round(anteil * 100) + '%;background:' + farbe + '"></div></div>' +
-      '<div class="pw-num">' + done + '/' + tags.length + '</div></div>';
-  }).join('');
-
+  // Reihenfolge wie besprochen: heute zuerst, dann die Termine, dann der
+  // Bestand an Aufgaben.
   const termine = (HP.events || []).filter(e => !e.chore && e.date >= key && (e.who === who || e.who === 'shared'))
-    .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '')).slice(0, 8);
+
+  let wocheGesamt = 0, wocheErledigt = 0;
+  getWeekDates(0).forEach(d => {
+    const k = dk(d);
+    eigene.filter(t => taskOccursOn(t, k)).forEach(t => {
+      wocheGesamt++;
+      if (getStatus(t.id, k) === 'done') wocheErledigt++;
+    });
+  });
 
   document.getElementById('view-root').innerHTML =
-    viewHead('Personen', segHtml([['p1', HP.names.p1], ['p2', HP.names.p2]], who, 'setPersonTab')) +
-    '<div class="grid cols-2">' +
-    '<div class="card ring-card">' + ringHtml(pct, farbe) +
-    '<div><div class="ring-title">Heute</div>' +
-    '<div class="ring-sub">' + erledigt + ' von ' + heuteTasks.length + ' erledigt</div></div></div>' +
-    '<div class="card"><div class="card-head"><span class="card-title">Diese Woche</span></div>' +
-    '<div class="pw-grid">' + wochenTage + '</div></div>' +
-    '</div>' +
-    '<div class="card"><div class="card-head"><span class="card-title">Heute anstehend</span>' +
-    '<button class="btn btn-outline btn-sm" onclick="openTaskForm(null,\'' + key + '\',{who:\'' + who + '\'})">+ Aufgabe</button></div>' +
-    (dayEntriesHtml(key, who) || emptyState('i-check', 'Für heute ist nichts eingetragen.')) + '</div>' +
-    '<div class="card"><div class="card-head"><span class="card-title">Nächste Termine</span>' +
-    '<button class="btn btn-outline btn-sm" onclick="openEventForm(null,\'' + key + '\')">+ Termin</button></div>' +
-    (termine.length
-      ? termine.map(e => '<div class="list-row" onclick="openEventForm(\'' + esc(e.id) + '\')">' +
-        '<div class="meta"><div class="name">' + esc(e.emoji) + ' ' + esc(e.name) + '</div>' +
-        '<div class="sub">' + esc(dateLabel(e.date, { weekday: 'short', day: 'numeric', month: 'short' })) +
-        (e.time ? ' · ' + esc(fmtTime(e.time)) : '') + '</div></div>' + personDot(e.who) + '</div>').join('')
-      : emptyState('i-calendar', 'Keine kommenden Termine.')) + '</div>' +
-    '<div class="card"><div class="card-head"><span class="card-title">Alle Aufgaben</span></div>' +
-    (eigene.length
-      ? eigene.map(t => '<div class="list-row" onclick="openTaskForm(\'' + esc(t.id) + '\')">' +
-        '<div class="meta"><div class="name">' + esc(t.emoji) + ' ' + esc(t.name) + '</div>' +
-        '<div class="sub">' + t.days.map(d => DS[d]).join(', ') + (t.time ? ' · ' + esc(fmtTime(t.time)) : '') + '</div></div>' +
-        personDot(t.who) + '</div>').join('')
-      : emptyState('i-check', 'Noch keine Aufgaben angelegt.')) + '</div>';
-}
+    '<div class="list-page">' +
+    viewHead('Personen',
+      '<button class="btn btn-ghost btn-sm" onclick="openTaskForm(null,\'' + key + '\',{who:\'' + who + '\'})">' +
+      '<span class="icon i-plus"></span> Aufgabe</button>') +
+    utabs([['p1', HP.names.p1], ['p2', HP.names.p2]], who, 'setPersonTab') +
 
-function ringHtml(pct, farbe) {
-  const r = 26, u = 2 * Math.PI * r;
-  return '<svg class="ring" viewBox="0 0 64 64">' +
-    '<circle cx="32" cy="32" r="' + r + '" fill="none" stroke="var(--border-2)" stroke-width="6"></circle>' +
-    '<circle cx="32" cy="32" r="' + r + '" fill="none" stroke="' + farbe + '" stroke-width="6" stroke-linecap="round" ' +
-    'stroke-dasharray="' + u + '" stroke-dashoffset="' + (u * (1 - pct / 100)) + '" transform="rotate(-90 32 32)"></circle>' +
-    '<text x="32" y="37" text-anchor="middle" class="ring-text">' + pct + '%</text></svg>';
+    '<div class="section-label">Heute anstehend</div>' +
+    (dayEntriesHtml(key, who) || '<div class="leer-zeile">Für heute ist nichts eingetragen</div>') +
+
+    '<div class="section-label">Nächste Termine</div>' +
+    (termine.length
+      ? termine.map(e => entryRowHtml({
+        done: getEventStatus(e.id) === 'done',
+        onclick: 'openEventForm(\'' + esc(e.id) + '\')',
+        farbe: getColor(e.who), wer: whoLabelV2(e.who),
+        zeit: dateLabel(e.date, { day: 'numeric', month: 'short' }), zeitBreit: true,
+        text: e.emoji + ' ' + e.name,
+        rechts: e.time ? '<span class="fr-meta">' + esc(fmtTime(e.time)) + '</span>' : ''
+      })).join('')
+      : '<div class="leer-zeile">Keine kommenden Termine</div>') +
+
+    '<div class="section-label">Alle Aufgaben</div>' +
+    (eigene.length
+      ? eigene.map(t => '<div class="ent-row" onclick="openTaskForm(\'' + esc(t.id) + '\')">' +
+        '<span class="ent-dot" style="background:' + getColor(t.who) + '" title="' + esc(whoLabelV2(t.who)) + '"></span>' +
+        '<span class="ent-name">' + esc(t.emoji) + ' ' + esc(t.name) +
+        '<small>' + t.days.map(d => DS[d]).join(', ') + (t.time ? ' · ' + esc(fmtTime(t.time)) : '') + '</small></span>' +
+        '<span class="icon i-pencil rowhint"></span></div>').join('')
+      : '<div class="leer-zeile">Noch keine Aufgaben angelegt</div>') +
+
+    '<div class="summary-row">' +
+    '<span>Aufgaben diese Woche</span>' +
+    '<b style="color:' + getColor(who) + '">' + wocheErledigt + ' / ' + wocheGesamt + '</b>' +
+    '</div>' +
+    '</div>';
 }

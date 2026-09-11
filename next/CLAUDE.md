@@ -145,11 +145,25 @@ lokalen Server.
   Serien (RRULE) werden bis 12 Monate im Voraus ausgerollt, Deckel bei 500
   Terminen bzw. 200 Vorkommen je Serie, damit der synchronisierte Datensatz
   nicht explodiert.
-- **Listen statt Kacheln** (Stand der Mockups, zuerst in Rezepte umgesetzt):
-  eine Fläche je Ansicht (`.list-page`), darauf Zeilen mit Haarlinie
-  (`.flat-row`) und kleinen Abschnitts-Überschriften (`.section-label`).
-  Eingesenkte Elemente (Suchfeld, Emoji-Kachel) nehmen `--bg`. Die übrigen
-  Ansichten benutzen noch die Karten-Blöcke und ziehen nach.
+- **Listen statt Kacheln** – gilt für alle elf Ansichten: eine Fläche je
+  Ansicht (`.list-page`, `.wide` für die Raster im Planer), darauf Zeilen mit
+  Haarlinie und kleine Abschnitts-Überschriften (`.section-label`).
+  Eingesenkte Elemente (Suchfeld, Emoji-Kachel, Erfassungszeile) nehmen
+  `--bg`. Karten-Blöcke (`.card`) gibt es nur noch in Dialogen.
+- **Eine Zeilenform für alles**: `entryRowHtml()` in `tasks.js` baut
+  Häkchen, Personenpunkt, Zeitspalte und Text. Die **feste Zeitspalte** ist
+  der Grund, warum die Listen ruhig wirken – die Namen beginnen alle an
+  derselben Kante. Wer die Zeitspalte für etwas Längeres braucht (Datum in
+  "Nächste Termine"), setzt `zeitBreit`.
+- **Zwei Umschalter-Formen, bewusst**: `segHtml()` für Modi derselben Ansicht
+  (Tag/Woche/Monat), `utabs()` für den Personenwechsel – dort trägt der
+  Unterstrich die Personenfarbe und sagt gleich mit, wessen Zahlen man sieht.
+- **Erfassen klappt auf, statt dauernd dazustehen** (`.addrow` →
+  `.inline-form`, in Einkaufsliste und Budget): gelesen und abgehakt wird
+  häufiger als erfasst.
+- **Menüplan**: Raster (3 Mahlzeiten × 7 Tage) zum Eintragen, Liste darunter
+  nur mit dem, was belegt ist. Alle 21 Slots als Zeilen wären 21-mal
+  "eintragen".
 - **Chips filtern nach Tag, die Liste gruppiert nach Kategorie** — zwei
   Dimensionen. Beides nach Kategorie wäre dieselbe Achse doppelt. Gezeigt
   werden die acht häufigsten Tags; Herkunfts-Tags (`eigenes`, `importiert`,

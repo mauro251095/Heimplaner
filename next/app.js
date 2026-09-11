@@ -118,9 +118,20 @@ function viewHead(title, actionsHtml) {
   return '<div class="view-head"><h1>' + esc(title) + '</h1>' +
     (actionsHtml ? '<div class="head-actions">' + actionsHtml + '</div>' : '') + '</div>';
 }
+// Zwei Umschalter mit unterschiedlicher Aufgabe, deshalb bewusst zwei Formen
+// (so auch in den Mockups): segHtml für Modi derselben Ansicht (Tag/Woche/
+// Monat), utabs für den Wechsel der betrachteten Person - dort trägt der
+// Unterstrich die Personenfarbe und sagt damit gleich mit, wessen Zahlen man
+// gerade sieht.
 function segHtml(options, activeKey, onclickFn) {
   return '<div class="seg">' + options.map(([key, label]) =>
     '<button class="' + (key === activeKey ? 'active' : '') + '" onclick="' + onclickFn + '(\'' + esc(key) + '\')">' + esc(label) + '</button>'
+  ).join('') + '</div>';
+}
+function utabs(options, activeKey, onclickFn) {
+  return '<div class="utabs">' + options.map(([key, label]) =>
+    '<button class="' + (key === activeKey ? 'active' : '') + '" ' +
+    'style="--c:' + getColor(key) + '" onclick="' + onclickFn + '(\'' + esc(key) + '\')">' + esc(label) + '</button>'
   ).join('') + '</div>';
 }
 function navRow(prevFn, label, nextFn, extraHtml) {
@@ -239,24 +250,29 @@ function choreDueLabel(dateKey) {
 
 function renderHaushalt() {
   const chores = (HP.events || []).filter(e => e.chore).slice().sort((a, b) => a.date.localeCompare(b.date));
-  const rows = chores.length
-    ? chores.map(choreRowHtml).join('')
-    : emptyState('i-home-2', 'Noch keine Haushaltsaufgaben. Mit "+" unten rechts eine erste anlegen.');
+  const heute = todayKey();
+  const faellig = chores.filter(e => e.date <= heute);
+  const kommend = chores.filter(e => e.date > heute);
   document.getElementById('view-root').innerHTML =
-    viewHead('Haushalt') +
-    '<div class="card" style="padding:0 20px">' + rows + '</div>' +
-    '<button class="fab" onclick="openChoreForm()" title="Neue Haushaltsaufgabe"><span class="icon i-plus"></span></button>';
+    '<div class="list-page">' +
+    viewHead('Haushalt',
+      '<button class="btn btn-ghost btn-sm" onclick="openChoreForm()"><span class="icon i-plus"></span> Aufgabe</button>') +
+    (chores.length
+      ? (faellig.length ? '<div class="section-label">Jetzt fällig · ' + faellig.length + '</div>' + faellig.map(choreRowHtml).join('') : '') +
+        (kommend.length ? '<div class="section-label">Später</div>' + kommend.map(choreRowHtml).join('') : '')
+      : emptyState('i-home-2', 'Noch keine Haushaltsaufgaben.')) +
+    '</div>';
 }
 
 function choreRowHtml(e) {
   const done = getEventStatus(e.id) === 'done';
   const due = choreDueLabel(e.date);
-  return '<div class="list-row" data-eid="' + esc(e.id) + '" onclick="openChoreForm(\'' + esc(e.id) + '\')">' +
-    '<button class="check' + (done ? ' done' : '') + '" onclick="event.stopPropagation();completeChore(\'' + esc(e.id) + '\')" title="Erledigt">' +
+  return '<div class="ent-row two-line' + (done ? ' is-done' : '') + '" onclick="openChoreForm(\'' + esc(e.id) + '\')">' +
+    '<button class="check sm' + (done ? ' done' : '') + '" onclick="event.stopPropagation();completeChore(\'' + esc(e.id) + '\')" title="Erledigt">' +
     (done ? '<span class="icon i-check"></span>' : '') + '</button>' +
-    '<div class="meta"><div class="name">' + esc(e.emoji) + ' ' + esc(e.name) + '</div>' +
-    '<div class="sub' + (due.overdue ? ' overdue' : '') + '">🔁 ' + esc(recurLabel(e.recur)) + ' · ' + due.text + '</div></div>' +
-    personDot(e.who) +
+    '<span class="ent-dot" style="background:' + getColor(e.who) + '" title="' + esc(whoLabelV2(e.who)) + '"></span>' +
+    '<span class="ent-name">' + esc(e.emoji) + ' ' + esc(e.name) +
+    '<small class="' + (due.overdue ? 'overdue' : '') + '">' + esc(recurLabel(e.recur)) + ' · ' + esc(due.text) + '</small></span>' +
     '</div>';
 }
 

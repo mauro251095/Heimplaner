@@ -24,16 +24,33 @@ function findTask(tid) {
 }
 
 // ── Zeilen ────────────────────────────────────
+// Aufbau nach den Mockups: Häkchen, Personenpunkt, Uhrzeit in fester Spalte,
+// dann der Text. Die feste Zeitspalte ist der Grund, warum sich die Namen
+// untereinander an einer Kante ausrichten - das trägt die ganze Listenoptik.
+function entryRowHtml(opts) {
+  return '<div class="ent-row' + (opts.done ? ' is-done' : '') + '" onclick="' + opts.onclick + '">' +
+    (opts.toggle
+      ? '<button class="check sm' + (opts.done ? ' done' : '') + '" onclick="event.stopPropagation();' + opts.toggle + '" title="Erledigt">' +
+        (opts.done ? '<span class="icon i-check"></span>' : '') + '</button>'
+      : '') +
+    '<span class="ent-dot" style="background:' + opts.farbe + '" title="' + esc(opts.wer) + '"></span>' +
+    '<span class="ent-time' + (opts.zeitBreit ? ' wide' : '') + '">' + esc(opts.zeit) + '</span>' +
+    '<span class="ent-name">' + esc(opts.text) + '</span>' +
+    (opts.rechts || '') + '</div>';
+}
+
 function taskRowHtml(t, dateKey) {
-  const done = getStatus(t.id, dateKey) === 'done';
-  const time = fmtTimeRange(t.time, t.timeEnd);
-  const sub = [time, t.important ? '⭐ Wichtig' : '', whoLabelV2(t.who)].filter(Boolean).join(' · ');
-  return '<div class="list-row' + (done ? ' is-done' : '') + '" onclick="openTaskForm(\'' + esc(t.id) + '\',\'' + esc(dateKey) + '\')">' +
-    '<button class="check' + (done ? ' done' : '') + '" onclick="event.stopPropagation();toggleTaskFromRow(\'' + esc(t.id) + '\',\'' + esc(dateKey) + '\')" title="Erledigt">' +
-    (done ? '<span class="icon i-check"></span>' : '') + '</button>' +
-    '<div class="meta"><div class="name">' + esc(t.emoji) + ' ' + esc(t.name) + '</div>' +
-    (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>' +
-    personDot(t.who) + '</div>';
+  return entryRowHtml({
+    done: getStatus(t.id, dateKey) === 'done',
+    toggle: 'toggleTaskFromRow(\'' + esc(t.id) + '\',\'' + esc(dateKey) + '\')',
+    onclick: 'openTaskForm(\'' + esc(t.id) + '\',\'' + esc(dateKey) + '\')',
+    farbe: getColor(t.who), wer: whoLabelV2(t.who),
+    // Nur die Startzeit: eine Spanne ("18:00–19:30") sprengt die schmale
+    // Zeitspalte, und das Ende steht im Formular.
+    zeit: fmtTime(t.time),
+    text: t.emoji + ' ' + t.name,
+    rechts: t.important ? '<span class="ent-flag">★</span>' : ''
+  });
 }
 
 function toggleTaskFromRow(tid, dateKey) {
@@ -42,15 +59,15 @@ function toggleTaskFromRow(tid, dateKey) {
 }
 
 function eventRowHtml(e) {
-  const done = getEventStatus(e.id) === 'done';
-  const time = fmtTimeRange(e.time, e.timeEnd);
-  const sub = [time || 'ganztägig', e.important ? '⭐ Wichtig' : '', whoLabelV2(e.who)].filter(Boolean).join(' · ');
-  return '<div class="list-row' + (done ? ' is-done' : '') + '" onclick="openEventForm(\'' + esc(e.id) + '\')">' +
-    '<button class="check' + (done ? ' done' : '') + '" onclick="event.stopPropagation();toggleEventDone(\'' + esc(e.id) + '\')" title="Erledigt">' +
-    (done ? '<span class="icon i-check"></span>' : '') + '</button>' +
-    '<div class="meta"><div class="name">' + esc(e.emoji) + ' ' + esc(e.name) + '</div>' +
-    '<div class="sub">' + esc(sub) + '</div></div>' +
-    personDot(e.who) + '</div>';
+  return entryRowHtml({
+    done: getEventStatus(e.id) === 'done',
+    toggle: 'toggleEventDone(\'' + esc(e.id) + '\')',
+    onclick: 'openEventForm(\'' + esc(e.id) + '\')',
+    farbe: getColor(e.who), wer: whoLabelV2(e.who),
+    zeit: fmtTime(e.time) || 'ganztags',
+    text: e.emoji + ' ' + e.name,
+    rechts: e.important ? '<span class="ent-flag">★</span>' : ''
+  });
 }
 
 function toggleEventDone(id) {

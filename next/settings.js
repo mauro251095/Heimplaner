@@ -22,73 +22,82 @@ function renderEinstellungen() {
   const importierte = (HP.events || []).filter(e => e.icsImport);
   const letzterImport = importierte.reduce((max, e) => Math.max(max, e.icsAt || 0), 0);
 
+  const syncAktiv = typeof syncEnabled !== 'undefined' && syncEnabled;
+  const pushText = !NOTIF_OK ? 'Auf diesem Gerät nicht verfügbar'
+    : Notification.permission === 'granted' ? 'Aktiv'
+      : Notification.permission === 'denied' ? 'Im Browser blockiert'
+        : 'Nicht aktiviert';
+
   document.getElementById('view-root').innerHTML =
+    '<div class="list-page">' +
     viewHead('Einstellungen') +
 
-    '<div class="card"><div class="card-head"><span class="card-title">Konto</span></div>' +
-    '<div class="setting-row"><div><b>' + esc(user) + '</b><div class="muted small">Angemeldet auf diesem Gerät</div></div>' +
-    '<button class="btn btn-outline" onclick="logout()">Abmelden</button></div></div>' +
+    '<div class="section-label">Allgemein</div>' +
+    setRow('i-palette', 'Namen &amp; Farben', esc(HP.names.p1) + ' &amp; ' + esc(HP.names.p2), 'openPersonenEinstellungen()') +
+    '<div class="set-row"><span class="icon i-moon"></span>' +
+    '<span class="ent-name">Dunkles Design</span>' +
+    '<button class="switch' + (HP.theme !== 'light' ? ' on' : '') + '" ' +
+    'onclick="setTheme(HP.theme===\'light\'?\'dark\':\'light\')" title="Hell/Dunkel"><span></span></button></div>' +
 
-    '<div class="card"><div class="card-head"><span class="card-title">Personen</span></div>' +
+    '<div class="section-label">Geräte</div>' +
+    setRow('i-settings', 'Sync-Passwort', syncAktiv ? 'Verbunden' : 'Nicht verbunden', 'openSyncModal()') +
+    setRow('i-bell', 'Push-Erinnerungen', pushText, 'pushAktivieren()') +
+
+    '<div class="section-label">Daten</div>' +
+    '<label class="set-row"><span class="icon i-calendar"></span>' +
+    '<span class="ent-name">Kalender importieren (.ics)<small>' +
+    (importierte.length
+      ? importierte.length + ' importierte Termine' + (letzterImport ? ' · ' + new Date(letzterImport).toLocaleDateString('de-CH') : '') + ' – ein neuer Import ersetzt sie'
+      : 'Einmaliger Import, ersetzt beim nächsten Mal die vorherigen') +
+    '</small></span><span class="icon i-chev-r rowhint"></span>' +
+    '<input type="file" accept=".ics,text/calendar" hidden onchange="icsDateiGewaehlt(this)"></label>' +
+    (importierte.length ? setRow('i-x', 'Importierte Termine entfernen', '', 'icsImportEntfernen()') : '') +
+    setRow('i-file-export', 'Kalender exportieren (.ics)', 'Nächste 4 Wochen', 'exportICSV2()') +
+    setRow('i-download', 'Momentaufnahme sichern (JSON)',
+      'Supabase hält nur den aktuellen Stand – dies ist der einzige Weg zurück', 'exportJSONV2()') +
+    '<label class="set-row"><span class="icon i-clipboard"></span>' +
+    '<span class="ent-name">Sicherung einspielen<small>Ersetzt den gesamten Datenbestand dieses Geräts</small></span>' +
+    '<span class="icon i-chev-r rowhint"></span>' +
+    '<input type="file" accept="application/json" hidden onchange="importJSONV2(this)"></label>' +
+
+    '<div class="section-label">Konto</div>' +
+    setRow('i-users', esc(user), 'Angemeldet auf diesem Gerät · Abmelden', 'logout()') +
+    '</div>';
+}
+
+// Eine Einstellungszeile: Symbol, Beschriftung, Nebenzeile, Hinweispfeil.
+function setRow(icon, label, sub, onclick) {
+  return '<div class="set-row" onclick="' + onclick + '">' +
+    '<span class="icon ' + icon + '"></span>' +
+    '<span class="ent-name">' + label + (sub ? '<small>' + sub + '</small>' : '') + '</span>' +
+    '<span class="icon i-chev-r rowhint"></span></div>';
+}
+
+// Namen und Farben liegen im Dialog statt in der Liste: beides wird selten
+// geändert, und in der Zeile sähe ein Eingabefeld neben lauter Text
+// unruhig aus.
+function openPersonenEinstellungen() {
+  showModal('<h3>Namen &amp; Farben</h3>' +
     ['p1', 'p2'].map(w =>
-      '<div class="setting-row"><div class="field" style="margin:0;flex:1">' +
-      '<label>Name</label><input id="set-name-' + w + '" maxlength="30" value="' + esc(HP.names[w]) + '" ' +
-      'onchange="setPersonName(\'' + w + '\',this.value)"></div></div>').join('') +
+      '<div class="field"><label>' + (w === 'p1' ? 'Person 1' : 'Person 2') + '</label>' +
+      '<input id="set-name-' + w + '" maxlength="30" value="' + esc(HP.names[w]) + '" ' +
+      'onchange="setPersonName(\'' + w + '\',this.value)"></div>').join('') +
     ['p1', 'p2', 'shared'].map(w =>
-      '<div class="setting-row"><div style="min-width:110px">' + esc(whoLabelV2(w)) + '</div>' +
+      '<div class="field"><label>' + esc(whoLabelV2(w)) + '</label>' +
       '<div class="color-row">' + PERSON_PALETTE.map(([val, name]) =>
         '<button class="color-dot' + (getColor(w) === val ? ' sel' : '') + '" title="' + name + '" ' +
         'style="background:' + val + '" onclick="setPersonFarbe(\'' + w + '\',\'' + val + '\')"></button>').join('') +
       '</div></div>').join('') +
-    '</div>' +
-
-    '<div class="card"><div class="card-head"><span class="card-title">Darstellung</span></div>' +
-    '<div class="setting-row"><div>Farbschema</div>' +
-    segHtml([['dark', 'Dunkel'], ['light', 'Hell']], HP.theme === 'light' ? 'light' : 'dark', 'setTheme') +
-    '</div></div>' +
-
-    '<div class="card"><div class="card-head"><span class="card-title">Synchronisation</span></div>' +
-    '<div class="setting-row"><div>Gemeinsames Sync-Passwort<div class="muted small">' +
-    (typeof syncEnabled !== 'undefined' && syncEnabled ? 'Verbunden – Änderungen gehen an beide Geräte.' : 'Nicht verbunden – Daten bleiben lokal auf diesem Gerät.') +
-    '</div></div><button class="btn btn-accent" onclick="openSyncModal()">Passwort</button></div></div>' +
-
-    '<div class="card"><div class="card-head"><span class="card-title">Erinnerungen</span></div>' +
-    '<div class="setting-row"><div>Push-Benachrichtigungen<div class="muted small">' +
-    (!NOTIF_OK ? 'Auf diesem Gerät nicht verfügbar.'
-      : Notification.permission === 'granted' ? 'Erlaubt – dieses Gerät kann Erinnerungen empfangen.'
-        : Notification.permission === 'denied' ? 'Im Browser blockiert.'
-          : 'Noch nicht aktiviert.') +
-    '</div></div><button class="btn btn-outline" onclick="pushAktivieren()">Aktivieren</button></div></div>' +
-
-    '<div class="card"><div class="card-head"><span class="card-title">Kalender</span></div>' +
-    '<div class="setting-row"><div>Kalender importieren (.ics)<div class="muted small">' +
-    (importierte.length
-      ? importierte.length + ' importierte Termine' + (letzterImport ? ' · ' + new Date(letzterImport).toLocaleDateString('de-CH') : '') +
-      ' – ein neuer Import ersetzt sie.'
-      : 'Einmaliger Import. Ein späterer Import ersetzt die importierten Termine, statt sie zu verdoppeln.') +
-    '</div></div>' +
-    '<label class="btn btn-accent">Datei wählen<input type="file" accept=".ics,text/calendar" hidden onchange="icsDateiGewaehlt(this)"></label></div>' +
-    (importierte.length ? '<div class="setting-row"><div class="muted small">Importierte Termine entfernen</div>' +
-      '<button class="btn btn-outline" onclick="icsImportEntfernen()">Entfernen</button></div>' : '') +
-    '<div class="setting-row"><div>Kalender exportieren (.ics)<div class="muted small">Termine, Aufgaben mit Uhrzeit und Menüplan der nächsten 4 Wochen.</div></div>' +
-    '<button class="btn btn-outline" onclick="exportICSV2()">Exportieren</button></div></div>' +
-
-    '<div class="card"><div class="card-head"><span class="card-title">Sicherung</span></div>' +
-    '<div class="setting-row"><div>Momentaufnahme als JSON<div class="muted small">' +
-    'Supabase hält nur den <b>aktuellen</b> Stand – eine versehentliche Löschung ist dort Sekunden später ebenfalls weg. ' +
-    'Diese Datei ist der einzige Weg zurück zu einem früheren Stand.</div></div>' +
-    '<div style="display:flex;gap:8px">' +
-    '<button class="btn btn-outline" onclick="exportJSONV2()">Export</button>' +
-    '<label class="btn btn-outline">Import<input type="file" accept="application/json" hidden onchange="importJSONV2(this)"></label>' +
-    '</div></div></div>';
+    '<div class="modal-actions"><span></span><button class="btn btn-accent" onclick="closeModal()">Fertig</button></div>');
 }
 
 function setPersonName(who, val) {
   const name = kappen(val.trim(), 30);
-  if (!name) { showToast('Name darf nicht leer sein'); render(); return; }
+  if (!name) { showToast('Name darf nicht leer sein'); openPersonenEinstellungen(); return; }
   HP.names[who] = name;
   HP_save();
   render();
+  openPersonenEinstellungen();
   showToast('Name gespeichert');
 }
 
@@ -98,6 +107,7 @@ function setPersonFarbe(who, farbe) {
   HP_save();
   applyColors();
   render();
+  openPersonenEinstellungen();
 }
 
 // ── Push ──────────────────────────────────────

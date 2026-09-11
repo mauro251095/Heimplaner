@@ -13,6 +13,29 @@ let budgetOffset = 0;
 
 function setBudgetPerson(p) { budgetPerson = p; renderBudgetView(); }
 function budgetMonat(d) { budgetOffset += d; renderBudgetView(); }
+function budgetSpringe(offset) { budgetOffset = offset; renderBudgetView(); }
+
+let budgetFormOffen = false;
+function toggleBudgetForm() {
+  budgetFormOffen = !budgetFormOffen;
+  renderBudgetView();
+  if (budgetFormOffen) document.getElementById('bg-amount')?.focus();
+}
+
+// Summe je Monat für die kleine Verlaufsleiste (Mockup: "Letzte 6 Monate").
+function budgetVerlauf(person, bisOffset, anzahl) {
+  const out = [];
+  for (let i = anzahl - 1; i >= 0; i--) {
+    const mk = currentMonthKey(bisOffset - i);
+    out.push({
+      mk,
+      offset: bisOffset - i,
+      kurz: MONTH_NAMES[parseInt(mk.slice(5, 7)) - 1].slice(0, 3),
+      summe: budgetEntriesFor(person, mk).reduce((s, e) => s + e.amount, 0)
+    });
+  }
+  return out;
+}
 
 function renderBudgetView() {
   if (!budgetPerson) budgetPerson = loggedInPersonKey();
@@ -21,19 +44,19 @@ function renderBudgetView() {
   const eintraege = budgetEntriesFor(person, mk);
 
   let istGesamt = 0, limitGesamt = 0;
-  const karten = BUDGET_CATS.map(cat => {
+  const zeilen = BUDGET_CATS.map(cat => {
     const catEintraege = eintraege.filter(e => e.cat === cat)
       .sort((a, b) => b.date.localeCompare(a.date) || (b.updatedAt || 0) - (a.updatedAt || 0));
     const ist = catEintraege.reduce((s, e) => s + e.amount, 0);
     const limit = budgetLimit(person, cat);
     istGesamt += ist; limitGesamt += limit;
     const anteil = limit > 0 ? ist / limit : 0;
-    const pct = Math.round(anteil * 100);
     const warn = limit > 0 && anteil >= BUDGET_WARN;
-    return '<div class="card budget-card" onclick="this.classList.toggle(\'open\')">' +
-      '<div class="card-head"><span class="card-title">' + BUDGET_CAT_EMOJI[cat] + ' ' + esc(cat) + '</span>' +
-      '<span class="card-note">' + fmtCHF(ist) + ' / ' + (limit > 0 ? fmtCHF(limit) : '–') + (limit > 0 ? ' · ' + pct + '%' : '') + '</span></div>' +
-      '<div class="bar"><div class="bar-fill' + (warn ? ' warn' : '') + '" style="width:' + Math.min(pct, 100) + '%"></div></div>' +
+    return '<div class="budget-line" onclick="this.classList.toggle(\'open\')">' +
+      '<div class="bl-top"><span>' + BUDGET_CAT_EMOJI[cat] + ' ' + esc(cat) + '</span>' +
+      '<span class="bl-nums' + (warn ? ' warn' : '') + '">' + fmtCHF(ist) + (limit > 0 ? ' / ' + fmtCHF(limit) : '') + '</span></div>' +
+      '<div class="bar"><div class="bar-fill' + (warn ? ' warn' : '') + '" ' +
+      'style="width:' + (limit > 0 ? Math.min(Math.round(anteil * 100), 100) : 0) + '%"></div></div>' +
       '<div class="budget-entries">' +
       (catEintraege.length
         ? catEintraege.map(e => '<div class="entry-row">' +
@@ -42,33 +65,60 @@ function renderBudgetView() {
           '<span class="er-amount">' + fmtCHF(e.amount) + '</span>' +
           '<button class="rowbtn" onclick="event.stopPropagation();openBudgetEntryForm(\'' + esc(e.id) + '\')"><span class="icon i-pencil"></span></button>' +
           '</div>').join('')
-        : '<div class="muted small">Keine Buchungen</div>') +
+        : '<div class="leer-zeile">Keine Buchungen</div>') +
       '</div></div>';
   }).join('');
 
-  const pctGesamt = limitGesamt > 0 ? Math.round(istGesamt / limitGesamt * 100) : 0;
+  const verbleibend = limitGesamt - istGesamt;
+  const verlauf = budgetVerlauf(person, budgetOffset, 6);
+  const maxSumme = Math.max(...verlauf.map(v => v.summe), 1);
+  const farbe = getColor(person);
 
   document.getElementById('view-root').innerHTML =
-    viewHead('Budget', segHtml([['p1', HP.names.p1], ['p2', HP.names.p2]], person, 'setBudgetPerson')) +
-    navRow('budgetMonat(-1)', monthLabel(mk), 'budgetMonat(1)',
-      '<button class="btn btn-outline btn-sm" onclick="openBudgetLimits()">Limits</button>' +
-      '<button class="btn btn-outline btn-sm" onclick="openBudgetJahr()">Jahr</button>') +
+    '<div class="list-page">' +
+    viewHead('Budget',
+      '<button class="btn btn-ghost btn-sm" onclick="openBudgetLimits()">Limits</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="openBudgetJahr()">Jahresstatistik</button>') +
+    utabs([['p1', HP.names.p1], ['p2', HP.names.p2]], person, 'setBudgetPerson') +
+    navRow('budgetMonat(-1)', monthLabel(mk), 'budgetMonat(1)') +
 
-    '<div class="card addbar">' +
-    '<select id="bg-person">' + whoOptions(person) + '</select>' +
-    '<select id="bg-cat">' + BUDGET_CATS.map(c => '<option value="' + esc(c) + '">' + BUDGET_CAT_EMOJI[c] + ' ' + esc(c) + '</option>').join('') + '</select>' +
-    '<input id="bg-amount" class="w-xs" inputmode="decimal" placeholder="CHF" onkeydown="if(event.key===\'Enter\')addBudgetEntryV2()">' +
-    '<input id="bg-comment" placeholder="Kommentar…" maxlength="300" onkeydown="if(event.key===\'Enter\')addBudgetEntryV2()">' +
-    '<input id="bg-date" type="date" class="w-md" value="' + budgetStandardDatum() + '">' +
-    '<button class="btn btn-accent" onclick="addBudgetEntryV2()"><span class="icon i-plus"></span> Buchen</button>' +
+    '<div class="big-stat">' +
+    '<div class="bs-label">' + esc(monthLabel(mk)) + (limitGesamt > 0 ? ', verbleibend' : ', ausgegeben') + '</div>' +
+    '<div class="bs-value' + (limitGesamt > 0 && verbleibend < 0 ? ' over' : '') + '">CHF ' +
+    fmtCHF(limitGesamt > 0 ? verbleibend : istGesamt) + '</div>' +
+    (limitGesamt > 0 ? '<div class="bs-sub">' + fmtCHF(istGesamt) + ' von ' + fmtCHF(limitGesamt) + ' ausgegeben</div>' : '') +
     '</div>' +
 
-    '<div class="summary-card card">' +
-    '<div><span class="sum-num">' + fmtCHF(istGesamt) + '</span>' +
-    '<span class="sum-lbl"> von ' + (limitGesamt > 0 ? fmtCHF(limitGesamt) : '– ') + ' im ' + esc(monthLabel(mk)) + '</span></div>' +
-    (limitGesamt > 0 ? '<div class="bar"><div class="bar-fill' + (pctGesamt >= BUDGET_WARN * 100 ? ' warn' : '') + '" style="width:' + Math.min(pctGesamt, 100) + '%"></div></div>' : '') +
+    (budgetFormOffen
+      ? '<div class="inline-form">' +
+        '<div class="if-row">' +
+        '<input id="bg-amount" inputmode="decimal" placeholder="CHF" onkeydown="if(event.key===\'Enter\')addBudgetEntryV2()">' +
+        '<select id="bg-cat">' + BUDGET_CATS.map(c => '<option value="' + esc(c) + '">' + BUDGET_CAT_EMOJI[c] + ' ' + esc(c) + '</option>').join('') + '</select>' +
+        '</div>' +
+        '<input id="bg-comment" placeholder="Wofür?" maxlength="300" onkeydown="if(event.key===\'Enter\')addBudgetEntryV2()">' +
+        '<div class="if-row">' +
+        '<select id="bg-person">' + whoOptions(person) + '</select>' +
+        '<input id="bg-date" type="date" value="' + budgetStandardDatum() + '">' +
+        '</div>' +
+        '<div class="if-actions">' +
+        '<button class="btn btn-outline btn-sm" onclick="toggleBudgetForm()">Abbrechen</button>' +
+        '<button class="btn btn-accent btn-sm" onclick="addBudgetEntryV2()">Buchen</button>' +
+        '</div></div>'
+      : '<button class="addrow" onclick="toggleBudgetForm()"><span class="icon i-plus"></span> Ausgabe erfassen</button>') +
+
+    zeilen +
+
+    '<div class="section-label">Letzte 6 Monate</div>' +
+    // Balken sind anklickbar - der Monat, den man vergleichen will, ist meist
+    // genau der, den man gerade sieht.
+    '<div class="spark">' + verlauf.map(v =>
+      '<button class="sp-col" title="' + esc(v.kurz) + ': ' + fmtCHF(v.summe) + '" ' +
+      'onclick="budgetSpringe(' + v.offset + ')">' +
+      '<span class="sp-bar" style="height:' + Math.max(Math.round(v.summe / maxSumme * 100), 3) + '%' +
+      (v.offset === budgetOffset ? ';background:' + farbe : '') + '"></span>' +
+      '<span class="sp-lbl' + (v.offset === budgetOffset ? ' sel' : '') + '">' + esc(v.kurz) + '</span></button>').join('') +
     '</div>' +
-    karten;
+    '</div>';
 }
 
 function budgetStandardDatum() {

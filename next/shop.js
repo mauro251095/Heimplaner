@@ -6,48 +6,72 @@
 // heimplaner-data.js und bleiben unverändert.
 // ═══════════════════════════════════════════════
 
+let einkaufFormOffen = false;
+
+function toggleEinkaufForm() {
+  einkaufFormOffen = !einkaufFormOffen;
+  renderEinkauf();
+  if (einkaufFormOffen) document.getElementById('sh-name')?.focus();
+}
+
 function renderEinkauf() {
   const alle = HP.shop || [];
   const offen = alle.filter(i => !i.bought);
   const gekauft = alle.filter(i => i.bought);
+  const favNamen = new Set((HP.savedShopItems || []).map(f => f.name.toLowerCase()));
 
   const gruppen = CATS.map(cat => {
     const items = offen.filter(i => (i.cat || 'Sonstiges') === cat);
     if (!items.length) return '';
-    return '<div class="card"><div class="card-head"><span class="card-title">' + CAT_EMOJI[cat] + ' ' + esc(cat) + '</span>' +
-      '<span class="card-note">' + items.length + '</span></div>' +
-      items.map(shopRowHtml).join('') + '</div>';
+    return '<div class="section-label">' + CAT_EMOJI[cat] + ' ' + esc(cat) + ' · ' + items.length + '</div>' +
+      items.map(i => shopRowHtml(i, favNamen)).join('');
   }).join('');
 
   document.getElementById('view-root').innerHTML =
+    '<div class="list-page">' +
     viewHead('Einkaufsliste',
-      '<button class="btn btn-outline" onclick="openFavoriten()"><span class="icon i-star"></span> Favoriten</button>') +
-    '<div class="card addbar">' +
-    '<input id="sh-name" placeholder="Artikel…" maxlength="60" onkeydown="if(event.key===\'Enter\')addShopItemV2()">' +
-    '<input id="sh-qty" class="w-xs" placeholder="Menge" maxlength="12" onkeydown="if(event.key===\'Enter\')addShopItemV2()">' +
-    '<input id="sh-unit" class="w-xs" placeholder="Einheit" maxlength="10" onkeydown="if(event.key===\'Enter\')addShopItemV2()">' +
-    '<select id="sh-cat"><option value="">Automatisch</option>' +
-    CATS.map(c => '<option value="' + esc(c) + '">' + CAT_EMOJI[c] + ' ' + esc(c) + '</option>').join('') + '</select>' +
-    '<button class="btn btn-accent" onclick="addShopItemV2()"><span class="icon i-plus"></span> Hinzufügen</button>' +
-    '</div>' +
+      '<span class="head-count">' + offen.length + ' offen</span>' +
+      '<button class="btn btn-ghost btn-sm" onclick="openFavoriten()"><span class="icon i-star"></span> Favoriten</button>') +
+
+    // Nach Mockup nur eine ruhige Zeile; die Felder klappen erst auf, wenn
+    // wirklich etwas hinzukommt. Das ist der häufigere Zustand: lesen und
+    // abhaken, nicht erfassen.
+    (einkaufFormOffen
+      ? '<div class="inline-form">' +
+        '<input id="sh-name" placeholder="Artikel" maxlength="60" onkeydown="if(event.key===\'Enter\')addShopItemV2()">' +
+        '<div class="if-row">' +
+        '<input id="sh-qty" placeholder="Menge" maxlength="12" onkeydown="if(event.key===\'Enter\')addShopItemV2()">' +
+        '<input id="sh-unit" placeholder="Einheit" maxlength="10" onkeydown="if(event.key===\'Enter\')addShopItemV2()">' +
+        '<select id="sh-cat"><option value="">Kategorie automatisch</option>' +
+        CATS.map(c => '<option value="' + esc(c) + '">' + CAT_EMOJI[c] + ' ' + esc(c) + '</option>').join('') + '</select>' +
+        '</div>' +
+        '<div class="if-actions">' +
+        '<button class="btn btn-outline btn-sm" onclick="toggleEinkaufForm()">Abbrechen</button>' +
+        '<button class="btn btn-accent btn-sm" onclick="addShopItemV2()">Hinzufügen</button>' +
+        '</div></div>'
+      : '<button class="addrow" onclick="toggleEinkaufForm()">' +
+        '<span class="icon i-plus"></span> Artikel hinzufügen</button>') +
+
     (offen.length ? gruppen : emptyState('i-cart', 'Die Liste ist leer.')) +
     (gekauft.length
-      ? '<div class="card done-group"><div class="card-head"><span class="card-title">Erledigt · ' + gekauft.length + '</span>' +
-      '<button class="btn btn-outline btn-sm" onclick="aufraeumenEinkauf()">Aufräumen</button></div>' +
-      gekauft.map(shopRowHtml).join('') + '</div>'
-      : '');
+      ? '<div class="section-label with-action">Erledigt · ' + gekauft.length +
+      '<button class="linkbtn" onclick="aufraeumenEinkauf()">Aufräumen</button></div>' +
+      '<div class="done-group">' + gekauft.map(i => shopRowHtml(i, favNamen)).join('') + '</div>'
+      : '') +
+    '</div>';
 }
 
-function shopRowHtml(i) {
+function shopRowHtml(i, favNamen) {
   const menge = [i.qty, i.unit].filter(Boolean).join(' ');
-  const sub = [menge, i.taskName].filter(Boolean).join(' · ');
-  return '<div class="list-row' + (i.bought ? ' is-done' : '') + '" onclick="openShopItemForm(\'' + esc(i.id) + '\')">' +
-    '<button class="check' + (i.bought ? ' done' : '') + '" onclick="event.stopPropagation();toggleShopItem(\'' + esc(i.id) + '\')">' +
+  const istFavorit = favNamen && favNamen.has(i.name.toLowerCase());
+  return '<div class="ent-row' + (i.bought ? ' is-done' : '') + '" onclick="openShopItemForm(\'' + esc(i.id) + '\')">' +
+    '<button class="check sm' + (i.bought ? ' done' : '') + '" onclick="event.stopPropagation();toggleShopItem(\'' + esc(i.id) + '\')">' +
     (i.bought ? '<span class="icon i-check"></span>' : '') + '</button>' +
-    '<div class="meta"><div class="name">' + esc(i.name) + '</div>' +
-    (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>' +
-    '<button class="rowbtn" onclick="event.stopPropagation();alsFavoritSpeichern(\'' + esc(i.id) + '\')" title="Als Favorit speichern">' +
-    '<span class="icon i-star"></span></button>' +
+    '<span class="ent-name">' + esc(i.name) +
+    (i.taskName ? '<small>' + esc(i.taskName) + '</small>' : '') + '</span>' +
+    (menge ? '<span class="fr-meta">' + esc(menge) + '</span>' : '') +
+    '<button class="rowbtn' + (istFavorit ? ' on' : '') + '" onclick="event.stopPropagation();alsFavoritSpeichern(\'' + esc(i.id) + '\')" ' +
+    'title="' + (istFavorit ? 'Ist ein Favorit' : 'Als Favorit speichern') + '"><span class="icon i-star"></span></button>' +
     '</div>';
 }
 

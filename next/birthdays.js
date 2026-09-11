@@ -37,28 +37,60 @@ function alterAm(b) {
   return kommendesJahr - parseInt(b.year);
 }
 
+// Nach Mockup: der nächste Geburtstag steht hervorgehoben oben, der Rest
+// nach Monaten gruppiert - so sieht man auf einen Blick, was als Nächstes
+// kommt, ohne die ganze Liste zu lesen.
 function renderGeburtstage() {
   const liste = (HP.birthdays || [])
     .map(b => ({ ...b, tage: tageBisGeburtstag(b) }))
     .sort((a, b) => a.tage - b.tage);
+  const naechster = liste[0];
+  const rest = liste.slice(1);
+  const gruppen = {};
+  rest.forEach(b => {
+    const monat = MONTH_NAMES[parseInt(b.date.slice(5, 7)) - 1];
+    (gruppen[monat] = gruppen[monat] || []).push(b);
+  });
+  // Reihenfolge der Monate folgt der Restliste (schon nach Nähe sortiert),
+  // nicht dem Kalender - im November interessiert der Dezember zuerst.
+  const monatsReihenfolge = [];
+  rest.forEach(b => {
+    const monat = MONTH_NAMES[parseInt(b.date.slice(5, 7)) - 1];
+    if (!monatsReihenfolge.includes(monat)) monatsReihenfolge.push(monat);
+  });
+
   document.getElementById('view-root').innerHTML =
-    viewHead('Geburtstage') +
+    '<div class="list-page">' +
+    viewHead('Geburtstage',
+      '<button class="btn btn-ghost btn-sm" onclick="openBirthdayForm()"><span class="icon i-plus"></span> Geburtstag</button>') +
     (liste.length
-      ? '<div class="card" style="padding:0 20px">' + liste.map(bdayRowHtml).join('') + '</div>'
-      : emptyState('i-cake', 'Noch keine Geburtstage. Mit "+" unten rechts einen ersten anlegen.')) +
-    '<button class="fab" onclick="openBirthdayForm()" title="Neuer Geburtstag"><span class="icon i-plus"></span></button>';
+      ? '<div class="highlight-row" onclick="openBirthdayForm(\'' + esc(naechster.id) + '\')">' +
+        '<span class="hl-avatar">' + esc((naechster.name || '?').charAt(0).toUpperCase()) + '</span>' +
+        '<div class="hl-text"><b>' + esc(naechster.name) + '</b><span>' + esc(bdayDatum(naechster)) +
+        (alterAm(naechster) != null ? ', wird ' + alterAm(naechster) : '') + '</span></div>' +
+        '<span class="hl-when">' + esc(wannLabel(naechster.tage)) + '</span></div>' +
+        monatsReihenfolge.map(monat =>
+          '<div class="section-label">' + esc(monat) + '</div>' +
+          gruppen[monat].map(bdayRowHtml).join('')).join('')
+      : emptyState('i-cake', 'Noch keine Geburtstage.')) +
+    '</div>';
+}
+
+function bdayDatum(b) {
+  return new Date(2000, parseInt(b.date.slice(5, 7)) - 1, parseInt(b.date.slice(8, 10)))
+    .toLocaleDateString('de-CH', { day: 'numeric', month: 'long' });
+}
+
+function wannLabel(tage) {
+  return tage === 0 ? 'heute' : tage === 1 ? 'morgen' : 'in ' + tage + ' Tagen';
 }
 
 function bdayRowHtml(b) {
   const alter = alterAm(b);
-  const datum = new Date(2000, parseInt(b.date.slice(5, 7)) - 1, parseInt(b.date.slice(8, 10)))
-    .toLocaleDateString('de-CH', { day: 'numeric', month: 'long' });
-  const wann = b.tage === 0 ? 'Heute!' : b.tage === 1 ? 'Morgen' : 'in ' + b.tage + ' Tagen';
-  return '<div class="list-row" onclick="openBirthdayForm(\'' + esc(b.id) + '\')">' +
-    '<span class="row-emoji">🎂</span>' +
-    '<div class="meta"><div class="name">' + esc(b.name) + '</div>' +
-    '<div class="sub' + (b.tage === 0 ? ' accent' : '') + '">' + esc(datum) +
-    (alter != null ? ' · wird ' + alter : '') + ' · ' + wann + '</div></div>' +
+  return '<div class="ent-row" onclick="openBirthdayForm(\'' + esc(b.id) + '\')">' +
+    '<span class="avatar">' + esc((b.name || '?').charAt(0).toUpperCase()) + '</span>' +
+    '<span class="ent-name">' + esc(b.name) + (alter != null ? '<small>wird ' + alter + '</small>' : '') + '</span>' +
+    '<span class="fr-meta">' + esc(b.date.slice(8, 10)) + '.' + esc(b.date.slice(5, 7)) + '. · ' + esc(wannLabel(b.tage)) + '</span>' +
     '</div>';
 }
 

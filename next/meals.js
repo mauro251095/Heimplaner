@@ -14,32 +14,52 @@ let offenesRezept = null;       // in der Detailspalte gezeigtes Rezept
 
 function menuWoche(d) { menuOffset += d; renderMenueplan(); }
 
+// Nach Mockup: kompaktes Raster (drei Mahlzeiten × sieben Tage) als Überblick,
+// darunter die Woche als Liste. Das Raster beantwortet "wo ist noch nichts
+// geplant?" auf einen Blick, die Liste "was gibt es wann?".
 function renderMenueplan() {
   const dates = getWeekDates(menuOffset);
   const label = 'KW ' + wkNum(dates[0]) + ' · ' +
     dates[0].toLocaleDateString('de-CH', { day: 'numeric', month: 'short' }) + ' – ' +
     dates[6].toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
-  const spalten = dates.map((d, i) => {
+
+  const kopf = '<div class="mp-row head"><span></span>' +
+    dates.map((d, i) => '<span class="mp-dow' + (isToday(d) ? ' heute' : '') + '">' + DS[i] + '</span>').join('') + '</div>';
+  const raster = MEAL_SLOTS.map(slot =>
+    '<div class="mp-row"><span class="mp-slot" title="' + esc(slot) + '">' + slot.charAt(0) + '</span>' +
+    dates.map(d => {
+      const key = dk(d);
+      const m = (HP.meals[key] || {})[slot];
+      return '<button class="mp-cell' + (m ? ' filled' : '') + '" title="' + esc(slot + ' · ' + (m ? m.name : 'frei')) + '" ' +
+        'onclick="openMealPicker(\'' + key + '\',\'' + slot + '\')">' + (m ? esc(m.emoji || '🍽️') : '') + '</button>';
+    }).join('') + '</div>').join('');
+
+  // In der Liste stehen nur belegte Mahlzeiten - sonst wären es 21 Zeilen, von
+  // denen die meisten "eintragen" heissen. Zum Eintragen ist das Raster oben da.
+  const listen = dates.map((d, i) => {
     const key = dk(d);
     const meals = HP.meals[key] || {};
-    return '<div class="day-col' + (isToday(d) ? ' is-today' : '') + '">' +
-      '<div class="day-head"><span class="dh-dow">' + DS[i] + '</span><span class="dh-num">' + d.getDate() + '</span></div>' +
-      '<div class="day-body">' + MEAL_SLOTS.map(slot => {
-        const m = meals[slot];
-        return '<button class="slot-card' + (m ? ' filled' : '') + '" onclick="openMealPicker(\'' + key + '\',\'' + slot + '\')">' +
-          '<span class="slot-label">' + slot + '</span>' +
-          '<span class="slot-value">' + (m ? esc(m.emoji || '🍽️') + ' ' + esc(m.name) : '+') + '</span></button>';
-      }).join('') + '</div>' +
-      '<button class="day-add" onclick="tagZutatenAufListe(\'' + key + '\')" title="Zutaten des Tages zur Einkaufsliste">🛒</button>' +
-      '</div>';
+    const belegt = MEAL_SLOTS.filter(slot => meals[slot]);
+    const zeilen = belegt.length
+      ? belegt.map(slot => '<div class="ent-row" onclick="openMealPicker(\'' + key + '\',\'' + slot + '\')">' +
+        '<span class="ent-time wide">' + slot + '</span>' +
+        '<span class="ent-name">' + esc(meals[slot].emoji || '🍽️') + ' ' + esc(meals[slot].name) + '</span></div>').join('')
+      : '<div class="leer-zeile">Nichts geplant</div>';
+    return '<div class="section-label with-action' + (isToday(d) ? ' heute' : '') + '">' +
+      DL[i] + ', ' + d.getDate() + '. ' + MONTH_NAMES[d.getMonth()].slice(0, 3) +
+      (belegt.length ? '<button class="linkbtn" onclick="tagZutatenAufListe(\'' + key + '\')">Zutaten</button>' : '') +
+      '</div>' + zeilen;
   }).join('');
 
   document.getElementById('view-root').innerHTML =
+    '<div class="list-page">' +
     viewHead('Menüplan',
-      '<button class="btn btn-outline" onclick="wocheZutatenAufListe()"><span class="icon i-cart"></span> Zutaten der Woche</button>') +
+      '<button class="btn btn-ghost btn-sm" onclick="wocheZutatenAufListe()"><span class="icon i-cart"></span> Zutaten der Woche</button>') +
     navRow('menuWoche(-1)', label, 'menuWoche(1)',
-      (menuOffset === 0 ? '' : '<button class="btn btn-outline btn-sm" onclick="menuOffset=0;renderMenueplan()">Heute</button>')) +
-    '<div class="week-grid">' + spalten + '</div>';
+      (menuOffset === 0 ? '' : '<button class="linkbtn" onclick="menuOffset=0;renderMenueplan()">Heute</button>')) +
+    '<div class="mp-grid">' + kopf + raster + '</div>' +
+    listen +
+    '</div>';
 }
 
 function openMealPicker(key, slot) {
