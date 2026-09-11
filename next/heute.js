@@ -14,45 +14,43 @@ function begruessung() {
 function renderHeute() {
   const key = todayKey();
   const ich = loggedInPersonKey();
-  const eintraege = dayEntries(key);
-  const termine = eintraege.filter(i => i.kind === 'event');
-  const aufgaben = eintraege.filter(i => i.kind === 'task');
-  const erledigt = aufgaben.filter(i => getStatus(i.data.id, key) === 'done').length +
-    termine.filter(i => getEventStatus(i.data.id) === 'done').length;
-
-  const meals = HP.meals[key] || {};
-  const faellig = (HP.events || []).filter(e => e.chore && e.date <= key)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const bdaysHeute = birthdaysOn(key);
-  const naechsterBday = kommendeGeburtstage(60)[0];
-  const offeneArtikel = (HP.shop || []).filter(i => !i.bought).length;
-
-  const mk = currentMonthKey(0);
-  const ausgaben = budgetEntriesFor(ich, mk).reduce((s, e) => s + e.amount, 0);
-  const limit = BUDGET_CATS.reduce((s, c) => s + budgetLimit(ich, c), 0);
-
   document.getElementById('view-root').innerHTML =
     '<div class="list-page">' +
     '<div class="page-date">' + esc(dateLabel(key)) + '</div>' +
     viewHead(begruessung() + ', ' + HP.names[ich],
       '<button class="btn btn-ghost btn-sm" onclick="openAddSheet(\'' + key + '\')"><span class="icon i-plus"></span> Neu</button>') +
+    tagAbschnitteHtml(key) +
+    '</div>';
+}
 
-    (bdaysHeute.length
-      ? bdaysHeute.map(b => '<div class="highlight-row" onclick="switchView(\'geburtstage\')">' +
-        '<span class="hl-avatar">🎂</span><div class="hl-text"><b>' + esc(b.name) + '</b>' +
-        '<span>hat heute Geburtstag' + (b.year ? ' · wird ' + (new Date().getFullYear() - parseInt(b.year)) : '') + '</span></div></div>').join('')
-      : '') +
+// Eine Tagesansicht, zwei Einstiege: "Heute" zeigt sie für das heutige Datum
+// mit Begrüssung, der Planer reicht dieselben Abschnitte mit Datums-Pfeilen an
+// einen beliebigen Tag weiter (planerTagHtml). Bewusst ein Code-Pfad - zwei
+// getrennte Fassungen desselben Tages laufen über die Zeit auseinander.
+function tagAbschnitteHtml(key) {
+  const istHeute = key === todayKey();
+  const eintraege = dayEntries(key);
+  const termine = eintraege.filter(i => i.kind === 'event');
+  const aufgaben = eintraege.filter(i => i.kind === 'task');
+  const erledigt = aufgaben.filter(i => getStatus(i.data.id, key) === 'done').length +
+    termine.filter(i => getEventStatus(i.data.id) === 'done').length;
+  const meals = HP.meals[key] || {};
+  const faellig = (HP.events || []).filter(e => e.chore && e.date <= key)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const bdays = birthdaysOn(key);
+
+  return bdays.map(b => geburtstagsZeileHtml(b, key)).join('') +
 
     sektion('Termine', termine.length ? termine.map(i => eventRowHtml(i.data)).join('')
-      : '<div class="leer-zeile">Keine Termine heute</div>') +
+      : '<div class="leer-zeile">' + (istHeute ? 'Keine Termine heute' : 'Keine Termine an diesem Tag') + '</div>') +
 
     sektion('Aufgaben' + (aufgaben.length ? ' · ' + erledigt + ' von ' + eintraege.length + ' erledigt' : ''),
       aufgaben.length ? aufgaben.map(i => taskRowHtml(i.data, key)).join('')
-        : '<div class="leer-zeile">Nichts geplant – geniess den Tag</div>') +
+        : '<div class="leer-zeile">' + (istHeute ? 'Nichts geplant – geniess den Tag' : 'Nichts geplant') + '</div>') +
 
     (faellig.length ? sektion('Haushalt fällig', faellig.slice(0, 4).map(choreRowHtml).join('')) : '') +
 
-    sektion('Menü heute',
+    sektion(istHeute ? 'Menü heute' : 'Menüplan',
       MEAL_SLOTS.map(slot => {
         const m = meals[slot];
         return '<div class="ent-row" onclick="openMealPicker(\'' + key + '\',\'' + slot + '\')">' +
@@ -61,7 +59,28 @@ function renderHeute() {
           '</div>';
       }).join('')) +
 
-    '<div class="stat-tiles">' +
+    // Die Kacheln fassen den Stand von jetzt zusammen (offene Artikel, Budget
+    // dieses Monats, nächster Geburtstag) - an einem vergangenen oder künftigen
+    // Tag wäre das eine falsche Auskunft, deshalb nur heute.
+    (istHeute ? kennzahlKachelnHtml(faellig.length > 0, bdays.length > 0) : '');
+}
+
+function geburtstagsZeileHtml(b, key) {
+  const jahr = parseInt(key.slice(0, 4));
+  return '<div class="highlight-row" onclick="switchView(\'geburtstage\')">' +
+    '<span class="hl-avatar">🎂</span><div class="hl-text"><b>' + esc(b.name) + '</b>' +
+    '<span>' + (key === todayKey() ? 'hat heute Geburtstag' : 'hat an diesem Tag Geburtstag') +
+    (b.year ? ' · wird ' + (jahr - parseInt(b.year)) : '') + '</span></div></div>';
+}
+
+function kennzahlKachelnHtml(hatFaellige, hatGeburtstagHeute) {
+  const ich = loggedInPersonKey();
+  const offeneArtikel = (HP.shop || []).filter(i => !i.bought).length;
+  const naechsterBday = kommendeGeburtstage(60)[0];
+  const ausgaben = budgetEntriesFor(ich, currentMonthKey(0)).reduce((s, e) => s + e.amount, 0);
+  const limit = BUDGET_CATS.reduce((s, c) => s + budgetLimit(ich, c), 0);
+
+  return '<div class="stat-tiles">' +
     '<button class="stat-tile" onclick="switchView(\'einkaufsliste\')">' +
     '<span class="icon i-cart"></span>' +
     '<span class="st-text">' + (offeneArtikel ? offeneArtikel + ' Artikel fehlen' : 'Liste ist leer') + '</span></button>' +
@@ -70,15 +89,14 @@ function renderHeute() {
     '<span class="icon i-money"></span>' +
     '<span class="st-text">' + fmtCHF(ausgaben) + (limit > 0 ? ' von ' + fmtCHF(limit) : '') + ' im ' + esc(MONTH_NAMES[new Date().getMonth()]) + '</span></button>' +
 
-    (naechsterBday && !bdaysHeute.length
+    (naechsterBday && !hatGeburtstagHeute
       ? '<button class="stat-tile" onclick="switchView(\'geburtstage\')">' +
       '<span class="icon i-cake"></span>' +
       '<span class="st-text">' + esc(naechsterBday.name) + ' in ' + naechsterBday.tage + ' Tag' + (naechsterBday.tage === 1 ? '' : 'en') + '</span></button>'
       : '') +
 
-    (faellig.length ? '' : '<button class="stat-tile" onclick="switchView(\'haushalt\')">' +
+    (hatFaellige ? '' : '<button class="stat-tile" onclick="switchView(\'haushalt\')">' +
       '<span class="icon i-home-2"></span><span class="st-text">Haushalt ist aufgeräumt</span></button>') +
-    '</div>' +
     '</div>';
 }
 

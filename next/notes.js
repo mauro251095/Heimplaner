@@ -5,6 +5,14 @@
 
 const NOTE_COLORS = [['yellow', 'Gelb'], ['blue', 'Blau'], ['pink', 'Pink'], ['green', 'Grün'], ['purple', 'Violett']];
 
+// Der Rückweg vom Termin zur Notiz. Bewusst kein zweites Feld am Termin:
+// die Verknüpfung steht schon in note.linkedEventId, und zwei Stellen für
+// dieselbe Beziehung laufen beim Löschen der einen Seite auseinander.
+function notizZuTermin(eventId) {
+  if (!eventId) return null;
+  return (HP.notes || []).find(n => n.linkedEventId === eventId) || null;
+}
+
 // Notizen mit Termin zuoberst und nach Datum sortiert: eine Notiz zu Dienstag
 // ist am Montag wichtiger als eine Idee ohne Datum.
 function renderPinnwand() {

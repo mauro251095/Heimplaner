@@ -113,32 +113,16 @@ function wochenStreifenHtml(key) {
   }).join('') + '</div>';
 }
 
+// Inhalt kommt aus tagAbschnitteHtml() in heute.js - der Tag ist dieselbe
+// Ansicht wie "Heute", nur für ein wählbares Datum. Hier kommen nur die
+// Datums-Navigation und der Wochenstreifen dazu.
 function planerTagHtml() {
   const key = planerDatum;
-  const entries = dayEntriesHtml(key);
-  const chores = (HP.events || []).filter(e => e.chore && e.date <= key)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const bdays = birthdaysOn(key);
-  const meals = HP.meals[key] || {};
   const isHeute = key === todayKey();
   return navRow('planerTagShift(-1)', dateLabel(key), 'planerTagShift(1)',
     (isHeute ? '<span class="heute-chip">Heute</span>' : '<button class="linkbtn" onclick="planerHeute()">Heute</button>')) +
     wochenStreifenHtml(key) +
-    '<div class="section-label">Termine &amp; Aufgaben</div>' +
-    (entries || '<div class="leer-zeile">Nichts geplant für diesen Tag</div>') +
-    (bdays.length ? '<div class="section-label">Geburtstage</div>' +
-      bdays.map(b => '<div class="ent-row" onclick="switchView(\'geburtstage\')">' +
-        '<span class="avatar">🎂</span><span class="ent-name">' + esc(b.name) +
-        (b.year ? '<small>wird ' + (parseInt(key.slice(0, 4)) - parseInt(b.year)) + '</small>' : '') + '</span></div>').join('') : '') +
-    '<div class="section-label">Menüplan</div>' +
-    MEAL_SLOTS.map(slot => {
-      const m = meals[slot];
-      return '<div class="ent-row" onclick="openMealPicker(\'' + key + '\',\'' + slot + '\')">' +
-        '<span class="ent-time wide">' + slot + '</span>' +
-        '<span class="ent-name' + (m ? '' : ' muted') + '">' + (m ? esc(m.emoji || '🍽️') + ' ' + esc(m.name) : 'eintragen') + '</span></div>';
-    }).join('') +
-    (chores.length ? '<div class="section-label">Haushalt fällig</div>' +
-      chores.slice(0, 6).map(choreRowHtml).join('') : '');
+    tagAbschnitteHtml(key);
 }
 
 // ── Monat ─────────────────────────────────────

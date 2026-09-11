@@ -13,7 +13,11 @@ button,input,select,textarea{font-family:inherit}
 a{color:inherit}
 
 /* ── App-Gerüst ── */
-#app{display:flex;height:100vh}
+/* dvh statt vh: iOS misst 100vh gegen den Layout-Viewport, also inklusive der
+   Fläche hinter der eingeklappten Browserleiste. Die Schnellwahl (position:
+   fixed; bottom:0) landet damit in einem Bereich, den man gar nicht sieht -
+   sie wirkt zu weit oben, darunter bleibt ein schwarzer Streifen. */
+#app{display:flex;height:100vh;height:100dvh}
 
 .sidebar{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
   padding:var(--sp-6) var(--sp-5);display:flex;flex-direction:column;gap:2px;overflow-y:auto}
@@ -30,8 +34,6 @@ a{color:inherit}
    (die Sidebar übernimmt dort die Navigation). */
 .topbar{display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-6);
   border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:24px}
-.topbar .hamburger{background:none;border:none;color:var(--text);cursor:pointer;padding:4px;display:none}
-.topbar .hamburger .icon{width:20px;height:20px}
 .topbar .title{display:none;font-family:var(--font-display);font-weight:700;font-size:var(--fs-lg);flex:1}
 .topbar > :last-child{margin-left:auto}
 
@@ -43,11 +45,31 @@ a{color:inherit}
 .drawer-scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
 .drawer-scrim.open{display:block}
 
+/* ── Schnellwahl (Handy) ── */
+/* Auf dem Desktop trägt die Sidebar die Navigation, dort bleibt die Leiste
+   aus. Auf dem Handy ist sie der einzige Einstieg - auch in die Schublade
+   ("Mehr"), deshalb hat die Topbar dort keinen Hamburger mehr. */
+.bottom-nav{display:none}
+
 @media (max-width:860px){
   .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:21;transform:translateX(-100%);transition:transform .18s}
   .sidebar.open{transform:translateX(0)}
-  .topbar .hamburger,.topbar .title{display:flex}
-  #view-root{padding:var(--sp-7) var(--sp-5) 90px}
+  .topbar .title{display:flex}
+  #view-root{padding:var(--sp-7) var(--sp-5) calc(78px + env(safe-area-inset-bottom))}
+
+  .bottom-nav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:19;
+    background:var(--surface);border-top:1px solid var(--border);
+    padding-bottom:max(env(safe-area-inset-bottom),6px)}
+  .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:9px 4px 7px;border:none;background:none;color:var(--text-3);cursor:pointer;
+    -webkit-tap-highlight-color:transparent}
+  .bn-item .bn-icon{position:relative;display:flex}
+  .bn-item .icon{width:22px;height:22px}
+  .bn-item .bn-label{font-size:10px;letter-spacing:.02em;line-height:1}
+  .bn-item.active{color:var(--accent-text)}
+  .bn-badge{position:absolute;top:-5px;right:-8px;min-width:16px;height:16px;padding:0 4px;
+    border-radius:8px;background:var(--accent);color:#fff;font-size:10px;font-weight:600;
+    line-height:16px;text-align:center}
 }
 
 /* ── Icons (lokale SVGs via mask, erben currentColor) ── */
@@ -301,6 +323,7 @@ a{color:inherit}
 .ent-row.is-done .ent-name{color:var(--text-3);text-decoration:line-through}
 .ent-row.is-done .ent-name small{text-decoration:none}
 .ent-flag{color:var(--palette-amber);font-size:var(--fs-sm)}
+.ent-note{width:14px;height:14px;color:var(--text-3)}
 .rowhint{color:var(--text-3);width:14px;height:14px;flex-shrink:0}
 .check.sm{width:18px;height:18px;border-width:1.5px}
 .check.sm .icon{width:11px;height:11px}

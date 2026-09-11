@@ -86,12 +86,41 @@ const VIEWS = {
 };
 let currentView = 'heute';
 
+// Schnellwahl am unteren Rand (nur Handy): vier feste Plätze, alles Übrige
+// über "Mehr" in der Schublade. Bewusst dieselben SVG-Icons wie die Sidebar
+// statt Emoji - Emoji zeichnet jedes Betriebssystem in seiner eigenen
+// Schrift, die Leiste sähe auf iPhone und Android sonst verschieden aus.
+const MOBILE_NAV = ['heute', 'einkaufsliste', 'budget', 'pinnwand'];
+
 function buildSidebar() {
   document.getElementById('sidebar-nav').innerHTML = Object.entries(VIEWS).map(([key, v]) =>
     '<button class="navitem' + (key === currentView ? ' active' : '') + '" data-view="' + key + '" onclick="switchView(\'' + key + '\')">' +
     '<span class="icon ' + v.icon + '"></span>' + v.label + '</button>'
   ).join('');
 }
+
+// Wird bei jedem Rendern neu gebaut: die Zahl offener Artikel am Einkaufs-
+// Symbol ändert sich auch, ohne dass die Ansicht wechselt (Partnergerät,
+// Abhaken in einer anderen Ansicht).
+function buildBottomNav() {
+  const nav = document.getElementById('bottom-nav');
+  if (!nav) return;
+  const offen = (HP.shop || []).filter(i => !i.bought).length;
+  nav.innerHTML = MOBILE_NAV.map(key => {
+    const v = VIEWS[key];
+    const badge = key === 'einkaufsliste' && offen
+      ? '<span class="bn-badge">' + (offen > 99 ? '99+' : offen) + '</span>' : '';
+    return '<button class="bn-item' + (key === currentView ? ' active' : '') + '" onclick="switchView(\'' + key + '\')">' +
+      '<span class="bn-icon"><span class="icon ' + v.icon + '"></span>' + badge + '</span>' +
+      '<span class="bn-label">' + esc(bnLabel(key)) + '</span></button>';
+  }).join('') +
+    '<button class="bn-item' + (MOBILE_NAV.includes(currentView) ? '' : ' active') + '" onclick="openDrawer()">' +
+    '<span class="bn-icon"><span class="icon i-menu"></span></span>' +
+    '<span class="bn-label">Mehr</span></button>';
+}
+// "Einkaufsliste" passt nicht unter ein 22px-Symbol.
+function bnLabel(key) { return key === 'einkaufsliste' ? 'Einkauf' : VIEWS[key].label; }
+
 function switchView(key) {
   if (!VIEWS[key]) return;
   currentView = key;
@@ -100,6 +129,7 @@ function switchView(key) {
   if (title) title.textContent = VIEWS[key].label;
   closeDrawer();
   VIEWS[key].render();
+  buildBottomNav();
   document.getElementById('view-root').scrollTop = 0;
 }
 // heimplaner-pwa.js (geteilt, unverändert) öffnet Deep-Links per setView().
@@ -111,7 +141,7 @@ function closeDrawer() { document.getElementById('sidebar').classList.remove('op
 // heimplaner-sync.js ruft nach jedem Merge (Partnergerät hat etwas
 // geändert) global render() auf, falls vorhanden - hier einfach die
 // aktuell offene Ansicht neu zeichnen.
-function render() { VIEWS[currentView].render(); }
+function render() { VIEWS[currentView].render(); buildBottomNav(); }
 
 // ── Gemeinsame Bausteine für alle Ansichten ────
 function viewHead(title, actionsHtml) {
@@ -286,12 +316,35 @@ function completeChore(id) {
   render();
 }
 
+// Fenster putzen "jedes Jahr im Oktober" trifft nach reinem Datum jedes Jahr
+// einen anderen Wochentag - irgendwann einen Dienstag, an dem nie Zeit ist.
+// Deshalb kann die Fälligkeit stattdessen an einen Wochentag im Monat
+// gebunden werden ("erster/letzter Samstag"); advanceDateKey() im geteilten
+// heimplaner-data.js rechnet damit bereits, hier fehlte nur die Eingabe.
+const NTH_OPTS = [[1, 'erster'], [2, 'zweiter'], [3, 'dritter'], [4, 'vierter'], [-1, 'letzter']];
+
+function toggleChoreWeekday() {
+  const wochenweise = (document.getElementById('ch-recur')?.value || '').startsWith('weeks');
+  const cb = document.getElementById('ch-weekday-on');
+  const cbRow = document.getElementById('ch-weekday-cb');
+  const row = document.getElementById('ch-weekday-row');
+  // Bei "wöchentlich"/"alle 2 Wochen" ist der Wochentag schon durch das Datum
+  // festgelegt - die Auswahl hätte dort keine Wirkung.
+  if (cbRow) cbRow.style.display = wochenweise ? 'none' : '';
+  if (wochenweise && cb) cb.checked = false;
+  if (row) row.style.display = (!wochenweise && cb && cb.checked) ? '' : 'none';
+}
+
 function openChoreForm(id) {
   const e = id ? (HP.events || []).find(x => x.id === id) : null;
   const intervalOptions = CHORE_INTERVALS.map(([key, label]) => {
     const sel = e && e.recur && (e.recur.unit + ':' + e.recur.value) === key ? ' selected' : '';
     return '<option value="' + key + '"' + sel + '>' + label + '</option>';
   }).join('');
+  const recur = e && e.recur;
+  const hatWochentag = !!(recur && recur.weekday != null && recur.nth != null);
+  const weekday = hatWochentag ? recur.weekday : 5;   // Samstag als häufigster Fall
+  const nth = hatWochentag ? recur.nth : -1;
   showModal(
     '<h3>' + (e ? 'Aufgabe bearbeiten' : 'Neue Haushaltsaufgabe') + '</h3>' +
     '<div class="field-row">' +
@@ -300,7 +353,18 @@ function openChoreForm(id) {
     '</div>' +
     '<div class="field-row">' +
     '<div class="field"><label>Nächste Fälligkeit</label><input type="date" id="ch-date" value="' + esc(e ? e.date : dk(new Date())) + '"></div>' +
-    '<div class="field"><label>Wiederholung</label><select id="ch-recur">' + intervalOptions + '</select></div>' +
+    '<div class="field"><label>Wiederholung</label><select id="ch-recur" onchange="toggleChoreWeekday()">' + intervalOptions + '</select></div>' +
+    '</div>' +
+    '<label class="check-row" id="ch-weekday-cb">' +
+    '<input type="checkbox" id="ch-weekday-on"' + (hatWochentag ? ' checked' : '') + ' onchange="toggleChoreWeekday()">' +
+    ' Immer an einem festen Wochentag</label>' +
+    '<div class="field-row" id="ch-weekday-row" style="display:' + (hatWochentag ? '' : 'none') + '">' +
+    '<div class="field"><label>Welcher</label><select id="ch-nth">' +
+    NTH_OPTS.map(([v, l]) => '<option value="' + v + '"' + (nth === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+    '</select></div>' +
+    '<div class="field"><label>Wochentag</label><select id="ch-wd">' +
+    DL.map((l, i) => '<option value="' + i + '"' + (weekday === i ? ' selected' : '') + '>' + esc(l) + '</option>').join('') +
+    '</select></div>' +
     '</div>' +
     '<div class="field"><label>Für wen</label><select id="ch-who">' + whoOptions(e ? e.who : 'shared') + '</select></div>' +
     '<div class="modal-actions">' +
@@ -310,31 +374,44 @@ function openChoreForm(id) {
     '<button class="btn btn-accent" onclick="saveChore(' + (e ? "'" + e.id + "'" : 'null') + ')">Speichern</button>' +
     '</div></div>'
   );
-  setTimeout(() => document.getElementById('ch-name')?.focus(), 50);
+  setTimeout(() => { document.getElementById('ch-name')?.focus(); toggleChoreWeekday(); }, 50);
 }
 
 function saveChore(id) {
   const name = document.getElementById('ch-name').value.trim();
   const emoji = document.getElementById('ch-emoji').value.trim() || '🧹';
-  const date = document.getElementById('ch-date').value;
+  let date = document.getElementById('ch-date').value;
   const [unit, value] = document.getElementById('ch-recur').value.split(':');
   const who = document.getElementById('ch-who').value;
   if (!name) { showToast('Bitte Name eingeben'); return; }
   if (!date) { showToast('Bitte Datum wählen'); return; }
+
+  const recur = { unit, value: parseInt(value) };
+  const mitWochentag = unit !== 'weeks' && document.getElementById('ch-weekday-on')?.checked;
+  if (mitWochentag) {
+    recur.weekday = parseInt(document.getElementById('ch-wd').value);
+    recur.nth = parseInt(document.getElementById('ch-nth').value);
+    // Schon die erste Fälligkeit auf den gewählten Wochentag ziehen - sonst
+    // stimmt der Rhythmus erst ab dem zweiten Mal, und genau das ist das
+    // Problem, das die Einstellung lösen soll.
+    const [y, m] = date.split('-').map(Number);
+    date = nthWeekdayOfMonth(y, m - 1, recur.weekday, recur.nth).toISOString().slice(0, 10);
+  }
+
   if (!HP.events) HP.events = [];
   if (id) {
     const e = HP.events.find(x => x.id === id);
     // Kann fehlen, wenn die Aufgabe währenddessen auf dem anderen Gerät
     // gelöscht wurde und ein Poll dazwischenkam.
     if (!e) { showToast('Aufgabe existiert nicht mehr'); closeModal(); render(); return; }
-    Object.assign(e, { name, emoji, date, who, recur: { unit, value: parseInt(value) }, updatedAt: Date.now() });
+    Object.assign(e, { name, emoji, date, who, recur, updatedAt: Date.now() });
   } else {
-    HP.events.push({ id: 'ev' + Date.now(), emoji, name, date, time: '', timeEnd: '', who, reminder: '', important: false, note: '', chore: true, recur: { unit, value: parseInt(value) }, updatedAt: Date.now() });
+    HP.events.push({ id: 'ev' + Date.now(), emoji, name, date, time: '', timeEnd: '', who, reminder: '', important: false, note: '', chore: true, recur, updatedAt: Date.now() });
   }
   HP_save();
   closeModal();
   render();
-  showToast(emoji + ' ' + name + ' gespeichert');
+  showToast(emoji + ' ' + name + ' · fällig ' + dateLabel(date, { weekday: 'short', day: 'numeric', month: 'short' }));
 }
 
 function deleteChore(id) {

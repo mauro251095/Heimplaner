@@ -114,6 +114,20 @@ lokalen Server.
 - **Sidebar-Reihenfolge (Desktop) / Hauptnavigation**: Heute, Planer,
   Personen, Haushalt, Einkaufsliste, Budget, Menüplan, Rezepte, Pinnwand,
   Geburtstage, Einstellungen.
+- **Schnellwahl am unteren Rand (nur Handy)**: fünf Plätze — Heute, Einkauf,
+  Budget, Pinnwand, Mehr (`MOBILE_NAV` in `app.js`). "Mehr" öffnet die
+  Schublade mit allen elf Ansichten und ist **der einzige** Weg dorthin: die
+  Topbar hat auf dem Handy bewusst keinen Hamburger mehr, zwei Einstiege in
+  dasselbe Menü an zwei Ecken des Bildschirms waren einer zu viel.
+  Symbole sind auch hier die lokalen SVGs, **kein Emoji**: Emoji zeichnet
+  jedes Betriebssystem in seiner eigenen Schrift, in der alten App sah die
+  Leiste auf iPhone und Android deshalb verschieden aus.
+- **`#app` misst `100dvh`, nicht `100vh`** (`app.css`). iOS rechnet `100vh`
+  gegen den Layout-Viewport, also inklusive der Fläche hinter der
+  eingeklappten Browserleiste — die Schnellwahl (`position:fixed;bottom:0`)
+  sitzt dann in einem Bereich, den man nicht sieht, wirkt zu weit oben und
+  lässt darunter einen schwarzen Streifen. Genau das war auf dem iPhone zu
+  sehen, auf Android nicht. Nicht zurückdrehen.
 - **Hell-Theme** ist in `tokens.css` umgesetzt (`body.light`-Override) — warme
   Grundhaltung wie im Dark-Theme, nur invertiert (Fläche heller als
   Hintergrund statt dunkler), Akzentgrün auf den helleren, kräftigeren Wert
@@ -150,6 +164,37 @@ lokalen Server.
   Haarlinie und kleine Abschnitts-Überschriften (`.section-label`).
   Eingesenkte Elemente (Suchfeld, Emoji-Kachel, Erfassungszeile) nehmen
   `--bg`. Karten-Blöcke (`.card`) gibt es nur noch in Dialogen.
+- **Heute und Planer→Tag sind dieselbe Ansicht**: `tagAbschnitteHtml(key)` in
+  `heute.js` baut Termine, Aufgaben, Haushalt, Menü für ein beliebiges Datum;
+  "Heute" setzt nur Datumszeile und Begrüssung davor, der Planer die
+  Datums-Pfeile und den Wochenstreifen. Zwei getrennte Fassungen desselben
+  Tages laufen über die Zeit auseinander. Die **Kennzahl-Kacheln erscheinen
+  nur am heutigen Tag** (`kennzahlKachelnHtml`) — offene Artikel, Budget
+  dieses Monats und nächster Geburtstag sind der Stand von jetzt und wären
+  an einem anderen Tag eine falsche Auskunft.
+- **Haushaltsaufgaben können an einen Wochentag im Monat gebunden werden**
+  ("letzter Samstag", `recur.weekday` + `recur.nth`). Nach reinem Datum
+  trifft "jedes Jahr im Oktober" jedes Jahr einen anderen Wochentag —
+  irgendwann einen Dienstag, an dem nie Zeit ist. Gerechnet wird das im
+  geteilten `heimplaner-data.js` (`advanceDateKey`/`nthWeekdayOfMonth`), hier
+  fehlte nur die Eingabe. `saveChore()` zieht schon die **erste** Fälligkeit
+  auf den gewählten Wochentag, sonst stimmt der Rhythmus erst ab dem zweiten
+  Mal. Bei wöchentlichen Intervallen ist die Auswahl ausgeblendet: dort legt
+  das Datum den Wochentag ohnehin fest.
+- **Zutaten aus Rezepten sind in der Einkaufsliste filterbar**: Chips über
+  der Liste, eine je Gericht (`taskName`, gesetzt beim Übernehmen aus dem
+  Menüplan), Klick filtert **an Ort und Stelle** statt ein Fenster zu öffnen —
+  beim Einkaufen zählt ein Handgriff. Die Kategorie-Gruppierung bleibt dabei
+  bestehen: Chips filtern nach Gericht, Abschnitte gruppieren nach Kategorie,
+  zwei Dimensionen (gleiches Prinzip wie Tag-Chips + Kategorien bei den
+  Rezepten). Verschwindet das Gericht von der Liste, fällt der Filter still
+  weg, statt eine leere Liste ohne sichtbare Ursache zu zeigen.
+- **Der Weg zwischen Termin und Notiz geht in beide Richtungen**: die Notiz
+  verlinkt den Termin (`note.linkedEventId`), der Termin findet die Notiz
+  über `notizZuTermin()` — **kein zweites Feld am Termin**, sonst laufen die
+  zwei Seiten derselben Beziehung beim Löschen auseinander. Im Termin-Formular
+  steht dafür der Knopf "Notiz auf der Pinnwand öffnen" (übernimmt das offene
+  Fenster), Terminzeilen mit Notiz tragen ein kleines Notizbuch-Symbol.
 - **Eine Zeilenform für alles**: `entryRowHtml()` in `tasks.js` baut
   Häkchen, Personenpunkt, Zeitspalte und Text. Die **feste Zeitspalte** ist
   der Grund, warum die Listen ruhig wirken – die Namen beginnen alle an

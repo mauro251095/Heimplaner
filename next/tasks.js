@@ -59,6 +59,7 @@ function toggleTaskFromRow(tid, dateKey) {
 }
 
 function eventRowHtml(e) {
+  const notiz = notizZuTermin(e.id);
   return entryRowHtml({
     done: getEventStatus(e.id) === 'done',
     toggle: 'toggleEventDone(\'' + esc(e.id) + '\')',
@@ -66,7 +67,10 @@ function eventRowHtml(e) {
     farbe: getColor(e.who), wer: whoLabelV2(e.who),
     zeit: fmtTime(e.time) || 'ganztags',
     text: e.emoji + ' ' + e.name,
-    rechts: e.important ? '<span class="ent-flag">★</span>' : ''
+    rechts: (e.important ? '<span class="ent-flag">★</span>' : '') +
+      // Zeigt nur an, dass es eine Notiz gibt; geöffnet wird sie im Termin-
+      // Formular, damit die Zeile einen einzigen Klick-Zweck behält.
+      (notiz ? '<span class="ent-note icon i-notebook" title="Notiz auf der Pinnwand"></span>' : '')
   });
 }
 
@@ -235,7 +239,15 @@ function openEventForm(id, prefillDate, rueckweg) {
     '<div class="field"><label>Bis</label><input type="time" id="ef-timeend" value="' + esc(e ? e.timeEnd || '' : '') + '"></div>' +
     '</div>' +
     '<div class="field"><label>Erinnerung</label><select id="ef-reminder">' + reminderOptions(EVENT_REMINDER_OPTS, e ? e.reminder : '') + '</select></div>' +
-    '<div class="field"><label>Notiz</label><textarea id="ef-note" rows="3" maxlength="5000">' + esc(e ? e.note || '' : '') + '</textarea></div>' +
+    '<div class="field"><label>Notiz</label><textarea id="ef-note" rows="3" maxlength="5000">' + esc(e ? e.note || '' : '') + '</textarea>' +
+    // Gegenstück zu "Neuer Termin" in der Notiz: von dort führt der Weg schon
+    // zum Termin, hier führt er zurück auf die Pinnwand-Notiz.
+    (notizZuTermin(id)
+      ? '<div class="field-actions">' +
+        '<button class="btn btn-outline btn-sm" onclick="terminNotizOeffnen(\'' + esc(notizZuTermin(id).id) + '\')">' +
+        '<span class="icon i-notebook"></span> Notiz auf der Pinnwand öffnen</button></div>'
+      : '') +
+    '</div>' +
     '<label class="check-row"><input type="checkbox" id="ef-important"' + (e && e.important ? ' checked' : '') + '> Wichtig</label>' +
     '<div class="modal-actions">' +
     (e ? '<button class="btn btn-danger" onclick="deleteEventV2(\'' + esc(e.id) + '\')">Löschen</button>' : '<span></span>') +
@@ -245,6 +257,14 @@ function openEventForm(id, prefillDate, rueckweg) {
     '</div></div>'
   );
   setTimeout(() => document.getElementById('ef-name')?.focus(), 50);
+}
+
+// Die Notiz übernimmt das offene Fenster (showModal ersetzt den Inhalt). Der
+// Rückweg wird vorher geleert: sonst zeigte er auf das Termin-Formular, aus
+// dem man gerade weggegangen ist.
+function terminNotizOeffnen(noteId) {
+  terminRueckweg = null;
+  openNoteForm(noteId);
 }
 
 function terminAbbrechen() {

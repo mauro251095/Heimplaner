@@ -7,6 +7,10 @@
 // ═══════════════════════════════════════════════
 
 let einkaufFormOffen = false;
+// Name des Gerichts, nach dem gerade gefiltert wird (null = alles zeigen).
+// Bewusst der Name und nicht ein Index: die Liste kann sich zwischen zwei
+// Renderläufen ändern (Sync, Abhaken), ein Index zeigte dann woanders hin.
+let einkaufFilter = null;
 
 function toggleEinkaufForm() {
   einkaufFormOffen = !einkaufFormOffen;
@@ -14,11 +18,42 @@ function toggleEinkaufForm() {
   if (einkaufFormOffen) document.getElementById('sh-name')?.focus();
 }
 
+// Zutaten aus einem Rezept tragen das Gericht in taskName ("🍜 Gemüse-Wok",
+// gesetzt in meals.js). Daraus werden die Filter-Chips - dieselbe Sprache wie
+// die Tag-Chips in der Rezeptliste.
+function rezeptQuellen(items) {
+  return [...new Set(items.map(i => i.taskName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+// i ist der Platz in der Chip-Reihe, null steht für "Alle". Nochmal auf den
+// aktiven Chip tippen hebt den Filter auf - so kommt man ohne Zielen wieder
+// auf die ganze Liste zurück.
+function setEinkaufFilter(i) {
+  const quellen = rezeptQuellen((HP.shop || []).filter(x => !x.bought));
+  const gewaehlt = i === null ? null : (quellen[i] || null);
+  einkaufFilter = (gewaehlt === einkaufFilter) ? null : gewaehlt;
+  renderEinkauf();
+}
+
 function renderEinkauf() {
   const alle = HP.shop || [];
-  const offen = alle.filter(i => !i.bought);
+  const offenAlle = alle.filter(i => !i.bought);
   const gekauft = alle.filter(i => i.bought);
   const favNamen = new Set((HP.savedShopItems || []).map(f => f.name.toLowerCase()));
+
+  const quellen = rezeptQuellen(offenAlle);
+  // Gericht abgehakt oder weggeräumt: Filter still fallen lassen, statt eine
+  // leere Liste zu zeigen, deren Ursache man nicht mehr sieht.
+  if (einkaufFilter && !quellen.includes(einkaufFilter)) einkaufFilter = null;
+  const offen = einkaufFilter ? offenAlle.filter(i => i.taskName === einkaufFilter) : offenAlle;
+
+  const chips = quellen.length
+    ? '<div class="chips">' +
+      '<button class="chip' + (einkaufFilter ? '' : ' active') + '" onclick="setEinkaufFilter(null)">Alle</button>' +
+      quellen.map((q, i) => '<button class="chip' + (q === einkaufFilter ? ' active' : '') + '" onclick="setEinkaufFilter(' + i + ')">' +
+        esc(q) + '</button>').join('') +
+      '</div>'
+    : '';
 
   const gruppen = CATS.map(cat => {
     const items = offen.filter(i => (i.cat || 'Sonstiges') === cat);
@@ -30,7 +65,7 @@ function renderEinkauf() {
   document.getElementById('view-root').innerHTML =
     '<div class="list-page">' +
     viewHead('Einkaufsliste',
-      '<span class="head-count">' + offen.length + ' offen</span>' +
+      '<span class="head-count">' + (einkaufFilter ? offen.length + ' von ' + offenAlle.length : offenAlle.length + ' offen') + '</span>' +
       '<button class="btn btn-ghost btn-sm" onclick="openFavoriten()"><span class="icon i-star"></span> Favoriten</button>') +
 
     // Nach Mockup nur eine ruhige Zeile; die Felder klappen erst auf, wenn
@@ -52,6 +87,7 @@ function renderEinkauf() {
       : '<button class="addrow" onclick="toggleEinkaufForm()">' +
         '<span class="icon i-plus"></span> Artikel hinzufügen</button>') +
 
+    chips +
     (offen.length ? gruppen : emptyState('i-cart', 'Die Liste ist leer.')) +
     (gekauft.length
       ? '<div class="section-label with-action">Erledigt · ' + gekauft.length +
