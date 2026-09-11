@@ -196,7 +196,14 @@ function todayKey() { return dk(new Date()); }
 
 // ── Theme & Personenfarben ─────────────────────
 function applyTheme(theme) {
-  document.body.classList.toggle('light', theme === 'light');
+  const hell = theme === 'light';
+  document.body.classList.toggle('light', hell);
+  // theme-color steht in index.html fest auf dem dunklen Grund. Android färbt
+  // damit die Systemleisten der installierten App, deshalb hier mitziehen -
+  // sonst rahmt ein dunkler Balken die helle App ein. Auf dem iPhone regelt
+  // iOS die Statusleiste selbst nach dem, was hinter ihr liegt.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = hell ? '#F1EEE7' : '#1B1A18';
 }
 function setTheme(theme) {
   HP.theme = theme;
