@@ -27,9 +27,21 @@
 
 <div class="drawer-scrim" id="drawer-scrim" onclick="closeDrawer()"></div>
 
+<!-- Reihenfolge ist bindend: app.js definiert showModal/showToast/render, die
+     die geteilten Dateien erwarten; die Ansichts-Dateien darunter hängen sich
+     über VIEWS (app.js) ein und dürfen deshalb erst danach kommen. -->
 <script src="../heimplaner-login.js"></script>
 <script src="../heimplaner-data.js"></script>
 <script src="app.js"></script>
+<script src="tasks.js"></script>
+<script src="heute.js"></script>
+<script src="planer.js"></script>
+<script src="shop.js"></script>
+<script src="budget.js"></script>
+<script src="meals.js"></script>
+<script src="notes.js"></script>
+<script src="birthdays.js"></script>
+<script src="settings.js"></script>
 <script src="../heimplaner-sync.js"></script>
 <script src="../heimplaner-pwa.js"></script>
 </body>

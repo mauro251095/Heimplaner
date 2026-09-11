@@ -22,10 +22,26 @@ Notwendigkeiten**, keine Stil-Konventionen:
 
 ## Status
 
-Diskussionsgrundlage / Fundament. Noch keine der elf Ansichten ist als
-funktionierende Seite gebaut — aktuell existieren nur Design-Tokens
-(`tokens.css`) und eine Muster-/Stilübersicht (`muster.html`), die zeigt,
-worauf alles Weitere aufbaut.
+Alle elf Ansichten sind gebaut und benutzbar. `muster.html` bleibt als
+Stilübersicht liegen, ist aber nicht mehr die einzige Referenz — die
+Ansichten selbst sind es.
+
+Dateien (Reihenfolge der Skript-Tags in `index.html` ist bindend):
+
+- `app.js` — Gerüst: Modal/Toast, Navigation/VIEWS, gemeinsame Bausteine
+  (`viewHead`, `segHtml`, `navRow`, `personDot`, …), Theme/Farben, Haushalt
+- `tasks.js` — Formulare und Zeilen für Aufgaben und Termine (keine eigene
+  Ansicht; Heute/Planer/Personen benutzen sie gemeinsam)
+- `heute.js` — Startansicht/Dashboard
+- `planer.js` — Tag/Woche/Monat + Personen
+- `shop.js`, `budget.js`, `meals.js` (Menüplan + Rezepte), `notes.js`,
+  `birthdays.js`, `settings.js`
+- `sw.js` — eigener Service Worker für `/next/`. Nötig, weil das geteilte
+  `heimplaner-pwa.js` `./sw.js` relativ zur Seite registriert; ohne ihn
+  gäbe es unter `/next/` keine Registrierung und damit keine Push-Erinnerungen.
+
+Noch nicht umgesetzt: eigenes Emoji-Auswahlraster (Windows-Picker via Win+.
+tut es vorerst), `manifest.json`/App-Icon für `/next/`.
 
 ## Was geteilt wird (unverändert aus dem Hauptprojekt)
 
@@ -90,16 +106,30 @@ lokalen Server.
   bisherige "Sync"-Button (einziger Weg, das Sync-Passwort einzugeben) hat
   dadurch kein UI mehr - zieht in die Einstellungen-Ansicht, sobald die
   gebaut wird.
-- **Noch offen**: ob/wie "heute" im Kalender und "erledigt" bei Aufgaben
-  farblich markiert werden (bewusst noch nicht auf Grün festgelegt);
-  App-Icon-Bild wurde geliefert, noch nicht in `manifest.json`/Icon-Grössen
-  umgesetzt; Kalender-Abo-Import (ICS) — einmaliger Import oder laufendes
-  Abo ist noch nicht geklärt, das ist der einzige Punkt mit
-  Backend-Auswirkung.
+- **"Erledigt" ist das Akzentgrün** (`--accent`), vollflächig gefüllt: das
+  runde Häkchen in Listenzeilen (`.check.done`), das eckige in der
+  Wochenspalte (`.wcheck.done`), dazu durchgestrichener, gedämpfter Text.
+- **"Heute" ist dasselbe Grün, aber nie gefüllt** — Rahmen plus getönte
+  Fläche (`--accent-bg`), damit es nicht mit "erledigt" verwechselbar ist.
+  Sichtbar an genau fünf Stellen: Monatsraster (Tageszelle, `.mcell.is-today`),
+  Wochenspalte im Planer und im Menüplan (`.day-col.is-today`), Tagesansicht
+  (Chip "Heute" über der Liste), Wochenbalken in der Personenansicht
+  (`.pw-day.is-today`) — und implizit die Heute-Ansicht selbst.
+- **Kalender-Import ist ein einmaliger, ersetzender Import** (kein Abo):
+  importierte Termine landen als normale Einträge in `HP.events` mit
+  `icsImport:true`. Ein neuer Import löscht die zuvor importierten (inkl.
+  Tombstone) und legt sie mit **neuen IDs** frisch an — von Hand erfasste
+  Termine bleiben unberührt, und nichts verdoppelt sich. Die neuen IDs sind
+  keine Kosmetik: eine wiederverwendete ID würde beim nächsten Sync-Merge
+  über ihren eigenen Tombstone sofort wieder verschwinden.
+  Serien (RRULE) werden bis 12 Monate im Voraus ausgerollt, Deckel bei 500
+  Terminen bzw. 200 Vorkommen je Serie, damit der synchronisierte Datensatz
+  nicht explodiert.
+- **Noch offen**: App-Icon-Bild wurde geliefert, aber noch nicht in
+  `manifest.json`/Icon-Grössen umgesetzt.
 
-## Nächste Schritte (nicht ohne Rückfrage weitermachen)
+## Nächste Schritte
 
-Reihenfolge, aber jeder Schritt erst nach Bestätigung: kleine/mechanische
-Ansichten zuerst (Haushalt, Einkaufsliste, Geburtstage, Pinnwand,
-Einstellungen), dann Budget, dann die grossen Brocken (Planer mit
-Tag/Woche/Monat, Heute-Dashboard), ICS-Import zuletzt.
+Die elf Ansichten stehen. Was jetzt ansteht, ist Feinschliff im echten
+Gebrauch — und `manifest.json`/App-Icon, falls `/next/` auch als
+installierbare PWA getestet werden soll.
