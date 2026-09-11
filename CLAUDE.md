@@ -273,8 +273,15 @@ störungsfrei läuft, kann der Ordner ersatzlos weg.
   kein Backup, sondern eine Live-Kopie: eine versehentliche Löschung ist dort
   nach dem nächsten Sync ebenfalls weg. Die Datei ist der einzige Weg zurück zu
   einem früheren Stand.
-- **Konto-Anzeige**: nur Name und kleiner Status-Punkt (Farbe vom Sync-Status,
-  `.acct-dot` in `app.js`), keine ausgeschriebene Sync-Leiste. Das
+- **Auf dem Handy gibt es keine Kopfzeile.** Sie sagte nichts, was nicht schon
+  dastand: die Ansicht nennt die Schnellwahl unten, die Überschrift steht in
+  der Ansicht selbst, Benutzer und Sync-Status stehen in den Einstellungen.
+  **Die `.topbar` bleibt aber im DOM und wird nur per CSS ausgeblendet**:
+  `initSync()` in der geteilten `heimplaner-sync.js` sucht `.topbar` und bricht
+  ohne sie sofort ab — dann läuft auch `connectSync()` nicht mehr, und es gäbe
+  gar keinen Sync. Den Platz für die Statusleiste übernimmt `#view-root`.
+- **Konto-Anzeige** (Desktop): nur Name und kleiner Status-Punkt (Farbe vom
+  Sync-Status, `.acct-dot` in `app.js`), keine ausgeschriebene Sync-Leiste. Das
   Sync-Passwort trägt man in den Einstellungen ein.
 - **Sidebar-Reihenfolge (Desktop)**: Heute, Planer, Personen, Haushalt,
   Einkaufsliste, Budget, Menüplan, Rezepte, Pinnwand, Geburtstage,

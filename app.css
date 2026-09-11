@@ -60,8 +60,17 @@ a{color:inherit}
     padding-top:calc(var(--sp-6) + env(safe-area-inset-top));
     padding-bottom:calc(var(--sp-5) + env(safe-area-inset-bottom))}
   .sidebar.open{transform:translateX(0)}
-  .topbar .title{display:flex}
-  #view-root{padding:var(--sp-7) max(var(--sp-5),env(safe-area-inset-left)) calc(84px + env(safe-area-inset-bottom)) max(var(--sp-5),env(safe-area-inset-right))}
+
+  /* Auf dem Handy hat die Kopfzeile nichts zu sagen, was nicht schon dasteht:
+     die Ansicht nennt die Schnellwahl unten, die Überschrift steht in der
+     Ansicht selbst, und wer angemeldet ist, zeigen die Einstellungen
+     (Abschnitt "Konto"). Sie bleibt aber IM DOM: initSync() in der geteilten
+     heimplaner-sync.js sucht '.topbar', bricht ohne sie sofort ab - und ruft
+     dann auch connectSync() nicht mehr auf. Ohne Kopfzeile im DOM gäbe es
+     also gar keinen Sync mehr. Deshalb nur ausblenden, nicht entfernen.
+     Den Platz für die Statusleiste übernimmt dafür #view-root. */
+  .topbar{display:none}
+  #view-root{padding:calc(var(--sp-6) + env(safe-area-inset-top)) max(var(--sp-5),env(safe-area-inset-left)) calc(84px + env(safe-area-inset-bottom)) max(var(--sp-5),env(safe-area-inset-right))}
 
   /* Masse an der iOS-Tab-Leiste orientiert: rund 50px hoher Inhalt, darunter
      der Freiraum über dem Home-Indikator (env(safe-area-inset-bottom), auf dem
