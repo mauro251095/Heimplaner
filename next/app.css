@@ -74,6 +74,7 @@ a{color:inherit}
 .i-chev-r{-webkit-mask-image:url(icons/chevron-right.svg);mask-image:url(icons/chevron-right.svg)}
 .i-star{-webkit-mask-image:url(icons/star.svg);mask-image:url(icons/star.svg)}
 .i-search{-webkit-mask-image:url(icons/search.svg);mask-image:url(icons/search.svg)}
+.i-clipboard{-webkit-mask-image:url(icons/clipboard-plus.svg);mask-image:url(icons/clipboard-plus.svg)}
 
 /* ── Bausteine (aus muster.html übernommen) ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-7)}
@@ -283,20 +284,35 @@ a{color:inherit}
 .ytable .ysum,.ytable .ycat{color:var(--text)}
 .ytable .ytotal td{font-weight:700;color:var(--text);border-bottom:none}
 
-/* ── Rezepte ── */
-.chips{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin-bottom:var(--sp-6)}
-.chip{background:var(--surface);border:1px solid var(--border);color:var(--text-2);border-radius:var(--r-pill);
-  padding:5px 13px;font-size:var(--fs-sm);cursor:pointer;font-family:inherit}
-.chip.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent-text)}
-.recipe-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--sp-5)}
-.recipe-card{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;background:var(--surface);
-  border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-6);cursor:pointer;font-family:inherit;color:inherit}
-.recipe-card:hover{border-color:var(--border-2)}
-.rc-emoji{font-size:1.6rem}
-.rc-name{font-size:var(--fs-md);font-weight:600;line-height:1.3}
-.rc-meta{font-size:var(--fs-sm);color:var(--text-3)}
-.rc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
-.rc-tags span{font-size:var(--fs-2xs);color:var(--text-3);border:1px solid var(--border);border-radius:var(--r-pill);padding:1px 7px}
+/* ── Listen-Seite (Mockup-Sprache: eine Fläche, Zeilen mit Haarlinie) ──
+   Gegenentwurf zu den Karten-Blöcken weiter oben: die Ansicht selbst ist die
+   Karte, darin gibt es keine weiteren Kästen mehr. "Eingesenkte" Elemente
+   (Suchfeld, Emoji-Kachel) nehmen --bg, heben sich also nach innen ab. */
+.list-page{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:var(--sp-8) var(--sp-8) var(--sp-9);max-width:840px}
+.list-page .view-head{margin-bottom:var(--sp-6)}
+.head-count{font-size:var(--fs-sm);color:var(--text-3)}
+.searchbar{display:flex;align-items:center;gap:var(--sp-3);background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:8px 12px;margin-bottom:var(--sp-6)}
+.searchbar .icon{color:var(--text-3)}
+.searchbar input{flex:1;min-width:0;background:none;border:none;color:var(--text);font-size:var(--fs-base);outline:none}
+.section-label{font-size:var(--fs-sm);color:var(--text-2);margin:var(--sp-8) 0 var(--sp-2)}
+.section-label:first-child{margin-top:0}
+.flat-row{display:flex;align-items:center;gap:var(--sp-4);padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.flat-row:last-child{border-bottom:none}
+.tile{width:36px;height:36px;border-radius:var(--r-sm);background:var(--bg);display:flex;align-items:center;
+  justify-content:center;font-size:1.05rem;flex-shrink:0}
+.fr-name{flex:1;min-width:0;font-size:var(--fs-md)}
+.fr-meta{font-size:var(--fs-sm);color:var(--text-3);white-space:nowrap}
+.page-actions{display:flex;flex-direction:column;gap:var(--sp-3);margin-top:var(--sp-8)}
+.btn-ghost{background:transparent;border:1px solid var(--border-2);color:var(--accent);justify-content:center}
+.btn-ghost:hover{border-color:var(--accent)}
+.page-actions .btn{margin-top:0}
+
+.chips{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-bottom:var(--sp-5)}
+.chip{background:var(--bg);border:1px solid var(--border);color:var(--text-2);border-radius:12px;
+  padding:4px 10px;font-size:var(--fs-xs);cursor:pointer;font-family:inherit}
+.chip.active{background:var(--accent-bg);border-color:transparent;color:var(--accent-text)}
 .ing-row{display:flex;align-items:center;gap:var(--sp-4);padding:6px 0;border-bottom:1px solid var(--border);
   font-size:var(--fs-base);cursor:pointer}
 .ing-row input{accent-color:var(--accent);width:15px;height:15px;flex-shrink:0}
@@ -374,7 +390,12 @@ a{color:inherit}
   .addbar input,.addbar select{min-width:0;flex:1 1 100%}
   .addbar .w-xs,.addbar .w-md{flex:1 1 40%}
   .ring-card{gap:var(--sp-5)}
-  .recipe-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  .list-page{padding:var(--sp-6) var(--sp-6) var(--sp-8);max-width:none}
+}
+/* Auf dem Handy hat der Name Vorrang - die Nebenangabe würde ihn sonst über
+   drei Zeilen umbrechen (im Detail steht sie ohnehin). */
+@media (max-width:560px){
+  .fr-meta{display:none}
 }
 
 /* ═══════════════════════════════════════════════

@@ -126,41 +126,62 @@ function wocheZutatenAufListe() { mealsZutaten(getWeekDates(menuOffset).map(dk))
 // ═══════════════════════════════════════════════
 
 function setRezeptFilter(c) { rezeptFilter = c; renderRezepte(); }
+// Nur die Liste neu zeichnen, nicht die ganze Ansicht: sonst verliert das
+// Suchfeld bei jedem Tastendruck den Fokus.
 function rezeptSuchen(v) {
   rezeptSuche = v;
-  const grid = document.getElementById('rezept-grid');
-  if (grid) grid.innerHTML = rezeptKartenHtml();
+  const liste = document.getElementById('rezept-liste');
+  if (liste) liste.innerHTML = rezeptListeHtml();
 }
 
+// Listen-Darstellung nach den Mockups: eine Fläche, darauf Zeilen mit
+// Haarlinie dazwischen und kleinen Abschnitts-Überschriften - keine Kachel
+// je Rezept. Dadurch passen bei gleicher Höhe rund dreimal so viele Rezepte
+// auf den Schirm, und der Blick läuft eine Kante entlang statt über ein Raster.
 function renderRezepte() {
   const alle = allRecipes();
   const kategorien = ['Alle', ...Array.from(new Set(alle.map(r => r.cat))).sort()];
   document.getElementById('view-root').innerHTML =
-    viewHead('Rezepte',
-      '<button class="btn btn-outline" onclick="openRezeptImport()">Importieren</button>' +
-      '<button class="btn btn-accent" onclick="openRezeptForm()"><span class="icon i-plus"></span> Eigenes</button>') +
-    '<div class="card addbar">' +
-    '<span class="icon i-search"></span>' +
-    '<input id="rz-suche" placeholder="Rezept suchen…" value="' + esc(rezeptSuche) + '" oninput="rezeptSuchen(this.value)">' +
+    '<div class="list-page">' +
+    viewHead('Rezepte', '<span class="head-count">' + alle.length + ' Rezepte</span>') +
+    '<div class="searchbar"><span class="icon i-search"></span>' +
+    '<input id="rz-suche" placeholder="Rezept suchen" value="' + esc(rezeptSuche) + '" oninput="rezeptSuchen(this.value)">' +
+    (rezeptSuche ? '<button class="rowbtn" onclick="rezeptSuchen(\'\');renderRezepte()"><span class="icon i-x"></span></button>' : '') +
     '</div>' +
     '<div class="chips">' + kategorien.map(c =>
       '<button class="chip' + (c === rezeptFilter ? ' active' : '') + '" onclick="setRezeptFilter(\'' + esc(c) + '\')">' + esc(c) + '</button>').join('') + '</div>' +
-    '<div class="recipe-grid" id="rezept-grid">' + rezeptKartenHtml() + '</div>';
+    '<div id="rezept-liste">' + rezeptListeHtml() + '</div>' +
+    '<div class="page-actions">' +
+    '<button class="btn btn-ghost btn-block" onclick="openRezeptForm()"><span class="icon i-plus"></span> Eigenes Rezept</button>' +
+    '<button class="btn btn-ghost btn-block" onclick="openRezeptImport()"><span class="icon i-clipboard"></span> Rezept einfügen</button>' +
+    '</div></div>';
 }
 
-function rezeptKartenHtml() {
+function rezeptListeHtml() {
   const q = rezeptSuche.toLowerCase();
   const gefiltert = allRecipes().filter(r =>
     (rezeptFilter === 'Alle' || r.cat === rezeptFilter) &&
     (!q || r.name.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q))));
   if (!gefiltert.length) return emptyState('i-notebook', 'Kein Rezept gefunden.');
-  return gefiltert.map(r =>
-    '<button class="recipe-card" onclick="openRezeptDetail(\'' + esc(r.id) + '\')">' +
-    '<span class="rc-emoji">' + esc(r.emoji) + '</span>' +
-    '<span class="rc-name">' + esc(r.name) + '</span>' +
-    '<span class="rc-meta">' + esc(r.time) + ' Min · ' + esc(r.pers) + ' Pers.</span>' +
-    '<span class="rc-tags">' + (r.tags || []).slice(0, 3).map(t => '<span>' + esc(t) + '</span>').join('') + '</span>' +
-    '</button>').join('');
+  gefiltert.sort((a, b) => a.name.localeCompare(b.name));
+  // Nach Kategorie gruppieren, solange kein Kategorie-Chip aktiv ist - sonst
+  // wäre die Überschrift über jeder Gruppe dieselbe wie der aktive Chip.
+  if (rezeptFilter !== 'Alle') return gefiltert.map(rezeptZeileHtml).join('');
+  const gruppen = {};
+  gefiltert.forEach(r => { (gruppen[r.cat] = gruppen[r.cat] || []).push(r); });
+  return Object.keys(gruppen).sort().map(cat =>
+    '<div class="section-label">' + esc(cat) + ' · ' + gruppen[cat].length + '</div>' +
+    gruppen[cat].map(rezeptZeileHtml).join('')).join('');
+}
+
+function rezeptZeileHtml(r) {
+  return '<div class="flat-row" onclick="openRezeptDetail(\'' + esc(r.id) + '\')">' +
+    '<span class="tile">' + esc(r.emoji) + '</span>' +
+    '<span class="fr-name">' + esc(r.name) + '</span>' +
+    '<span class="fr-meta">' + esc(r.time) + ' Min · ' + esc(r.pers) + ' Pers.</span>' +
+    '<button class="rowbtn" onclick="event.stopPropagation();openRezeptForm(\'' + esc(r.id) + '\')" title="Bearbeiten">' +
+    '<span class="icon i-pencil"></span></button>' +
+    '</div>';
 }
 
 function openRezeptDetail(rid) {
