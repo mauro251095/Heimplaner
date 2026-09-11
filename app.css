@@ -90,6 +90,11 @@ a{color:inherit}
     transition:background .15s}
   .bn-item.active .bn-icon{background:var(--accent-bg)}
   .bn-item .icon{width:22px;height:22px}
+  /* Feste Masse: jede Plattform zeichnet ihre Emoji unterschiedlich gross,
+     ohne das wandert die Höhe der Leiste von Gerät zu Gerät. */
+  .bn-emoji{display:flex;align-items:center;justify-content:center;
+    width:22px;height:22px;font-size:19px;line-height:1}
+  .bn-zeichen{font-size:17px}
   .bn-item .bn-label{font-size:10px;letter-spacing:.02em;line-height:1}
   .bn-item.active{color:var(--accent-text)}
   .bn-item.active .icon{background-color:var(--accent)}

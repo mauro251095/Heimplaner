@@ -87,10 +87,19 @@ const VIEWS = {
 let currentView = 'heute';
 
 // Schnellwahl am unteren Rand (nur Handy): vier feste Plätze, alles Übrige
-// über "Mehr" in der Schublade. Bewusst dieselben SVG-Icons wie die Sidebar
-// statt Emoji - Emoji zeichnet jedes Betriebssystem in seiner eigenen
-// Schrift, die Leiste sähe auf iPhone und Android sonst verschieden aus.
-const MOBILE_NAV = ['heute', 'einkaufsliste', 'budget', 'pinnwand'];
+// über "Mehr" in der Schublade.
+//
+// Emoji statt der SVG-Symbole, wie in der alten App - auf Probe. Der Haken
+// dabei: ein Emoji bringt seine Farben selbst mit und lässt sich nicht
+// einfärben. Den aktiven Zustand trägt deshalb hier die getönte Fläche und
+// die Beschriftung, nicht das Symbol. Feste Höhe, damit die Leiste nicht
+// wandert, wenn ein Gerät seine Emoji grösser zeichnet.
+const MOBILE_NAV = [
+  ['heute', '🏠'],
+  ['einkaufsliste', '🛒'],
+  ['budget', '💰'],
+  ['pinnwand', '📌']
+];
 
 function buildSidebar() {
   document.getElementById('sidebar-nav').innerHTML = Object.entries(VIEWS).map(([key, v]) =>
@@ -106,16 +115,17 @@ function buildBottomNav() {
   const nav = document.getElementById('bottom-nav');
   if (!nav) return;
   const offen = (HP.shop || []).filter(i => !i.bought).length;
-  nav.innerHTML = MOBILE_NAV.map(key => {
-    const v = VIEWS[key];
+  nav.innerHTML = MOBILE_NAV.map(([key, emoji]) => {
     const badge = key === 'einkaufsliste' && offen
       ? '<span class="bn-badge">' + (offen > 99 ? '99+' : offen) + '</span>' : '';
     return '<button class="bn-item' + (key === currentView ? ' active' : '') + '" onclick="switchView(\'' + key + '\')">' +
-      '<span class="bn-icon"><span class="icon ' + v.icon + '"></span>' + badge + '</span>' +
+      '<span class="bn-icon"><span class="bn-emoji">' + emoji + '</span>' + badge + '</span>' +
       '<span class="bn-label">' + esc(bnLabel(key)) + '</span></button>';
   }).join('') +
-    '<button class="bn-item' + (MOBILE_NAV.includes(currentView) ? '' : ' active') + '" onclick="openDrawer()">' +
-    '<span class="bn-icon"><span class="icon i-menu"></span></span>' +
+    // "Mehr" trägt ☰ - ein Textzeichen, kein Emoji: es nimmt deshalb die
+    // Farbe an und wird im aktiven Zustand grün wie die Beschriftung.
+    '<button class="bn-item' + (MOBILE_NAV.some(([k]) => k === currentView) ? '' : ' active') + '" onclick="openDrawer()">' +
+    '<span class="bn-icon"><span class="bn-emoji bn-zeichen">☰</span></span>' +
     '<span class="bn-label">Mehr</span></button>';
 }
 // "Einkaufsliste" passt nicht unter ein 22px-Symbol.

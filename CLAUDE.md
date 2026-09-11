@@ -299,6 +299,13 @@ störungsfrei läuft, kann der Ordner ersatzlos weg.
   Schublade mit allen elf Ansichten und ist **der einzige** Weg dorthin: die
   Topbar hat auf dem Handy bewusst keinen Hamburger, zwei Einstiege in dasselbe
   Menü an zwei Ecken des Bildschirms waren einer zu viel.
+- **Dort stehen Emoji statt der SVG-Symbole** (🏠 🛒 💰 📌 ☰, wie in der alten
+  App) — auf Probe, im echten Gebrauch zu beurteilen. Die Ausnahme zur
+  Icon-Regel oben hat einen Preis: ein Emoji bringt seine Farben mit und lässt
+  sich nicht einfärben, deshalb trägt hier die getönte Fläche plus die
+  Beschriftung den aktiven Zustand, nicht das Symbol selbst. `.bn-emoji` hat
+  feste Masse, sonst wandert die Höhe der Leiste von Gerät zu Gerät. Die
+  Schublade dahinter benutzt weiterhin die SVG-Symbole.
 - **`#app` misst `100dvh`, nicht `100vh`** (`app.css`), und der Viewport-Tag in
   `index.html` hat **kein** `viewport-fit=cover`. Beides zielt auf dieselbe
   Stelle: sonst läuft die Seite auf dem iPhone unter die Home-Leiste, die
