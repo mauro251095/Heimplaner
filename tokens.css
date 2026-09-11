@@ -40,6 +40,14 @@
      Jede Person wählt eine davon in den Einstellungen. Die drei
      --person-*-Variablen unten sind nur der DEMO-Stand für diese
      Musterseite, keine feste Bedeutung im Code. */
+  /* Getönte Flächen (Kennzahl-Kacheln). Als eigene Tokens statt color-mix im
+     Stylesheet: die Funktion ist auf älteren Handy-Browsern nicht überall da,
+     und eine Kachel ohne Hintergrund fiele erst am Gerät auf. */
+  --tint-teal:  rgba(78,205,196,0.13);
+  --tint-amber: rgba(240,184,96,0.13);
+  --tint-pink:  rgba(255,126,179,0.13);
+  --tint-blau:  rgba(108,142,255,0.13);
+
   --palette-blau:       #6C8EFF;
   --palette-pink:       #FF7EB3;
   --palette-teal:       #4ECDC4;
@@ -103,8 +111,12 @@
    bleiben identisch – nur was tatsächlich hell/dunkel sein muss, wechselt.
    ═══════════════════════════════════════════════ */
 body.light{
-  --bg:        #F7F5F0;
-  --surface:   #FFFFFF;
+  /* Bewusst kein reines #FFFFFF für die Flächen: auf dem Handy wirkt das hart
+     und blendet abends. Stattdessen ein warmes Off-White, das den Farbton des
+     Dark-Themes (leicht ins Braune) spiegelt - die Fläche bleibt heller als
+     der Grund, so wie im Dark-Theme dunkler. */
+  --bg:        #F1EEE7;
+  --surface:   #FBF9F5;
   --text:      #2B2A26;
   --text-2:    #6B6A62;
   --text-3:    #98968C;
@@ -120,6 +132,12 @@ body.light{
   --accent-bg:   rgba(76,154,90,0.14);
 
   --danger: #D14343;        /* auf Weiss kräftiger als #F09595, sonst zu blass für Text/Kontrast */
+
+  /* Auf hellem Grund verschluckt sich eine 13%-Tönung fast - etwas kräftiger. */
+  --tint-teal:  rgba(60,170,162,0.16);
+  --tint-amber: rgba(214,150,50,0.16);
+  --tint-pink:  rgba(224,95,150,0.15);
+  --tint-blau:  rgba(88,120,232,0.15);
 
   /* Aufhellen wirkt auf hellem Grund nicht – hier abdunkeln, gleiche Stärke. */
   --item-ev-bg: rgba(0,0,0,0.05);

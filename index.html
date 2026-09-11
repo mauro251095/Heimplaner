@@ -2,10 +2,12 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<!-- Bewusst OHNE viewport-fit=cover (die alte Version hatte es): damit läuft
-     die Seite nicht unter die Home-Leiste des iPhones, und die Schnellwahl
-     sitzt direkt am unteren Rand statt über einem leeren Streifen. -->
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- viewport-fit=cover gehört zwingend zu apple-mobile-web-app-status-bar-style
+     black-translucent unten: die Statusleiste liegt dann ÜBER der Seite, und
+     die Seite hält sich den Platz selbst frei (siehe env(safe-area-inset-*)
+     in app.css). Ohne cover sind diese Werte 0 und der Titel läge unter der
+     Uhr. Wer eines von beiden ändert, muss das andere mitändern. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Heimplaner</title>
 <meta name="description" content="Persönlicher Haushaltsplaner für Mauro & Melissa">
 

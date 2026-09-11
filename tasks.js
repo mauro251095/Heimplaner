@@ -127,7 +127,12 @@ function findTask(tid) {
 function entryRowHtml(opts) {
   return '<div class="ent-row' + (opts.done ? ' is-done' : '') + '" onclick="' + opts.onclick + '">' +
     (opts.toggle
-      ? '<button class="check sm' + (opts.done ? ' done' : '') + '" onclick="event.stopPropagation();' + opts.toggle + '" title="Erledigt">' +
+      // Der Ring trägt die Personenfarbe - der 6px-Punkt allein war zu wenig,
+      // um auf Armlänge zu erkennen, wessen Zeile das ist. Nur solange offen:
+      // erledigt gehört dem Akzentgrün, und eine Inline-Farbe würde es schlagen.
+      ? '<button class="check sm' + (opts.done ? ' done' : '') + '"' +
+        (opts.done ? '' : ' style="border-color:' + opts.farbe + '"') +
+        ' onclick="event.stopPropagation();' + opts.toggle + '" title="Erledigt">' +
         (opts.done ? '<span class="icon i-check"></span>' : '') + '</button>'
       : '') +
     '<span class="ent-dot" style="background:' + opts.farbe + '" title="' + esc(opts.wer) + '"></span>' +

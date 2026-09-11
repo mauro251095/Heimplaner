@@ -81,21 +81,21 @@ function kennzahlKachelnHtml(hatFaellige, hatGeburtstagHeute) {
   const limit = BUDGET_CATS.reduce((s, c) => s + budgetLimit(ich, c), 0);
 
   return '<div class="stat-tiles">' +
-    '<button class="stat-tile" onclick="switchView(\'einkaufsliste\')">' +
+    '<button class="stat-tile t-cart" onclick="switchView(\'einkaufsliste\')">' +
     '<span class="icon i-cart"></span>' +
     '<span class="st-text">' + (offeneArtikel ? offeneArtikel + ' Artikel fehlen' : 'Liste ist leer') + '</span></button>' +
 
-    '<button class="stat-tile" onclick="switchView(\'budget\')">' +
+    '<button class="stat-tile t-money" onclick="switchView(\'budget\')">' +
     '<span class="icon i-money"></span>' +
     '<span class="st-text">' + fmtCHF(ausgaben) + (limit > 0 ? ' von ' + fmtCHF(limit) : '') + ' im ' + esc(MONTH_NAMES[new Date().getMonth()]) + '</span></button>' +
 
     (naechsterBday && !hatGeburtstagHeute
-      ? '<button class="stat-tile" onclick="switchView(\'geburtstage\')">' +
+      ? '<button class="stat-tile t-cake" onclick="switchView(\'geburtstage\')">' +
       '<span class="icon i-cake"></span>' +
       '<span class="st-text">' + esc(naechsterBday.name) + ' in ' + naechsterBday.tage + ' Tag' + (naechsterBday.tage === 1 ? '' : 'en') + '</span></button>'
       : '') +
 
-    (hatFaellige ? '' : '<button class="stat-tile" onclick="switchView(\'haushalt\')">' +
+    (hatFaellige ? '' : '<button class="stat-tile t-home" onclick="switchView(\'haushalt\')">' +
       '<span class="icon i-home-2"></span><span class="st-text">Haushalt ist aufgeräumt</span></button>') +
     '</div>';
 }
