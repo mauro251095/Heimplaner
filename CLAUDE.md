@@ -194,6 +194,14 @@ störungsfrei läuft, kann der Ordner ersatzlos weg.
 - **Hell-Theme** in `tokens.css` (`body.light`-Override), umgeschaltet per
   Klasse, nicht nur über `prefers-color-scheme` — die Einstellungen haben einen
   manuellen Schalter.
+- **Beide Themes folgen demselben Prinzip wie iOS**: die Grundfläche ist der
+  dunkelste (bzw. im Hellen der gedämpfteste) Ton, und was darüber liegt, wird
+  **heller** — dunkel `#1B1A18` → `#272623`, hell `#F1EEE7` → `#FBF9F5`.
+  Eingesenkte Elemente (Suchfeld, Erfassungszeile, Chip) nehmen deshalb
+  `--bg`, Karten und Leisten `--surface`. Kein reines Schwarz und kein reines
+  Weiss: der Farbton bleibt in beiden Themes warm, das ist die Handschrift
+  dieser App und nicht Apples kühles Grau. `theme-color` in `index.html` und
+  die Farben in `manifest.json` müssen mit `--bg` (dunkel) mitziehen.
 - **Heute und Planer→Tag sind dieselbe Ansicht**: `tagAbschnitteHtml(key)` in
   `heute.js` baut Termine, Aufgaben, Haushalt und Menü für ein beliebiges
   Datum; "Heute" setzt nur Datumszeile und Begrüssung davor, der Planer die

@@ -8,11 +8,15 @@
 
 :root{
 
-  /* ── Neutralpalette (Dark, bislang einziges bestätigtes Theme) ──
-     s1 = Grundfläche/App-Hintergrund UND "eingesenkte" Fläche innerhalb
-          einer Karte (z.B. Suchfeld). s2 = erhöhte Fläche/Karte. */
-  --bg:        #34332f;
-  --surface:   #3d3c38;
+  /* ── Neutralpalette (Dark) ──
+     Nach demselben Prinzip wie iOS: die Grundfläche ist fast schwarz, und
+     was darüber liegt, wird HELLER statt dunkler (Apple: #1C1C1E Grund,
+     #2C2C2E darüber). Der Farbton bleibt warm — das ist die Handschrift
+     dieser App, nicht Apples kühles Grau.
+     --bg = Grundfläche UND "eingesenkte" Fläche innerhalb einer Karte
+     (Suchfeld, Erfassungszeile, Chip), --surface = erhöhte Fläche/Karte. */
+  --bg:        #1B1A18;
+  --surface:   #272623;
   --text:      #F1EFE8;
   --text-2:    #B4B2A9;
   --text-3:    #888780;
@@ -40,14 +44,6 @@
      Jede Person wählt eine davon in den Einstellungen. Die drei
      --person-*-Variablen unten sind nur der DEMO-Stand für diese
      Musterseite, keine feste Bedeutung im Code. */
-  /* Getönte Flächen (Kennzahl-Kacheln). Als eigene Tokens statt color-mix im
-     Stylesheet: die Funktion ist auf älteren Handy-Browsern nicht überall da,
-     und eine Kachel ohne Hintergrund fiele erst am Gerät auf. */
-  --tint-teal:  rgba(78,205,196,0.13);
-  --tint-amber: rgba(240,184,96,0.13);
-  --tint-pink:  rgba(255,126,179,0.13);
-  --tint-blau:  rgba(108,142,255,0.13);
-
   --palette-blau:       #6C8EFF;
   --palette-pink:       #FF7EB3;
   --palette-teal:       #4ECDC4;
@@ -58,6 +54,15 @@
   --person-mauro:   var(--palette-blau);    /* Demo-Auswahl, änderbar */
   --person-melissa: var(--palette-pink);    /* Demo-Auswahl, änderbar */
   --person-shared:  var(--palette-teal);    /* Demo-Auswahl, änderbar */
+
+  /* Getönte Flächen (Kennzahl-Kacheln). Als eigene Tokens statt color-mix im
+     Stylesheet: die Funktion ist auf älteren Handy-Browsern nicht überall da,
+     und eine Kachel ohne Hintergrund fiele erst am Gerät auf. Auf der fast
+     schwarzen Grundfläche braucht eine Tönung mehr Deckkraft als auf Hell. */
+  --tint-teal:  rgba(78,205,196,0.17);
+  --tint-amber: rgba(240,184,96,0.17);
+  --tint-pink:  rgba(255,126,179,0.17);
+  --tint-blau:  rgba(108,142,255,0.17);
 
   /* ── Typografie ──
      Inter als Bewusste Wahl (nicht "weil der alte Heimplaner das tut") –

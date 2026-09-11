@@ -4,8 +4,8 @@
   "description": "Euer persönlicher Haushaltsplaner",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#34332f",
-  "theme_color": "#34332f",
+  "background_color": "#1B1A18",
+  "theme_color": "#1B1A18",
   "orientation": "any",
   "lang": "de-CH",
   "icons": [
