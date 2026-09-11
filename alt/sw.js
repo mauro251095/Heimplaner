@@ -1,19 +1,13 @@
-// Service Worker für /next/. Eigene Datei, weil heimplaner-pwa.js (geteilt)
-// './sw.js' relativ zur Seite registriert - ohne diese Datei gäbe es unter
-// /next/ gar keine Registrierung, und damit auch keine Push-Erinnerungen
-// (navigator.serviceWorker.ready würde nie auflösen).
-//
-// Kein Caching, genau wie im Hauptprojekt: Netz-Durchreiche, damit ein Deploy
-// sofort sichtbar ist. Die Icon-Pfade zeigen eine Ebene höher (/icon-192.png).
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
+    .then(() => self.clients.claim())
   );
 });
 self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
 
+// ── Push-Benachrichtigungen ──────────────────────
 self.addEventListener('push', e => {
   let data = { title: 'Heimplaner', body: '' };
   try { data = { ...data, ...e.data.json() }; } catch (err) {}
@@ -37,3 +31,6 @@ self.addEventListener('notificationclick', e => {
     })
   );
 });
+
+
+

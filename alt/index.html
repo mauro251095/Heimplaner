@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>Heimplaner</title>
+
+<!-- PWA Manifest -->
+<meta name="theme-color" content="#0d0f14">
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Heimplaner">
+<link rel="apple-touch-icon" href="../icon-512.png">
+<link rel="apple-touch-icon" sizes="192x192" href="../icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="../icon-512.png">
+
+<!-- Android / general -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Heimplaner">
+<link rel="icon" type="image/png" sizes="192x192" href="../icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../icon-512.png">
+
+<!-- Description -->
+<meta name="description" content="Persönlicher Haushaltsplaner für Mauro & Melissa">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="heimplaner.css">
+</head>
+<body>
+
+<!-- MOBILE DRAWER -->
+<div class="mob-drawer" id="mob-drawer" onclick="closeMobDrawer(event)">
+  <div class="mob-overlay"></div>
+  <div class="mob-panel">
+    <div class="mob-panel-hd"><h2>Heimplaner</h2><button class="mob-close" onclick="closeMobDrawerDirect()">✕</button></div>
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <span style="font-size:.76rem;font-weight:600" id="mm-label-mob"></span>
+        <div style="display:flex;gap:2px">
+          <button onclick="changeMonth(-1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.88rem;padding:2px 5px">‹</button>
+          <button onclick="changeMonth(1)"  style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.88rem;padding:2px 5px">›</button>
+        </div>
+      </div>
+      <div class="mini-cal" id="mini-cal-mob"></div>
+    </div>
+    <div class="mob-nav-sec">
+      <span class="mob-sec-lbl">Planer</span>
+      <button class="mob-nav-btn active" data-view="all" onclick="setView('all',this);closeMobDrawerDirect()"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Wochenplaner</button>
+      <button class="mob-nav-btn" data-view="p1" onclick="setView('p1',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p1)"></span><span data-sync="p1">Mauro</span></button>
+      <button class="mob-nav-btn" data-view="p2" onclick="setView('p2',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2">Melissa</span></button>
+      <button class="mob-nav-btn" data-view="month" onclick="setView('month',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p1)"></span>Monatsplaner</button>
+    </div>
+    <div class="mob-nav-sec">
+      <span class="mob-sec-lbl">Haushalt</span>
+      <button class="mob-nav-btn" data-view="household" onclick="setView('household',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>Haushalt</button>
+      <button class="mob-nav-btn" data-view="shop" onclick="setView('shop',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste</button>
+      <button class="mob-nav-btn" data-view="budget" onclick="setView('budget',this);closeMobDrawerDirect()"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Budget</button>
+      <button class="mob-nav-btn" data-view="meals" onclick="setView('meals',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
+      <button class="mob-nav-btn" data-view="recipes" onclick="setView('recipes',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
+      <button class="mob-nav-btn" data-view="pinboard" onclick="setView('pinboard',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
+      <button class="mob-nav-btn" data-view="manage" onclick="setView('manage',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Aufgaben &amp; Termine</button>
+      <button class="mob-nav-btn" data-view="birthdays" onclick="setView('birthdays',this);closeMobDrawerDirect()"><span class="dot" style="background:#fbbf24"></span>Geburtstage</button>
+      <button class="mob-nav-btn" data-view="settings" onclick="setView('settings',this);closeMobDrawerDirect()"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bn-item active" data-view="all" onclick="setView('all',this)"><span class="bn-icon">📅</span><span>Woche</span></button>
+  <button class="bn-item" data-view="shop" onclick="setView('shop',this)">
+    <span class="bn-icon-wrap"><span class="bn-icon">🛒</span><span class="bn-badge hidden" id="bn-badge">0</span></span><span>Einkauf</span>
+  </button>
+  <button class="bn-item" data-view="budget" onclick="setView('budget',this)"><span class="bn-icon">💰</span><span>Budget</span></button>
+  <button class="bn-item" data-view="pinboard" onclick="setView('pinboard',this)"><span class="bn-icon">📌</span><span>Pinnwand</span></button>
+  <button class="bn-item" onclick="openMobDrawer()"><span class="bn-icon">☰</span><span>Mehr</span></button>
+</nav>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo"><h1>Heimplaner</h1><div class="sub">Euer Haushalt · 2025</div></div>
+  <div class="mini-month">
+    <div class="mm-hd">
+      <span class="mn" id="mm-label"></span>
+      <div style="display:flex;gap:2px">
+        <button onclick="changeMonth(-1)">‹</button>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="mini-cal" id="mini-cal"></div>
+  </div>
+  <div class="sb-nav">
+    <span class="sec-lbl">Personen</span>
+    <button class="vbtn" data-view="p1" onclick="setView('p1',this)" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--p1)"></span><span data-sync="p1" id="sb-lbl-p1">Mauro</span></span>
+      <span class="sb-edit-btn" onclick="event.stopPropagation();renamePerson('p1')" title="Umbenennen">✏️</span>
+    </button>
+    <button class="vbtn" data-view="p2" onclick="setView('p2',this)" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--p2)"></span><span data-sync="p2" id="sb-lbl-p2">Melissa</span></span>
+      <span class="sb-edit-btn" onclick="event.stopPropagation();renamePerson('p2')" title="Umbenennen">✏️</span>
+    </button>
+    <span class="sec-lbl" style="margin-top:12px">Planer</span>
+    <button class="vbtn active" data-view="all" onclick="setView('all',this)"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Wochenplaner</button>
+    <button class="vbtn" data-view="month" onclick="setView('month',this)"><span class="dot" style="background:var(--p1)"></span>Monatsplaner</button>
+    <span class="sec-lbl" style="margin-top:12px">Haushalt</span>
+    <button class="vbtn" data-view="household" onclick="setView('household',this)"><span class="dot" style="background:var(--shared)"></span>Haushalt</button>
+    <button class="vbtn" data-view="shop" onclick="setView('shop',this)"><span class="dot" style="background:var(--shared)"></span>Einkaufsliste<span class="badge hidden" id="shop-badge">0</span></button>
+    <button class="vbtn" data-view="budget" onclick="setView('budget',this)"><span class="dot" style="background:linear-gradient(135deg,var(--p1),var(--p2))"></span>Budget</button>
+    <button class="vbtn" data-view="meals" onclick="setView('meals',this)"><span class="dot" style="background:var(--amber)"></span>Menüplan</button>
+    <button class="vbtn" data-view="recipes" onclick="setView('recipes',this)"><span class="dot" style="background:var(--p2)"></span>Rezepte</button>
+    <button class="vbtn" data-view="pinboard" onclick="setView('pinboard',this)"><span class="dot" style="background:var(--amber)"></span>Pinnwand</button>
+    <span class="sec-lbl" style="margin-top:12px">Einstellungen</span>
+    <button class="vbtn" data-view="manage" onclick="setView('manage',this)"><span class="dot" style="background:var(--muted)"></span>Aufgaben &amp; Termine</button>
+    <button class="vbtn" data-view="birthdays" onclick="setView('birthdays',this)"><span class="dot" style="background:#fbbf24"></span>Geburtstage</button>
+    <button class="vbtn" data-view="settings" onclick="setView('settings',this)"><span class="dot" style="background:var(--muted)"></span>Import / Export</button>
+  </div>
+  </aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar" id="main-topbar">
+    <button class="mob-hd-btn" onclick="openMobDrawer()">☰</button>
+    <div class="wk-nav">
+      <button onclick="changeWeek(-1)">‹</button>
+      <span class="wk-lbl" id="wk-lbl"></span>
+      <button onclick="changeWeek(1)">›</button>
+      <button class="today-btn" onclick="goToday()">Heute</button>
+    </div>
+  </div>
+  <div class="content" id="content">
+
+    <!-- ALL VIEW -->
+    <div id="view-all">
+      <div class="today-banner" id="today-banner"></div>
+      <div id="birthday-banners"></div>
+      <div id="blocked-banners"></div>
+      <div class="sec-hd">Wochenübersicht</div>
+      <div class="week-grid" id="week-grid"></div>
+    </div>
+
+    <!-- PERSON VIEW -->
+    <div id="view-person" class="hidden">
+      <div class="pv-hd" id="pv-hd"></div>
+      <div id="pv-days"></div>
+    </div>
+
+    <!-- SHOP VIEW -->
+    <div id="view-shop" class="hidden">
+      <div class="shop-top"><h2>🛒 Einkaufsliste</h2><div class="shop-stat" id="shop-stat">0 Artikel</div></div>
+      <div class="shop-prog"><div class="shop-prog-fill" id="shop-prog-fill" style="width:0%"></div></div>
+      <div id="shop-cats"></div>
+      <div class="shop-add-bar">
+        <input class="af-in txt" id="shop-add-name" maxlength="200" placeholder="Artikel hinzufügen…" style="min-width:150px">
+        <input class="af-in" id="shop-add-qty" maxlength="30" placeholder="Menge" style="width:70px">
+        <input class="af-in" id="shop-add-unit" maxlength="30" placeholder="Einheit" style="width:70px">
+        <select class="af-sel" id="shop-add-cat">
+          <option value="" selected>📂 Kategorie (optional)</option>
+          <option value="Früchte & Gemüse">🥦 Früchte & Gemüse</option>
+          <option value="Kühlwaren">🧀 Kühlwaren</option>
+          <option value="Fleisch & Fisch">🥩 Fleisch & Fisch</option>
+          <option value="Backwaren">🍞 Backwaren</option>
+          <option value="Getränke">🥤 Getränke</option>
+          <option value="Haushalt">🧹 Haushalt</option>
+          <option value="Tiefkühl">❄️ Tiefkühl</option>
+          <option value="Vorrat">🥫 Vorrat</option>
+          <option value="Sonstiges">📦 Sonstiges</option>
+        </select>
+        <button class="af-add" onclick="addShopItem()">+ Hinzufügen</button>
+        <button class="clear-btn fav-btn" onclick="openSavedShopItems()">⭐ Favoriten</button>
+        <button class="clear-btn" onclick="clearBought()">✓ Erledigte entfernen</button>
+      </div>
+    </div>
+
+    <!-- BUDGET VIEW -->
+    <div id="view-budget" class="hidden">
+      <div class="shop-top">
+        <h2>Budget</h2>
+        <div class="budget-month-switch">
+          <button onclick="budgetMonthShift(-1)" title="Vorheriger Monat">◀</button>
+          <span id="budget-month-label"></span>
+          <button onclick="budgetMonthShift(1)" title="Nächster Monat">▶</button>
+        </div>
+      </div>
+      <div class="shop-add-bar">
+        <select class="af-sel" id="bg-add-person">
+          <option value="p1" data-sync="p1">Mauro</option>
+          <option value="p2" data-sync="p2">Melissa</option>
+          <option value="shared">Gemeinsam</option>
+        </select>
+        <select class="af-sel" id="bg-add-cat"></select>
+        <input class="af-in txt" id="bg-add-comment" maxlength="300" placeholder="Kommentar (optional)">
+        <input class="af-in" id="bg-add-amount" type="text" inputmode="decimal" maxlength="12" placeholder="Betrag CHF" style="width:110px">
+        <input class="af-in" id="bg-add-date" type="date" style="width:150px">
+        <button class="af-add" onclick="addBudgetEntry()">+ Hinzufügen</button>
+      </div>
+      <div class="budget-tabs" id="budget-tabs">
+        <button class="budget-tab" data-p="p1" onclick="setBudgetTab('p1')"><span data-sync="p1">Mauro</span></button>
+        <button class="budget-tab" data-p="p2" onclick="setBudgetTab('p2')"><span data-sync="p2">Melissa</span></button>
+      </div>
+      <div class="budget-cols">
+        <div class="budget-col" id="budget-col-p1" data-p="p1"></div>
+        <div class="budget-col" id="budget-col-p2" data-p="p2"></div>
+      </div>
+    </div>
+
+    <!-- HOUSEHOLD VIEW -->
+    <div id="view-household" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">🧹 Haushalt</h2>
+        <button class="af-add" onclick="openAddEvent('',true)" style="margin-left:auto">+ Neue Aufgabe</button>
+      </div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Wiederkehrende Reinigungs- und Haushaltsaufgaben (z.B. Fenster jährlich, Staubwischen vierteljährlich) – erscheinen im Wochen-/Monatsplaner und werden 1 Woche im Voraus erinnert.</div>
+      <div id="household-list"></div>
+    </div>
+
+    <!-- MEAL VIEW -->
+    <div id="view-meals" class="hidden">
+      <div class="sec-hd" style="margin-bottom:14px">Menüplan</div>
+      <div class="meal-grid" id="meal-grid"></div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="add-all-btn" style="width:auto;padding:7px 18px" onclick="addWholeWeekToShop()">🛒 Ganze Woche zur Einkaufsliste</button>
+      </div>
+    </div>
+
+    <!-- RECIPES VIEW -->
+    <div id="view-recipes" class="hidden">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div class="sec-hd" id="recipe-hd" style="margin-bottom:0">Rezeptbibliothek</div>
+      </div>
+      <input class="recipe-search" id="recipe-search" maxlength="100" placeholder="Rezept suchen…">
+      <div class="rfbtns" id="recipe-filters"></div>
+      <div class="recipes-grid" id="recipes-grid"></div>
+    </div>
+
+    <!-- MANAGE VIEW -->
+    <div id="view-manage" class="hidden">
+      <div class="sec-hd" style="margin-bottom:14px">Aufgaben verwalten</div>
+
+      <!-- EINMALIGE TERMINE -->
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div class="sec-hd" style="margin-bottom:0">📅 Einmalige Termine</div>
+          <button class="af-add" onclick="openAddEvent()" style="margin-left:auto">+ Neuer Termin</button>
+        </div>
+        <div id="events-list"></div>
+      </div>
+
+      <div class="add-form" style="margin-top:18px">
+        <div class="af-title">Neue Aufgabe</div>
+        <div class="af-row" style="margin-bottom:8px">
+          <div style="position:relative">
+            <button type="button" class="emoji-picker-btn" id="af-emoji-btn" onclick="event.stopPropagation();toggleEmojiMenu('af-emoji')">⭐</button>
+            <input type="hidden" id="af-emoji" value="⭐">
+          </div>
+          <input class="af-in txt" id="af-name" maxlength="200" placeholder="Aufgabe…">
+          <select class="af-sel" id="af-who"><option value="p1" id="af-op1">Mauro</option><option value="p2" id="af-op2">Melissa</option><option value="shared">Gemeinsam</option></select>
+        </div>
+        <div class="emoji-picker-menu hidden" id="af-emoji-menu">
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🥪')">🥪</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🌺')">🌺</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🍽️')">🍽️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🎉')">🎉</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🎥')">🎥</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','📷')">📷</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🗓️')">🗓️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','📌')">📌</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🧹')">🧹</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🧼')">🧼</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🧽')">🧽</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🚿')">🚿</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🛒')">🛒</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','📚')">📚</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🗑️')">🗑️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','💬')">💬</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🚣🏽‍♀️')">🚣🏽‍♀️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','💪🏼')">💪🏼</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🧘🏽‍♀️')">🧘🏽‍♀️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🏋🏽‍♀️')">🏋🏽‍♀️</span>
+          <span class="emoji-opt" onclick="selectEmoji('af-emoji','🏠')">🏠</span>
+        </div>
+        <div class="af-row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px">
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px">
+            <span style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Wochentage</span>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              <span class="dp af-day-pill" data-day="0">Mo</span><span class="dp af-day-pill" data-day="1">Di</span><span class="dp af-day-pill" data-day="2">Mi</span><span class="dp af-day-pill" data-day="3">Do</span><span class="dp af-day-pill" data-day="4">Fr</span><span class="dp af-day-pill" data-day="5">Sa</span><span class="dp af-day-pill" data-day="6">So</span>
+              <span class="dp" style="color:var(--shared);border-color:var(--shared)" onclick="toggleAllDays()">Alle</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Von</span>
+            <input class="af-in" type="time" id="af-time" style="width:110px">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Bis</span>
+            <input class="af-in" type="time" id="af-time-end" style="width:110px">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Erinnerung</span>
+            <select class="af-sel" id="af-reminder" style="min-width:130px">
+              <option value="">Keine</option><option value="0">Zur Uhrzeit</option><option value="5">5 Min vorher</option><option value="15">15 Min vorher</option><option value="30">30 Min vorher</option><option value="60">1 Std vorher</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);cursor:pointer"><input type="checkbox" id="af-prio" style="accent-color:var(--red)"> <span style="color:var(--red)">Wichtig</span></label>
+          </div>
+        </div>
+        <button class="af-add" style="width:100%" onclick="addTask()">+ Aufgabe hinzufügen</button>
+      </div>
+
+      <div class="tm-grid" style="margin-top:18px">
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p1)"></div><span id="tm-h-p1">Mauro</span></div><div class="tm-list" id="tm-p1"></div></div>
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--p2)"></div><span id="tm-h-p2">Melissa</span></div><div class="tm-list" id="tm-p2"></div></div>
+        <div class="tm-col"><div class="tm-col-hd"><div class="tm-dot" style="background:var(--shared)"></div><span>Gemeinsam</span></div><div class="tm-list" id="tm-shared"></div></div>
+      </div>
+    </div>
+
+    <!-- MONTH VIEW -->
+    <div id="view-month" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem" id="month-title"></h2>
+        <button class="mbtn mbtn-cancel" style="padding:5px 12px" onclick="changeMonthView(-1)">‹</button>
+        <button class="mbtn mbtn-cancel" style="padding:5px 12px" onclick="changeMonthView(1)">›</button>
+        <button class="today-btn" onclick="goMonthToday()">Heute</button>
+      </div>
+      <div id="month-cal"></div>
+    </div>
+
+    <!-- PINBOARD VIEW -->
+    <div id="view-pinboard" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">📌 Pinnwand</h2>
+        <button class="af-add" onclick="openAddNote()" style="margin-left:auto">+ Notiz</button>
+      </div>
+      <div id="pin-board"></div>
+    </div>
+
+    <!-- BIRTHDAYS VIEW -->
+    <div id="view-birthdays" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">🎂 Geburtstage</h2>
+        <button class="af-add" onclick="openAddBirthday()" style="margin-left:auto">+ Geburtstag</button>
+      </div>
+      <div id="birthday-list-2"></div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div id="view-settings" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">⚙️ Einstellungen</h2>
+        <button onclick="toggleTheme()" id="theme-toggle-btn" style="margin-left:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:Inter,sans-serif;font-size:.8rem;padding:6px 14px;cursor:pointer">🌙 Dunkel</button>
+      </div>
+      <!-- Personenfarben -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px">
+        <div style="font-size:.9rem;font-weight:600;margin-bottom:14px">🎨 Personenfarben</div>
+        <div id="color-settings"></div>
+      </div>
+      <div class="settings-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">📅 Kalender exportieren</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Termine als .ics Datei exportieren</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">Personen</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="ics-p1" checked style="accent-color:var(--p1)"> <span id="ics-p1-label">Mauro</span></label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="ics-p2" checked style="accent-color:var(--p2)"> <span id="ics-p2-label">Melissa</span></label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="ics-shared" checked style="accent-color:var(--shared)"> Gemeinsam</label>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">Inhalte</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="ics-tasks" checked style="accent-color:var(--today)"> Wöchentliche Aufgaben</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="ics-events" checked style="accent-color:var(--today)"> Einmalige Termine</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="ics-meals" checked style="accent-color:var(--today)"> Menüplan</label>
+          <button class="af-add" style="width:100%;background:var(--shared);color:#000" onclick="exportICS()">📤 .ics exportieren</button>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px">
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:6px">💾 Datensicherung</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Backup für Notfälle</div>
+          <button class="af-add" style="width:100%;margin-bottom:8px" onclick="exportJSON()">💾 JSON exportieren</button>
+          <label style="display:block;width:100%;text-align:center;background:var(--surface);border:2px dashed var(--border);border-radius:var(--rs);padding:10px;cursor:pointer;font-size:.8rem;color:var(--muted)">
+            📂 JSON importieren
+            <input type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+          </label>
+        </div>
+      </div>    </div>
+
+  </div><!-- /content -->
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- Reihenfolge ist bindend, siehe CLAUDE.md:
+     data  -> definiert HP und die Helfer (esc, dk, markDeleted ...)
+     app   -> Schale: Routing, render(), Toast, Modal
+     dann die Bereichsdateien (nur Funktionsdeklarationen, Reihenfolge
+     untereinander unkritisch – sie rufen sich erst zur Laufzeit auf)
+     sync  -> erweitert HP_save, muss nach data kommen
+     pwa   -> nutzt setView, kommt zuletzt -->
+<script src="../heimplaner-login.js"></script>
+<script src="../heimplaner-data.js"></script>
+<script src="heimplaner-app.js"></script>
+<script src="heimplaner-views.js"></script>
+<script src="heimplaner-shop.js"></script>
+<script src="heimplaner-budget.js"></script>
+<script src="heimplaner-meals.js"></script>
+<script src="heimplaner-tasks.js"></script>
+<script src="heimplaner-month.js"></script>
+<script src="heimplaner-notes.js"></script>
+<script src="heimplaner-events.js"></script>
+<script src="heimplaner-birthdays.js"></script>
+<script src="heimplaner-settings.js"></script>
+<script src="../heimplaner-sync.js"></script>
+<script src="../heimplaner-pwa.js"></script>
+
+<!-- PWA: Service Worker + Install Banner -->
+</body>
+</html>

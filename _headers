@@ -27,20 +27,64 @@
 # wird von keinem Browser unterstuetzt). esc() aus heimplaner-data.js bleibt
 # damit die eigentliche letzte Verteidigungslinie, nicht diese CSP.
 
-# Ausgelagerte Dateien duerfen zwischengespeichert werden; index.html nicht,
-# damit nach einem Deploy nicht auf eine veraltete Seite verwiesen wird.
-/heimplaner.css
-  Cache-Control: public, max-age=3600
-
-/index.html
-  Cache-Control: no-cache
-
-# Die JS-Dateien tragen keinen Hash/keine Versionsnummer im Dateinamen (kein
-# Build-Schritt) - ohne explizite Regel entscheidet CDN/Browser nach eigenen,
-# fuer uns nicht einsehbaren Heuristiken, wie lange eine Version im Cache
-# bleibt. Das heisst: nach einem Deploy mit einem Bugfix waere nicht
+# Die JS- und CSS-Dateien tragen keinen Hash/keine Versionsnummer im Dateinamen
+# (kein Build-Schritt) - ohne explizite Regel entscheidet CDN/Browser nach
+# eigenen, fuer uns nicht einsehbaren Heuristiken, wie lange eine Version im
+# Cache bleibt. Das heisst: nach einem Deploy mit einem Bugfix waere nicht
 # garantiert, wann jedes Geraet die neue Version bekommt. no-cache erzwingt
 # eine Revalidierung bei jedem Laden (nicht "gar kein Caching" - der Server
 # kann per ETag weiterhin mit 304 antworten, wenn sich nichts geaendert hat).
-/heimplaner-*.js
+#
+# Jede Datei steht einzeln da, statt sich auf ein Platzhalter-Muster zu
+# verlassen: die Dateinamen heissen seit der Ablösung der alten Version nicht
+# mehr einheitlich, und eine Regel, die still nicht greift, faellt erst auf,
+# wenn ein Geraet tagelang eine alte Fassung zeigt.
+# NEUE DATEI HINZUGEFUEGT? Dann hier eine Zeile ergaenzen.
+/index.html
   Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache
+
+/app.js
+  Cache-Control: no-cache
+/tasks.js
+  Cache-Control: no-cache
+/heute.js
+  Cache-Control: no-cache
+/planer.js
+  Cache-Control: no-cache
+/shop.js
+  Cache-Control: no-cache
+/budget.js
+  Cache-Control: no-cache
+/meals.js
+  Cache-Control: no-cache
+/notes.js
+  Cache-Control: no-cache
+/birthdays.js
+  Cache-Control: no-cache
+/settings.js
+  Cache-Control: no-cache
+
+/heimplaner-data.js
+  Cache-Control: no-cache
+/heimplaner-login.js
+  Cache-Control: no-cache
+/heimplaner-sync.js
+  Cache-Control: no-cache
+/heimplaner-pwa.js
+  Cache-Control: no-cache
+
+/app.css
+  Cache-Control: no-cache
+/tokens.css
+  Cache-Control: no-cache
+
+# Die Icons sind einzelne SVG-Dateien, die sich praktisch nie aendern - hier
+# waere eine Revalidierung bei jedem Laden nur unnoetiger Verkehr.
+/icons/*
+  Cache-Control: public, max-age=604800

@@ -4,8 +4,8 @@
   "description": "Euer persönlicher Haushaltsplaner",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#0d0f14",
-  "theme_color": "#0d0f14",
+  "background_color": "#34332f",
+  "theme_color": "#34332f",
   "orientation": "any",
   "lang": "de-CH",
   "icons": [
@@ -24,18 +24,18 @@
   ],
   "shortcuts": [
     {
-      "name": "Wochenplan",
-      "url": "index.html?view=all",
-      "description": "Wochenübersicht öffnen"
+      "name": "Heute",
+      "url": "index.html?view=heute",
+      "description": "Tagesübersicht öffnen"
     },
     {
       "name": "Einkaufsliste",
-      "url": "index.html?view=shop",
+      "url": "index.html?view=einkaufsliste",
       "description": "Einkaufsliste öffnen"
     },
     {
       "name": "Menüplan",
-      "url": "index.html?view=meals",
+      "url": "index.html?view=menueplan",
       "description": "Menüplan öffnen"
     }
   ]

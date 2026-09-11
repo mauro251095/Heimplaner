@@ -36,22 +36,14 @@
 <div id="summary">Läuft…</div>
 <div id="out"></div>
 
-<!-- Dieselben Skripte wie die App, in derselben Reihenfolge.
-     login.js und pwa.js fehlen bewusst: das eine wuerde einen
-     Login-Bildschirm ueber die Testseite legen, das andere einen
-     Service Worker registrieren. -->
+<!-- Nur die Dateien, aus denen hier wirklich etwas geprüft wird.
+     app.js fehlt bewusst: die Datei hängt sich beim Laden an den DOM der App
+     (Sidebar, Ansicht) und würde hier beim Start abbrechen. login.js und
+     pwa.js ebenso: das eine legte einen Login-Bildschirm über die Testseite,
+     das andere registrierte einen Service Worker. -->
 <script src="heimplaner-data.js"></script>
-<script src="heimplaner-app.js"></script>
-<script src="heimplaner-views.js"></script>
-<script src="heimplaner-shop.js"></script>
-<script src="heimplaner-budget.js"></script>
-<script src="heimplaner-meals.js"></script>
-<script src="heimplaner-tasks.js"></script>
-<script src="heimplaner-month.js"></script>
-<script src="heimplaner-notes.js"></script>
-<script src="heimplaner-events.js"></script>
-<script src="heimplaner-birthdays.js"></script>
-<script src="heimplaner-settings.js"></script>
+<script src="meals.js"></script>
+<script src="birthdays.js"></script>
 <script src="heimplaner-sync.js"></script>
 
 <script>
@@ -327,25 +319,32 @@ pruefe('"Letzter" liegt in allen Monaten im richtigen Monat', () => {
 // ═══════════════════════════════════════════════════════════
 gruppe('Geburtstage');
 
-pruefe('Geburtstag später im Jahr bleibt im laufenden Jahr', () => {
-  const heute = new Date(); heute.setHours(0,0,0,0);
-  const morgen = new Date(heute); morgen.setDate(heute.getDate() + 1);
-  const key = getNextBirthday('0000-' + String(morgen.getMonth()+1).padStart(2,'0') + '-' + String(morgen.getDate()).padStart(2,'0'));
-  return gleich(key, dk(morgen));
+// tageBisGeburtstag() rechnet in Tagen bis zum nächsten Vorkommen - der
+// Jahreswechsel ist genau die Stelle, an der sich so etwas gern verrechnet.
+const bdayAm = d => ({ date: '0000-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') });
+
+pruefe('Geburtstag morgen ist in einem Tag', () => {
+  const morgen = new Date(); morgen.setHours(0,0,0,0); morgen.setDate(morgen.getDate() + 1);
+  return gleich(tageBisGeburtstag(bdayAm(morgen)), 1);
 });
 
 pruefe('Bereits vergangener Geburtstag rutscht ins Folgejahr', () => {
   const heute = new Date(); heute.setHours(0,0,0,0);
   const gestern = new Date(heute); gestern.setDate(heute.getDate() - 1);
-  const key = getNextBirthday('0000-' + String(gestern.getMonth()+1).padStart(2,'0') + '-' + String(gestern.getDate()).padStart(2,'0'));
-  const jahr = parseInt(key.slice(0,4));
-  return jahr === gestern.getFullYear() + 1 ? true : 'erwartet Folgejahr, erhalten ' + key;
+  const erwartet = Math.round((new Date(gestern.getFullYear()+1, gestern.getMonth(), gestern.getDate()) - heute) / 86400000);
+  return gleich(tageBisGeburtstag(bdayAm(gestern)), erwartet);
 });
 
 pruefe('Heutiger Geburtstag ist heute, nicht in einem Jahr', () => {
   const heute = new Date(); heute.setHours(0,0,0,0);
-  const key = getNextBirthday('0000-' + String(heute.getMonth()+1).padStart(2,'0') + '-' + String(heute.getDate()).padStart(2,'0'));
-  return gleich(key, dk(heute));
+  return gleich(tageBisGeburtstag(bdayAm(heute)), 0);
+});
+
+pruefe('birthdaysOn findet den Geburtstag unabhängig vom Jahr', () => {
+  HP.birthdays = [{ id: 'b1', name: 'Test', date: '0000-03-05', year: '1990' }];
+  const treffer = birthdaysOn('2027-03-05').length && !birthdaysOn('2027-03-06').length;
+  HP.birthdays = [];
+  return treffer ? true : 'Treffer am falschen Tag';
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -381,7 +380,7 @@ pruefe('Gross-/Kleinschreibung egal', () => gleich(guessCat('MILCH'), guessCat('
 pruefe('Unbekanntes landet in Vorrat', () => gleich(guessCat('Zahnstocher'), 'Vorrat'));
 
 // ═══════════════════════════════════════════════════════════
-gruppe('Rezept-Importer (parseBettyBossiRecipe)');
+gruppe('Rezept-Importer (parseRezeptText)');
 
 // bettybossi.ch gruppiert die Zutaten PRO SCHRITT, nicht als Gesamtliste:
 //   N. ZutatName / Menge Einheit / (weitere Paare) / Fliesstext = der Schritt
@@ -398,45 +397,45 @@ const BB_BEISPIEL = [
 ].join('\n');
 
 pruefe('Erkennt den Rezeptnamen aus der ersten Zeile', () => {
-  return gleich(parseBettyBossiRecipe(BB_BEISPIEL).name, 'Älplermagronen');
+  return gleich(parseRezeptText(BB_BEISPIEL).name, 'Älplermagronen');
 });
 pruefe('Erkennt die Zubereitungsschritte', () => {
-  return gleich(parseBettyBossiRecipe(BB_BEISPIEL).steps.length, 2);
+  return gleich(parseRezeptText(BB_BEISPIEL).steps.length, 2);
 });
 pruefe('Die Schrittnummer landet nicht im Zutatennamen', () => {
-  const p = parseBettyBossiRecipe(BB_BEISPIEL);
+  const p = parseRezeptText(BB_BEISPIEL);
   const mitNummer = p.ing.filter(i => /^\d+\./.test(i.n));
   return mitNummer.length ? 'Nummer im Namen: ' + JSON.stringify(mitNummer) : true;
 });
 pruefe('Erkennt Zutaten mit Menge und Einheit', () => {
-  const p = parseBettyBossiRecipe(BB_BEISPIEL);
+  const p = parseRezeptText(BB_BEISPIEL);
   const h = p.ing.find(i => /Hörnli/.test(i.n));
   return h ? gleich([h.q, h.u], ['400', 'g']) : 'Hörnli nicht gefunden in: ' + JSON.stringify(p.ing);
 });
 pruefe('Sammelt Zutaten über mehrere Schritte hinweg ein', () => {
-  const p = parseBettyBossiRecipe(BB_BEISPIEL);
+  const p = parseRezeptText(BB_BEISPIEL);
   return gleich(p.ing.map(i => i.n), ['Hörnli', 'Halbrahm', 'Muskatnuss']);
 });
 pruefe('Zutat ohne Zahl behält "wenig" als Menge', () => {
-  const p = parseBettyBossiRecipe(BB_BEISPIEL);
+  const p = parseRezeptText(BB_BEISPIEL);
   const m = p.ing.find(i => /Muskat/.test(i.n));
   return m ? gleich([m.q, m.u], ['wenig', '']) : 'Muskatnuss nicht gefunden';
 });
 pruefe('"wenig" wird als Menge übernommen', () => {
-  return gleich(parseQtyLine('wenig'), {q:'wenig', u:''});
+  return gleich(parseMengenZeile('wenig'), {q:'wenig', u:''});
 });
 pruefe('Mengenbereiche (2–3) bleiben erhalten', () => {
-  return gleich(parseQtyLine('2–3 dl').q, '2–3');
+  return gleich(parseMengenZeile('2–3 dl').q, '2–3');
 });
 pruefe('Zahl ohne Einheit bekommt "Stk"', () => {
-  return gleich(parseQtyLine('4'), {q:'4', u:'Stk'});
+  return gleich(parseMengenZeile('4'), {q:'4', u:'Stk'});
 });
 pruefe('Leerer Text liefert leeres Ergebnis statt zu werfen', () => {
-  const p = parseBettyBossiRecipe('');
+  const p = parseRezeptText('');
   return gleich([p.name, p.ing.length, p.steps.length], ['', 0, 0]);
 });
 pruefe('Text ohne nummerierte Schritte liefert keine halben Rezepte', () => {
-  const p = parseBettyBossiRecipe('Nur etwas Fliesstext ohne jede Nummerierung.');
+  const p = parseRezeptText('Nur etwas Fliesstext ohne jede Nummerierung.');
   return gleich([p.ing.length, p.steps.length], [0, 0]);
 });
 

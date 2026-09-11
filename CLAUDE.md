@@ -1,118 +1,332 @@
 # Heimplaner
 
-Shared household management PWA, built for personal use by Mauro and Melissa (partner). Vanilla HTML/CSS/JS — no build step, no framework, no bundler.
+Gemeinsame Haushalts-App (PWA) für den privaten Gebrauch von Mauro und Melissa.
+Reines HTML/CSS/JS — kein Build-Schritt, kein Framework, kein Bundler.
 
 ## Repo & Deployment
 
-- GitHub repo: `mauro251095/Heimplaner`
-- Deployed on Netlify: `sage-salmiakki-4ab33e.netlify.app` — the only deployment. GitHub Pages was disabled 2026-09-10 (it had been serving a stale, header-less mirror of the same static files — `_headers`, i.e. the CSP and all other security headers, is Netlify-only and was silently ignored there)
-- Netlify serverless functions proxy to Supabase (project ref `yzgkfcdlrdaspwybpule`) for real-time sync
-- Secrets (Supabase keys, auth passwords) live in Netlify environment variables — never hardcode keys in client-side JS
-- **Production branch is `main`** — Netlify auto-deploys on every push to `main`
+- GitHub-Repo: `mauro251095/Heimplaner`
+- Netlify: `sage-salmiakki-4ab33e.netlify.app` — das einzige Deployment.
+  GitHub Pages wurde am 10.09.2026 abgeschaltet (es lieferte eine veraltete
+  Kopie ohne Header — `_headers` und damit die CSP gilt nur auf Netlify).
+- Netlify-Functions sind der Proxy zu Supabase (Projekt `yzgkfcdlrdaspwybpule`).
+- Secrets (Supabase-Keys, Passwörter) stehen in den Netlify-Umgebungsvariablen,
+  **nie** im Client-Code.
+- **Produktionszweig ist `main`** — jeder Push nach `main` geht sofort live.
 
 ## Git-Workflow
 
-- After a completed, meaningful change, commit automatically with a clear, descriptive commit message
-- Do **not** push to `main` without explicit confirmation from Mauro — always ask first
-- Since Netlify auto-deploys from `main`, a push goes live immediately — treat it accordingly
-- Keep commits scoped and readable (one logical change per commit where practical)
+- Nach einer abgeschlossenen, sinnvollen Änderung automatisch committen, mit
+  klarer Commit-Nachricht.
+- **Nicht** ohne ausdrückliche Zustimmung von Mauro nach `main` pushen.
+- Ein Push ist ein Deploy — entsprechend behandeln.
+- Commits klein und lesbar halten (eine logische Änderung pro Commit).
 
-## File Structure
+## Dateistruktur
 
-- `index.html` — markup and shell
-- `heimplaner-login.js` — login screen + auth handling
-- `heimplaner-data.js` — data model / local state
-- `heimplaner-app.js` — remaining core UI logic, rendering, event handling (what's left after the split below)
-- `heimplaner-views.js` — weekly and per-person view
-- `heimplaner-shop.js` — shopping list incl. favorites
-- `heimplaner-budget.js` — budget entries, limits, yearly stats
-- `heimplaner-meals.js` — meal planner, recipe library, bettybossi.ch importer
-- `heimplaner-tasks.js` — task management, emoji picker, task modal
-- `heimplaner-month.js` — month calendar and day detail
-- `heimplaner-notes.js` — pinboard / notes
-- `heimplaner-events.js` — one-off events and household chores
-- `heimplaner-birthdays.js` — birthdays
-- `heimplaner-settings.js` — push subscription, import/export, theme, colors, init
-- `heimplaner-sync.js` — Supabase sync via Netlify function proxy
-- `heimplaner-pwa.js` — service worker registration, `?view=` deep link, install banner
-- `heimplaner.css` — all styles (extracted from `index.html`; the CSP depends on it staying a separate file)
-- `test.html` — 75 checks for merge, tombstone, date and escaping logic. Open it in a browser before pushing, or run `npm test` (headless via Playwright).
-- `supabase-setup.sql` — table definitions to run in the Supabase SQL editor
-- `_headers` — CSP and security headers
-- `netlify/lib/` — shared code for the functions. Deliberately **not** inside `netlify/functions/`: files there each become a public endpoint.
+Die App:
 
-`heimplaner-views.js` through `heimplaner-settings.js` were split out of a single, then-2381-line `heimplaner-app.js` — pure code movement, no behavior change. Each carries a header comment naming what it holds.
+- `index.html` — Gerüst und Skript-Reihenfolge
+- `tokens.css` — Farb-, Abstands- und Schrift-Tokens (Dark + Hell-Theme)
+- `app.css` — das gesamte übrige Stylesheet
+- `app.js` — Modal/Toast, Navigation (`VIEWS`, Schnellwahl), gemeinsame
+  Bausteine (`viewHead`, `segHtml`, `navRow`, …), Theme/Farben, Haushalt
+- `tasks.js` — Zeilen und Formulare für Aufgaben und Termine (keine eigene
+  Ansicht; Heute/Planer/Personen benutzen sie gemeinsam)
+- `heute.js` — Startansicht; `tagAbschnitteHtml()` liefert auch die Tagesansicht
+- `planer.js` — Tag/Woche/Monat und Personen
+- `shop.js`, `budget.js`, `meals.js` (Menüplan + Rezepte), `notes.js`,
+  `birthdays.js`, `settings.js` — die übrigen Ansichten
+- `icons/` — Tabler-Icons (MIT) als einzelne SVGs, selbst gehostet
+- `sw.js` — Service Worker (reine Netz-Durchreiche, kein Caching)
+- `manifest.json`, `icon-192.png`, `icon-512.png` — PWA-Teil
+- `muster.html` — Stilübersicht aus der Entwurfsphase, keine Laufzeit-Datei
 
-CRITICAL — do not reorder: `index.html` must always end with exactly these script tags, in this order, directly before `</body>`:
+Geteilt (von der App **und** der alten Version unter `alt/` benutzt):
+
+- `heimplaner-data.js` — Datenmodell, `esc()`, `markDeleted()`, Datums- und
+  Wiederholungslogik (`advanceDateKey`, `nthWeekdayOfMonth`, …)
+- `heimplaner-login.js` — Login-Gate
+- `heimplaner-sync.js` — Supabase-Sync über den Netlify-Proxy
+- `heimplaner-pwa.js` — Service-Worker-Registrierung, `?view=`-Deep-Link,
+  Installationsbanner
+
+Drumherum:
+
+- `test.html` — Checks für Merge-, Tombstone-, Datums-, Escaping- und
+  Importer-Logik. Im Browser öffnen oder `npm test` (headless via Playwright).
+- `_headers` — CSP, Sicherheits-Header und **die Cache-Regeln pro Datei**
+- `supabase-setup.sql` — Tabellendefinitionen für den Supabase-SQL-Editor
+- `netlify/lib/` — gemeinsamer Code der Functions. Bewusst **nicht** unter
+  `netlify/functions/`: alles dort wird ein öffentlicher Endpunkt.
+
+KRITISCH — Reihenfolge nicht ändern: `index.html` muss mit genau diesen
+Skript-Tags enden, in dieser Reihenfolge, direkt vor `</body>`:
 
 ```html
 <script src="heimplaner-login.js"></script>
 <script src="heimplaner-data.js"></script>
-<script src="heimplaner-app.js"></script>
-<script src="heimplaner-views.js"></script>
-<script src="heimplaner-shop.js"></script>
-<script src="heimplaner-budget.js"></script>
-<script src="heimplaner-meals.js"></script>
-<script src="heimplaner-tasks.js"></script>
-<script src="heimplaner-month.js"></script>
-<script src="heimplaner-notes.js"></script>
-<script src="heimplaner-events.js"></script>
-<script src="heimplaner-birthdays.js"></script>
-<script src="heimplaner-settings.js"></script>
+<script src="app.js"></script>
+<script src="tasks.js"></script>
+<script src="heute.js"></script>
+<script src="planer.js"></script>
+<script src="shop.js"></script>
+<script src="budget.js"></script>
+<script src="meals.js"></script>
+<script src="notes.js"></script>
+<script src="birthdays.js"></script>
+<script src="settings.js"></script>
 <script src="heimplaner-sync.js"></script>
 <script src="heimplaner-pwa.js"></script>
 ```
 
-If you add a new JS file, decide deliberately where in this order it belongs (it almost certainly depends on `heimplaner-data.js` loading first) — don't just append it.
+`app.js` definiert `showModal`/`showToast`/`render`, die die geteilten Dateien
+erwarten; die Ansichts-Dateien hängen sich über `VIEWS` (in `app.js`) ein und
+müssen deshalb danach kommen.
 
-Do **not** put styles back into a `<style>` block or logic into an inline `<script>` in `index.html`: the CSP sets `script-src-elem 'self'` and `style-src-elem 'self'`, so both would simply stop working.
+**Neue Datei hinzugefügt?** Dann an drei Stellen nachziehen: Skript-Tag hier,
+eine Zeile in `_headers` (sonst greift keine Cache-Regel, siehe unten), und
+ein Wort in dieser Liste.
+
+Keine Styles zurück in einen `<style>`-Block und keine Logik in ein inline
+`<script>` in `index.html`: die CSP setzt `script-src-elem 'self'` und
+`style-src-elem 'self'`, beides würde schlicht nicht mehr laufen.
+
+## Die alte Version unter `alt/`
+
+`alt/` ist die vorherige Fassung der App (Stand der Ablösung), eingefroren als
+Rückfallebene, erreichbar unter `/alt/`. Sie benutzt dieselben Daten und
+dieselben geteilten Dateien (deshalb die `../`-Pfade in `alt/index.html`) und
+hat bewusst **keinen** Manifest-Link mehr, damit sie niemand versehentlich als
+App installiert.
+
+Dort wird nichts mehr weiterentwickelt. Wenn die neue Version eine Weile
+störungsfrei läuft, kann der Ordner ersatzlos weg.
 
 ## Auth
 
-- `heimplaner-login.js` (client) + Netlify function `auth.js` (server)
-- Credentials stored as `HP_USERS` env var, format: `mauro:pw,melissa:pw`
-- On successful login, `{username, expiry}` is persisted in `localStorage` for 30 days. This is **not** a validated token — it is client-written and never checked by the server. It gates the UI only.
-- The actual access control for all data is `APP_PASSWORD` (the sync password the user types in the sync dialog), checked server-side by `sync.js` and `push-subscribe.js`. Do not remove it — it is the only thing protecting the database.
-- `netlify/lib/throttle.js` brakes brute-force attempts: 10 failures per IP in 15 minutes → 15-minute block, counters in Supabase (in-memory counters are useless on serverless). Fail-open by design, so a missing table never locks you out.
+- `heimplaner-login.js` (Client) + Netlify-Function `auth.js` (Server)
+- Zugangsdaten stehen in der Umgebungsvariable `HP_USERS`, Format:
+  `mauro:pw,melissa:pw`
+- Nach erfolgreichem Login liegt `{username, expiry}` 30 Tage im
+  `localStorage`. Das ist **kein** geprüftes Token — es wird vom Client
+  geschrieben und vom Server nie kontrolliert. Es steuert nur die Oberfläche.
+- Die echte Zugangskontrolle für alle Daten ist `APP_PASSWORD` (das
+  Sync-Passwort, das man in den Einstellungen einträgt), serverseitig geprüft
+  von `sync.js` und `push-subscribe.js`. Nicht entfernen — es ist das
+  Einzige, was die Datenbank schützt.
+- `netlify/lib/throttle.js` bremst Rateversuche: 10 Fehlschläge pro IP in 15
+  Minuten → 15 Minuten Sperre, Zähler in Supabase (In-Memory-Zähler sind auf
+  Serverless nutzlos). Bewusst "fail open", damit eine fehlende Tabelle
+  niemanden aussperrt.
 
 ## Sync
 
-- Supabase is the source of truth; Netlify function proxies all reads/writes so the Supabase key never reaches the client
-- Writes are debounced 2 seconds after the last local change before syncing
-- Client polls every 15 seconds **while in use**, backing off to 60 seconds after 5 minutes without a `pointerdown`/`keydown`, and snapping straight back on the next interaction. Polling pauses entirely while the app is hidden (`document.hidden`). The poll first asks `sync?meta=1`, which returns only `updated_at` (~50 bytes), and fetches the full record only when it actually changed.
-- **These intervals are a Netlify-quota decision, not a feel decision.** The free tier bills credits and cuts the site off when they run out — including the login, which also runs through a function. A visible-but-idle desktop tab used to poll 5760 times a day on its own. Don't tighten them back without checking Netlify → Usage first.
-- `push-check.mjs` runs every 5 minutes (`*/5 4-22 * * *`) and reads only `tasks`, `events`, `birthdays` and `taskExceptions` — not the whole record. It falls back to the full fetch if the narrow query fails, so reminders can never silently stop.
-- Night pause 23:05–06:00 Zurich. It is enforced **twice on purpose**: the cron's UTC hour range is what actually saves Netlify invocations (an early `return` inside a function still costs a full invocation), and `istNachtruhe()` trims the edges precisely, because a UTC schedule cannot follow daylight saving.
-- When touching sync logic, preserve this debounce/poll timing unless explicitly asked to change it — it's tuned to avoid hammering Supabase while still feeling "live" between two devices
-- Deletions use tombstones (`HP.deleted[type][id] = timestamp`, set via `markDeleted()` in `heimplaner-data.js`) so a poll/merge never resurrects an item deleted on the other device. Every delete function must call `markDeleted()` before removing the item from its array. Sync-relevant arrays (events, notes, birthdays, shop, savedShopItems, customRecipes, budgetEntries, tasks) are merged by ID in `heimplaner-sync.js` (`mergeArrayById`/`mergeTaskLists`), not blindly overwritten — on an ID conflict remote wins (matches prior full-overwrite behavior), but tombstoned IDs are always excluded and new local-only items are preserved.
+- Supabase ist die Wahrheit; die Netlify-Function proxyt alle Lese- und
+  Schreibzugriffe, damit der Supabase-Key nie im Client landet.
+- Schreibvorgänge werden 2 Sekunden nach der letzten lokalen Änderung gebündelt.
+- Der Client fragt alle 15 Sekunden nach, **während er benutzt wird**, fällt
+  nach 5 Minuten ohne `pointerdown`/`keydown` auf 60 Sekunden zurück und
+  springt bei der nächsten Interaktion sofort wieder hoch. Bei verstecktem Tab
+  (`document.hidden`) pausiert er ganz. Gefragt wird zuerst `sync?meta=1` — das
+  liefert nur `updated_at` (~50 Bytes); der ganze Datensatz wird nur geholt,
+  wenn er sich wirklich geändert hat.
+- **Diese Intervalle sind eine Netlify-Kontingent-Entscheidung, kein
+  Gefühl.** Das Gratis-Kontingent schaltet die Seite ab, wenn es aufgebraucht
+  ist — inklusive Login, der ebenfalls über eine Function läuft. Ein
+  sichtbarer, unbenutzter Desktop-Tab kam früher allein auf 5760 Anfragen pro
+  Tag. Nicht wieder enger stellen, ohne vorher in Netlify → Usage zu schauen.
+- `push-check.mjs` läuft alle 5 Minuten (`*/5 4-22 * * *`) und liest nur
+  `tasks`, `events`, `birthdays` und `taskExceptions` — nicht den ganzen
+  Datensatz. Schlägt die schmale Abfrage fehl, holt es doch alles, damit
+  Erinnerungen nie stillschweigend ausbleiben.
+- Nachtruhe 23:05–06:00 Zürich, **absichtlich doppelt** abgesichert: die
+  UTC-Stunden im Cron sparen die Aufrufe (ein frühes `return` in der Function
+  kostet trotzdem einen vollen Aufruf), und `istNachtruhe()` schneidet die
+  Ränder genau, weil ein UTC-Zeitplan der Sommerzeit nicht folgen kann.
+- Beim Anfassen der Sync-Logik dieses Timing erhalten, sofern nicht
+  ausdrücklich anders gewünscht.
+- Löschungen laufen über Tombstones (`HP.deleted[typ][id] = zeitstempel`, via
+  `markDeleted()` in `heimplaner-data.js`), damit ein Merge nichts
+  wiederbelebt, was auf dem anderen Gerät gelöscht wurde. Jede Lösch-Funktion
+  muss `markDeleted()` aufrufen, bevor der Eintrag aus seinem Array fliegt.
+  Die sync-relevanten Arrays (events, notes, birthdays, shop, savedShopItems,
+  customRecipes, budgetEntries, tasks) werden in `heimplaner-sync.js` per ID
+  gemerged (`mergeArrayById`/`mergeTaskLists`), nicht blind überschrieben.
 
-## UI Conventions
+## Design-Entscheidungen
 
-- Color scheme is meaningful, not decorative — keep it consistent:
-  - `#6C8EFF` (blue) = Mauro
-  - `#FF7EB3` (pink) = Melissa
-  - `#4ECDC4` (teal) = shared/both
-- Sidebar buttons navigate between views — they do not trigger rename. Renaming is via a ✏️ icon that appears on hover
-- Shopping list tiles show no emoji
-- New task creation includes day/time selection inline (not a separate step/modal)
+- **Akzentfarbe Grün** (`--accent`) für alles, was die App tut oder anbietet:
+  aktiver Tab, Segment-Zustand, Toggle an, Budget-Balken solange im Rahmen.
+- **Budget-Balken wechseln auf Rot** (`--danger`), sobald eine Kategorie **90 %
+  oder mehr** ihres Limits erreicht — bewusst eine Vorwarnung, kein
+  Zu-spät-Alarm.
+- **Personenfarben sind wählbar, nicht fix.** Jede Person wählt eine Farbe aus
+  der Palette in `tokens.css`. Code und Texte dürfen deshalb nie "blau =
+  Mauro" annehmen, sondern immer "die aktuell gewählte Farbe dieser Person".
+- **Icons**: Tabler Icons (MIT) als einzelne SVGs unter `icons/`, selbst
+  gehostet, nicht per CDN. Gilt für Navigation und Bedienelemente — dort kein
+  Emoji.
+- **Emoji bleiben** für selbst gewählte Inhalte (`task.emoji`, `e.emoji`,
+  Rezept-Icon). Eingabe ist ein reines Textfeld ohne eigenes Auswahlraster
+  (Windows: Win+., iPhone: Emoji-Tastatur); ein eigenes Raster wäre Feinschliff,
+  keine Baustelle mit Priorität.
+- **Listen statt Kacheln** in allen elf Ansichten: eine Fläche je Ansicht
+  (`.list-page`, `.wide` für die Raster im Planer), darin Zeilen mit Haarlinie
+  und kleine Abschnitts-Überschriften (`.section-label`). Eingesenkte Elemente
+  (Suchfeld, Erfassungszeile) nehmen `--bg`. Karten (`.card`) gibt es nur noch
+  in Dialogen.
+- **Eine Zeilenform für alles**: `entryRowHtml()` in `tasks.js` baut Häkchen,
+  Personenpunkt, Zeitspalte und Text. Die **feste Zeitspalte** ist der Grund,
+  warum die Listen ruhig wirken — die Namen beginnen alle an derselben Kante.
+  Wer mehr Platz braucht (Datum statt Uhrzeit), setzt `zeitBreit`.
+- **Zwei Umschalter-Formen, bewusst**: `segHtml()` für Modi derselben Ansicht
+  (Tag/Woche/Monat), `utabs()` für den Personenwechsel — dort trägt der
+  Unterstrich die Personenfarbe und sagt gleich mit, wessen Zahlen man sieht.
+- **Erfassen klappt auf, statt dauernd dazustehen** (`.addrow` →
+  `.inline-form`): gelesen und abgehakt wird häufiger als erfasst.
+- **"Erledigt" ist das Akzentgrün**, vollflächig gefüllt (`.check.done`,
+  `.wcheck.done`), dazu durchgestrichener, gedämpfter Text.
+- **"Heute" ist dasselbe Grün, aber nie gefüllt** — Rahmen plus getönte Fläche
+  (`--accent-bg`), damit es nicht mit "erledigt" verwechselbar ist. Sichtbar an
+  genau fünf Stellen: Monatsraster, Wochenspalte im Planer und im Menüplan,
+  Chip in der Tagesansicht, Wochenbalken in der Personenansicht.
+- **Hell-Theme** in `tokens.css` (`body.light`-Override), umgeschaltet per
+  Klasse, nicht nur über `prefers-color-scheme` — die Einstellungen haben einen
+  manuellen Schalter.
+- **Heute und Planer→Tag sind dieselbe Ansicht**: `tagAbschnitteHtml(key)` in
+  `heute.js` baut Termine, Aufgaben, Haushalt und Menü für ein beliebiges
+  Datum; "Heute" setzt nur Datumszeile und Begrüssung davor, der Planer die
+  Datums-Pfeile und den Wochenstreifen. Zwei getrennte Fassungen desselben
+  Tages laufen über die Zeit auseinander. Die **Kennzahl-Kacheln erscheinen nur
+  am heutigen Tag** — offene Artikel, Budget dieses Monats und nächster
+  Geburtstag sind der Stand von jetzt und wären an einem anderen Tag eine
+  falsche Auskunft.
+- **Monatsansicht**: Das Raster zeigt datumsgebundene Dinge (Termine,
+  Geburtstage, Haushaltsfälligkeiten, als wichtig markierte Aufgaben) — auf
+  Desktop als Textzeilen mit Uhrzeit, nach Uhrzeit sortiert, ab dem vierten
+  Eintrag als "+n". Auf dem Handy ist eine Zelle rund 50px breit, dort dieselben
+  Einträge als farbige Punkte (`monatsEintraege()` liefert beides,
+  `monatsPunkte()` leitet sich davon ab — die zwei Darstellungen dürfen nicht
+  auseinanderlaufen). Die wiederkehrende Wochenroutine steht **nicht** im
+  Raster, sondern darunter im 7-Spalten-Streifen.
+- **Reihenfolge in der Personenansicht**: Heute anstehend → Nächste Termine →
+  Alle Aufgaben. Termine stehen oben, weil sie den Tag fixieren.
+- **Status, Blockiert-Grund und Kommentar liegen in denselben Töpfen wie in der
+  alten Version** — `HP.taskStatus[tid][dateKey]` / `HP.eventStatus[id]`,
+  `HP.taskNotes[tid]` / `HP.eventNotes[id]` (Grund),
+  `HP.taskComments[tid][dateKey]` (pro Tag!) / `HP.eventComments[id]`. Genau
+  deshalb sieht `alt/` dasselbe. Aus den früheren vier Zuständen sind **drei**
+  geworden: "In Arbeit" ist weg, Offen/Blockiert/Erledigt bleiben. Bei
+  "Blockiert" erscheint das Grund-Feld samt "Zur Einkaufsliste" — der Grund ist
+  fast immer das, was fehlt, und steht deshalb schon als Artikelname im Formular.
+- **Die Termin-Notiz schreibt nach `HP.eventComments`**, nicht ins Feld
+  `e.note` am Termin selbst. `e.note` wird nirgends angezeigt und nur noch als
+  Rückfall **gelesen**, damit ein dort liegender Text nicht stillschweigend
+  verschwindet.
+- **Zeilen zeigen nur an, dass es etwas gibt**, nicht was: rotes "blockiert",
+  Notizbuch-Symbol für einen Kommentar, Pinnadel für eine verknüpfte
+  Pinnwand-Notiz.
+- **Der Weg zwischen Termin und Notiz geht in beide Richtungen**: die Notiz
+  verlinkt den Termin (`note.linkedEventId`), der Termin findet die Notiz über
+  `notizZuTermin()` — **kein zweites Feld am Termin**, sonst laufen die zwei
+  Seiten derselben Beziehung beim Löschen auseinander.
+- **Termine aus der Notiz** werden über das normale Termin-Formular angelegt
+  und bearbeitet, nicht über eigene Felder in der Notiz: sonst gäbe es zwei
+  Formulare für dieselbe Sache. Der Rückweg läuft über `terminRueckweg`
+  (dritter Parameter von `openEventForm`), der Notiz-Entwurf über den zweiten
+  Parameter von `openNoteForm` — sonst wäre der getippte Text nach dem Umweg weg.
+- **Haushaltsaufgaben können an einen Wochentag im Monat gebunden werden**
+  ("letzter Samstag", `recur.weekday` + `recur.nth`). Nach reinem Datum trifft
+  "jedes Jahr im Oktober" jedes Jahr einen anderen Wochentag. `saveChore()`
+  zieht schon die **erste** Fälligkeit auf den gewählten Wochentag, sonst
+  stimmt der Rhythmus erst ab dem zweiten Mal. Bei wöchentlichen Intervallen
+  ist die Auswahl ausgeblendet — dort legt das Datum den Wochentag ohnehin fest.
+- **Menüplan**: Raster (3 Mahlzeiten × 7 Tage) zum Eintragen, Liste darunter nur
+  mit dem, was belegt ist. Alle 21 Slots als Zeilen wären 21-mal "eintragen".
+- **Chips filtern nach Tag, die Liste gruppiert nach Kategorie** — zwei
+  Dimensionen. Gezeigt werden die acht häufigsten Tags; Herkunfts-Tags
+  (`eigenes`, `importiert`, `bettybossi`) sind ausgenommen, sie sagen nichts
+  über das Essen. Dasselbe Muster in der Einkaufsliste: Chips filtern nach
+  Gericht (`taskName`), die Abschnitte gruppieren nach Kategorie. Verschwindet
+  ein Gericht von der Liste, fällt der Filter still weg.
+- **"Zuletzt gekocht" kommt aus dem Menüplan** (`zuletztGekocht()`, nur
+  Einträge bis heute — geplant ist nicht gekocht) und ersetzt in der Zeile die
+  Portionenangabe.
+- **Zutatensuche vergleicht am Wortanfang**, sonst findet "Lauch" jede
+  "Knoblauchzehe". Weil deutsche Komposita damit durchfallen, lockert die Suche
+  auf "enthält", **wenn sonst gar nichts gefunden würde** — mit sichtbarem
+  Hinweis.
+- **Detail rechts statt im Dialog**, sobald über 1100px Platz ist (`.split` +
+  `.detail-page`). Darunter blendet CSS die Spalte aus, und `openRezeptDetail()`
+  merkt das an `offsetParent === null` und öffnet wieder den Dialog. Beide Wege
+  rendern dasselbe `rezeptDetailHtml()`.
+- **Kalender-Import ist ein einmaliger, ersetzender Import** (kein Abo):
+  importierte Termine landen als normale Einträge in `HP.events` mit
+  `icsImport:true`. Ein neuer Import löscht die zuvor importierten (inkl.
+  Tombstone) und legt sie mit **neuen IDs** an — von Hand erfasste Termine
+  bleiben unberührt. Die neuen IDs sind keine Kosmetik: eine wiederverwendete
+  ID verschwände beim nächsten Merge sofort über ihren eigenen Tombstone.
+  Serien (RRULE) werden 12 Monate im Voraus ausgerollt, Deckel bei 500 Terminen
+  bzw. 200 Vorkommen je Serie.
+- **Die JSON-Momentaufnahme bleibt** (Einstellungen → Sicherung). Supabase ist
+  kein Backup, sondern eine Live-Kopie: eine versehentliche Löschung ist dort
+  nach dem nächsten Sync ebenfalls weg. Die Datei ist der einzige Weg zurück zu
+  einem früheren Stand.
+- **Konto-Anzeige**: nur Name und kleiner Status-Punkt (Farbe vom Sync-Status,
+  `.acct-dot` in `app.js`), keine ausgeschriebene Sync-Leiste. Das
+  Sync-Passwort trägt man in den Einstellungen ein.
+- **Sidebar-Reihenfolge (Desktop)**: Heute, Planer, Personen, Haushalt,
+  Einkaufsliste, Budget, Menüplan, Rezepte, Pinnwand, Geburtstage,
+  Einstellungen.
+- **Schnellwahl am unteren Rand (nur Handy)**: fünf Plätze — Heute, Einkauf,
+  Budget, Pinnwand, Mehr (`MOBILE_NAV` in `app.js`). "Mehr" öffnet die
+  Schublade mit allen elf Ansichten und ist **der einzige** Weg dorthin: die
+  Topbar hat auf dem Handy bewusst keinen Hamburger, zwei Einstiege in dasselbe
+  Menü an zwei Ecken des Bildschirms waren einer zu viel.
+- **`#app` misst `100dvh`, nicht `100vh`** (`app.css`), und der Viewport-Tag in
+  `index.html` hat **kein** `viewport-fit=cover`. Beides zielt auf dieselbe
+  Stelle: sonst läuft die Seite auf dem iPhone unter die Home-Leiste, die
+  Schnellwahl sitzt scheinbar zu weit oben und darunter bleibt ein schwarzer
+  Streifen. Nicht zurückdrehen.
 
 ## Features
 
-Weekly planner, shopping list, meal planner with an editable recipe library (currently 34 recipes, incl. mealprep and bettybossi.ch imports), monthly calendar, pinboard, budget tracking, birthdays, and web-push reminders.
+Heute-Übersicht, Wochen- und Monatsplaner, Personenansicht, Haushaltsaufgaben
+mit Wiederholung, Einkaufsliste mit Favoriten, Budget mit Limits und
+Jahresstatistik, Menüplan, Rezeptbibliothek (inkl. Copy-Paste-Import von
+bettybossi.ch), Pinnwand, Geburtstage, ICS-Kalenderimport und Web-Push-
+Erinnerungen.
 
-There is **no AI assistant and no voice input** — the remnants were removed (they had been unreachable: no UI elements, and the referenced `sendAiMessage()` no longer existed). Don't reintroduce either without asking.
+Rezepte liegen in `HP.customRecipes` (synchronisiert, bearbeitbar) — das alte
+fest verdrahtete `RECIPES`-Array in `heimplaner-data.js` wird einmalig beim
+Laden übernommen und dient nur noch als Saat für diese Migration.
 
-Recipes live in `HP.customRecipes` (synced, editable via pencil icon) — the old hardcoded `RECIPES` array in `heimplaner-data.js` is migrated into `customRecipes` once on load and now serves only as that migration seed. A copy-paste importer for bettybossi.ch recipes (`parseBettyBossiRecipe` in `heimplaner-app.js`) parses pasted recipe text client-side (no network calls) into the same format, with a preview/correction step before saving.
+Es gibt **keinen KI-Assistenten und keine Spracheingabe**. Beides wurde
+entfernt; nicht ohne Rückfrage wieder einführen.
 
-## Working Style
+## Arbeitsweise
 
-- No build tooling — test changes by opening `index.html` directly or via a simple static server; don't introduce a bundler/framework without asking first
-- When changing shared data shapes (in `heimplaner-data.js`), check `heimplaner-sync.js` for how that shape is serialized to/from Supabase — a mismatch breaks cross-device sync silently
-- Keep changes scoped to the relevant file(s); this is a small app and cross-cutting refactors should be called out explicitly before doing them
+- Kein Build-Werkzeug — zum Testen `index.html` über einen einfachen statischen
+  Server öffnen. Keinen Bundler und kein Framework einführen ohne Rückfrage.
+- Bei Änderungen an gemeinsamen Datenformen (in `heimplaner-data.js`) immer
+  `heimplaner-sync.js` mitlesen: eine Abweichung bricht den Sync zwischen den
+  Geräten stillschweigend.
+- Änderungen auf die betroffenen Dateien beschränken; übergreifende Umbauten
+  vorher ansagen.
+- Vor einem Push `npm test` laufen lassen (GitHub Actions tut es ebenfalls).
 
-## Security
+## Sicherheit
 
-- **The GitHub repo is public.** Never commit secrets, and assume the function URLs and the whole auth scheme are known to anyone.
-- Anything from `HP` (user text, synced partner data, imported bettybossi.ch recipes) must go through `esc()` from `heimplaner-data.js` before it lands in `innerHTML` — including inside `value="…"` and `onclick="…('X')"` attributes. Use `textContent` where only text is shown.
-- `_headers` holds the CSP and security headers. A strict `script-src`/`style-src` is currently impossible because of the inline `onclick` handlers and the inline `<style>` block; `connect-src 'self'` is what actually limits the damage of an injection.
-- `netlify/functions/sync.js` and `push-subscribe.js` are gated by `APP_PASSWORD` (the sync password the user types), **not** by the login. The login token in `localStorage` is client-written and unvalidated — it gates the UI only, not data access.
+- **Das GitHub-Repo ist öffentlich.** Nie Secrets committen, und davon
+  ausgehen, dass die Function-URLs und das ganze Auth-Schema bekannt sind.
+- Alles aus `HP` (eigener Text, synchronisierte Partnerdaten, importierte
+  Rezepte) muss durch `esc()` aus `heimplaner-data.js`, bevor es in `innerHTML`
+  landet — auch innerhalb von `value="…"` und `onclick="…('X')"`. Wo nur Text
+  angezeigt wird, `textContent` benutzen.
+- `_headers` hält CSP und Sicherheits-Header. Ein strenges `script-src`/
+  `style-src` ist wegen der inline `onclick`-Handler nicht möglich;
+  `connect-src 'self'` begrenzt den Schaden einer Einschleusung.
+- `netlify/functions/sync.js` und `push-subscribe.js` hängen an `APP_PASSWORD`,
+  **nicht** am Login. Das Login-Token im `localStorage` ist client-geschrieben
+  und ungeprüft — es steuert nur die Oberfläche, nicht den Datenzugriff.
