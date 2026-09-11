@@ -7,7 +7,12 @@
      die Seite hält sich den Platz selbst frei (siehe env(safe-area-inset-*)
      in app.css). Ohne cover sind diese Werte 0 und der Titel läge unter der
      Uhr. Wer eines von beiden ändert, muss das andere mitändern. -->
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- maximum-scale/user-scalable: die App hat eine feste Leiste unten. Bleibt
+     ein Pinch-Zoom hängen, wird die Leiste mitskaliert - herausgezoomt steht
+     sie über einem leeren Streifen, hineingezoomt ragt sie seitlich aus dem
+     Bild. iOS merkt sich den Zoom pro Homescreen-Symbol, man kommt also nicht
+     mehr von selbst heraus. Die alte Version hatte dieselbe Angabe. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Heimplaner</title>
 <meta name="description" content="Persönlicher Haushaltsplaner für Mauro & Melissa">
 

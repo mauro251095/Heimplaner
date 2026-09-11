@@ -88,3 +88,14 @@
 # waere eine Revalidierung bei jedem Laden nur unnoetiger Verkehr.
 /icons/*
   Cache-Control: public, max-age=604800
+
+# Das App-Icon dagegen kurz halten: es aendert sich selten, aber wenn, dann
+# soll es auch ankommen.
+/icon-192.png
+  Cache-Control: public, max-age=3600
+/icon-512.png
+  Cache-Control: public, max-age=3600
+/icon-maskable-192.png
+  Cache-Control: public, max-age=3600
+/icon-maskable-512.png
+  Cache-Control: public, max-age=3600
