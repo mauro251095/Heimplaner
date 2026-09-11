@@ -304,10 +304,12 @@ a{color:inherit}
   justify-content:center;font-size:1.05rem;flex-shrink:0}
 .fr-name{flex:1;min-width:0;font-size:var(--fs-md)}
 .fr-meta{font-size:var(--fs-sm);color:var(--text-3);white-space:nowrap}
-.page-actions{display:flex;flex-direction:column;gap:var(--sp-3);margin-top:var(--sp-8)}
 .btn-ghost{background:transparent;border:1px solid var(--border-2);color:var(--accent);justify-content:center}
 .btn-ghost:hover{border-color:var(--accent)}
-.page-actions .btn{margin-top:0}
+/* Auf Desktop stehen die Aktionen rechts in der Kopfzeile; auf schmalen
+   Schirmen rutschen sie darunter und teilen sich eine Zeile zu gleichen
+   Teilen, statt dort als zwei knappe Knöpfe am Rand zu kleben. */
+.list-page .view-head{flex-wrap:wrap;row-gap:var(--sp-4)}
 
 .chips{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-bottom:var(--sp-5)}
 .chip{background:var(--bg);border:1px solid var(--border);color:var(--text-2);border-radius:12px;
@@ -391,6 +393,11 @@ a{color:inherit}
   .addbar .w-xs,.addbar .w-md{flex:1 1 40%}
   .ring-card{gap:var(--sp-5)}
   .list-page{padding:var(--sp-6) var(--sp-6) var(--sp-8);max-width:none}
+  .list-page .head-actions{width:100%}
+  .list-page .head-actions .btn{flex:1;white-space:nowrap}
+  /* Die Anzahl ist schmückend - auf dem Handy gehört die Zeile den Knöpfen,
+     sonst brechen deren Beschriftungen zweizeilig um. */
+  .list-page .head-count{display:none}
 }
 /* Auf dem Handy hat der Name Vorrang - die Nebenangabe würde ihn sonst über
    drei Zeilen umbrechen (im Detail steht sie ohnehin). */

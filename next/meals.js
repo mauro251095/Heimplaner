@@ -143,7 +143,10 @@ function renderRezepte() {
   const kategorien = ['Alle', ...Array.from(new Set(alle.map(r => r.cat))).sort()];
   document.getElementById('view-root').innerHTML =
     '<div class="list-page">' +
-    viewHead('Rezepte', '<span class="head-count">' + alle.length + ' Rezepte</span>') +
+    viewHead('Rezepte',
+      '<span class="head-count">' + alle.length + ' Rezepte</span>' +
+      '<button class="btn btn-ghost btn-sm" onclick="openRezeptForm()"><span class="icon i-plus"></span> Eigenes Rezept</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="openRezeptImport()"><span class="icon i-clipboard"></span> Rezept einfügen</button>') +
     '<div class="searchbar"><span class="icon i-search"></span>' +
     '<input id="rz-suche" placeholder="Rezept suchen" value="' + esc(rezeptSuche) + '" oninput="rezeptSuchen(this.value)">' +
     (rezeptSuche ? '<button class="rowbtn" onclick="rezeptSuchen(\'\');renderRezepte()"><span class="icon i-x"></span></button>' : '') +
@@ -151,10 +154,7 @@ function renderRezepte() {
     '<div class="chips">' + kategorien.map(c =>
       '<button class="chip' + (c === rezeptFilter ? ' active' : '') + '" onclick="setRezeptFilter(\'' + esc(c) + '\')">' + esc(c) + '</button>').join('') + '</div>' +
     '<div id="rezept-liste">' + rezeptListeHtml() + '</div>' +
-    '<div class="page-actions">' +
-    '<button class="btn btn-ghost btn-block" onclick="openRezeptForm()"><span class="icon i-plus"></span> Eigenes Rezept</button>' +
-    '<button class="btn btn-ghost btn-block" onclick="openRezeptImport()"><span class="icon i-clipboard"></span> Rezept einfügen</button>' +
-    '</div></div>';
+    '</div>';
 }
 
 function rezeptListeHtml() {
