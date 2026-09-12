@@ -26,37 +26,58 @@ function kommendeGeburtstage(tage) {
     .sort((a, b) => a.tage - b.tage);
 }
 
-function alterAm(b) {
-  if (!b.year) return null;
-  const heute = new Date();
-  const [m, d] = (b.date || '').slice(5).split('-').map(Number);
-  const dieses = new Date(heute.getFullYear(), m - 1, d);
-  dieses.setHours(0, 0, 0, 0);
-  const kommendesJahr = dieses < new Date(heute.getFullYear(), heute.getMonth(), heute.getDate())
+// Kalenderjahr, in dem der nächste Geburtstag stattfindet - liegt er hinter
+// uns, ist das bereits das Folgejahr. Trägt die Monats-Überschriften und die
+// Unterscheidung "wird" / "wurde".
+function bdayNaechstesJahr(b) {
+  const heute = new Date(); heute.setHours(0, 0, 0, 0);
+  const [m, d] = (b.date || '0000-01-01').slice(5).split('-').map(Number);
+  return new Date(heute.getFullYear(), m - 1, d) < heute
     ? heute.getFullYear() + 1 : heute.getFullYear();
-  return kommendesJahr - parseInt(b.year);
 }
 
-// Nach Mockup: der nächste Geburtstag steht hervorgehoben oben, der Rest
-// nach Monaten gruppiert - so sieht man auf einen Blick, was als Nächstes
-// kommt, ohne die ganze Liste zu lesen.
+function bdaySchonGehabt(b) {
+  return bdayNaechstesJahr(b) > new Date().getFullYear();
+}
+
+function tageSeitGeburtstag(b) {
+  const heute = new Date(); heute.setHours(0, 0, 0, 0);
+  const [m, d] = (b.date || '0000-01-01').slice(5).split('-').map(Number);
+  return Math.round((heute - new Date(heute.getFullYear(), m - 1, d)) / 86400000);
+}
+
+// Alter am NÄCHSTEN Geburtstag. Bei einem schon gefeierten ist das eines mehr
+// als das heutige - deshalb rechnet die Zeile dort wieder eins zurück.
+function alterAm(b) {
+  if (!b.year) return null;
+  return bdayNaechstesJahr(b) - parseInt(b.year);
+}
+
+// Der nächste Geburtstag steht hervorgehoben oben, der Rest nach Monaten
+// gruppiert - so sieht man auf einen Blick, was als Nächstes kommt, ohne die
+// ganze Liste zu lesen.
+//
+// Gruppiert wird nach zusammenhaengenden Laeufen im (nach Naehe sortierten)
+// Verlauf, nicht nach Monatsnamen: der laufende Monat ist zum Teil noch
+// Zukunft und zum Teil schon Vergangenheit und erscheint deshalb ZWEIMAL -
+// oben das Kommende, ganz unten das Gewesene. Eine Gruppierung nach Namen
+// warf beides in denselben Topf und stellte einen Geburtstag von vorgestern
+// neben einen von uebermorgen.
 function renderGeburtstage() {
   const liste = (HP.birthdays || [])
     .map(b => ({ ...b, tage: tageBisGeburtstag(b) }))
     .sort((a, b) => a.tage - b.tage);
   const naechster = liste[0];
   const rest = liste.slice(1);
-  const gruppen = {};
+  const diesesJahr = new Date().getFullYear();
+
+  const bloecke = [];
   rest.forEach(b => {
-    const monat = MONTH_NAMES[parseInt(b.date.slice(5, 7)) - 1];
-    (gruppen[monat] = gruppen[monat] || []).push(b);
-  });
-  // Reihenfolge der Monate folgt der Restliste (schon nach Nähe sortiert),
-  // nicht dem Kalender - im November interessiert der Dezember zuerst.
-  const monatsReihenfolge = [];
-  rest.forEach(b => {
-    const monat = MONTH_NAMES[parseInt(b.date.slice(5, 7)) - 1];
-    if (!monatsReihenfolge.includes(monat)) monatsReihenfolge.push(monat);
+    const monat = parseInt(b.date.slice(5, 7)) - 1;
+    const jahr = bdayNaechstesJahr(b);
+    const letzter = bloecke[bloecke.length - 1];
+    if (letzter && letzter.monat === monat && letzter.jahr === jahr) letzter.eintraege.push(b);
+    else bloecke.push({ monat, jahr, eintraege: [b] });
   });
 
   document.getElementById('view-root').innerHTML =
@@ -69,28 +90,41 @@ function renderGeburtstage() {
         '<div class="hl-text"><b>' + esc(naechster.name) + '</b><span>' + esc(bdayDatum(naechster)) +
         (alterAm(naechster) != null ? ', wird ' + alterAm(naechster) : '') + '</span></div>' +
         '<span class="hl-when">' + esc(wannLabel(naechster.tage)) + '</span></div>' +
-        monatsReihenfolge.map(monat =>
-          '<div class="section-label">' + esc(monat) + '</div>' +
-          gruppen[monat].map(bdayRowHtml).join('')).join('')
+        // Die Jahreszahl nur am Folgejahr: sie ist der einzige Unterschied
+        // zwischen dem oberen und dem unteren "September".
+        bloecke.map(bl =>
+          '<div class="section-label">' + esc(MONTH_NAMES[bl.monat]) +
+          (bl.jahr > diesesJahr ? ' ' + bl.jahr : '') + '</div>' +
+          bl.eintraege.map(bdayRowHtml).join('')).join('')
       : emptyState('i-cake', 'Noch keine Geburtstage.')) +
     '</div>';
 }
 
 function bdayDatum(b) {
   return new Date(2000, parseInt(b.date.slice(5, 7)) - 1, parseInt(b.date.slice(8, 10)))
-    .toLocaleDateString('de-CH', { day: 'numeric', month: 'long' });
+    .toLocaleDateString('de-CH', { day: 'numeric', month: 'long' }) + (b.year ? ' ' + b.year : '');
 }
 
 function wannLabel(tage) {
   return tage === 0 ? 'heute' : tage === 1 ? 'morgen' : 'in ' + tage + ' Tagen';
 }
 
+function warLabel(tage) {
+  return tage === 1 ? 'gestern' : 'vor ' + tage + ' Tagen';
+}
+
+// Datum und Jahrgang stehen unter dem Namen, nicht rechts aussen: die rechte
+// Spalte (.fr-meta) blendet CSS auf schmalen Handys aus, und genau dort ging
+// der Jahrgang bisher verloren.
 function bdayRowHtml(b) {
   const alter = alterAm(b);
+  const gehabt = bdaySchonGehabt(b);
+  const datum = esc(b.date.slice(8, 10)) + '.' + esc(b.date.slice(5, 7)) + '.' + esc(b.year || '');
+  const alterText = alter == null ? '' : ' · ' + (gehabt ? 'wurde ' + (alter - 1) : 'wird ' + alter);
   return '<div class="ent-row" onclick="openBirthdayForm(\'' + esc(b.id) + '\')">' +
     '<span class="avatar">' + esc((b.name || '?').charAt(0).toUpperCase()) + '</span>' +
-    '<span class="ent-name">' + esc(b.name) + (alter != null ? '<small>wird ' + alter + '</small>' : '') + '</span>' +
-    '<span class="fr-meta">' + esc(b.date.slice(8, 10)) + '.' + esc(b.date.slice(5, 7)) + '. · ' + esc(wannLabel(b.tage)) + '</span>' +
+    '<span class="ent-name">' + esc(b.name) + '<small>' + datum + alterText + '</small></span>' +
+    '<span class="fr-meta">' + esc(gehabt ? warLabel(tageSeitGeburtstag(b)) : wannLabel(b.tage)) + '</span>' +
     '</div>';
 }
 
