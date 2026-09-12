@@ -148,7 +148,8 @@ function addLogoutButton(username) {
     btn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,0.07);border-radius:6px;color:#6b7280;font-family:Inter,sans-serif;font-size:.7rem;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:4px';
     // username stammt aus dem Login-Feld bzw. localStorage → nicht ungeprüft als HTML einsetzen.
     btn.innerHTML = '<span class="lb-icon">👤</span><span class="lb-text"></span>';
-    btn.querySelector('.lb-text').textContent = ' ' + username;
+    // Eingetippt wird klein (autocapitalize="none"), angezeigt gross.
+    btn.querySelector('.lb-text').textContent = ' ' + username.charAt(0).toUpperCase() + username.slice(1);
     btn.onclick = () => {
       if (confirm('Ausloggen?')) logout();
     };

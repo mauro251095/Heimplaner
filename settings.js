@@ -18,7 +18,10 @@ const PERSON_PALETTE = [
 const VAPID_PUBLIC_KEY = 'BBlPn5qKofB050Ej8ocesJJF4OFKQVo9D10w5w70ynSJpIRrbpchfI99qq-rrefJ62SeKbXQDoCf5Flo-OWLMNo';
 
 function renderEinstellungen() {
-  const user = (typeof getLoggedInUser === 'function' && getLoggedInUser()) || '—';
+  // Der Benutzername wird klein eingetippt (das Login-Feld hat
+  // autocapitalize="none"); angezeigt gehört er gross.
+  const roh = (typeof getLoggedInUser === 'function' && getLoggedInUser()) || '';
+  const user = roh ? roh.charAt(0).toUpperCase() + roh.slice(1) : '—';
   const importierte = (HP.events || []).filter(e => e.icsImport);
   const letzterImport = importierte.reduce((max, e) => Math.max(max, e.icsAt || 0), 0);
 
