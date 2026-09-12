@@ -486,6 +486,9 @@ a{color:inherit}
 .sortsel{margin-left:auto;background:var(--bg);border:1px solid var(--border);color:var(--text-2);
   border-radius:12px;padding:4px 8px;font-size:var(--fs-xs);font-family:inherit;cursor:pointer}
 .chips{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;margin-bottom:var(--sp-5)}
+/* Ohne diese Zeile gewinnt das display:flex oben gegen [hidden] der
+   Browser-Grundregel - die Geschenk-Chips im Budget blieben sichtbar. */
+.chips[hidden]{display:none}
 .chip{background:var(--bg);border:1px solid var(--border);color:var(--text-2);border-radius:12px;
   padding:4px 10px;font-size:var(--fs-xs);cursor:pointer;font-family:inherit}
 .chip.active{background:var(--accent-bg);border-color:transparent;color:var(--accent-text)}

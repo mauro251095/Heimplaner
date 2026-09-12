@@ -93,9 +93,10 @@ function renderBudgetView() {
       ? '<div class="inline-form">' +
         '<div class="if-row">' +
         '<input id="bg-amount" inputmode="decimal" placeholder="CHF" onkeydown="if(event.key===\'Enter\')addBudgetEntryV2()">' +
-        '<select id="bg-cat">' + BUDGET_CATS.map(c => '<option value="' + esc(c) + '">' + BUDGET_CAT_EMOJI[c] + ' ' + esc(c) + '</option>').join('') + '</select>' +
+        '<select id="bg-cat" onchange="budgetChipsPruefen()">' + BUDGET_CATS.map(c => '<option value="' + esc(c) + '">' + BUDGET_CAT_EMOJI[c] + ' ' + esc(c) + '</option>').join('') + '</select>' +
         '</div>' +
         '<input id="bg-comment" placeholder="Wofür?" maxlength="300" onkeydown="if(event.key===\'Enter\')addBudgetEntryV2()">' +
+        geschenkChipsHtml() +
         '<div class="if-row">' +
         '<select id="bg-person">' + whoOptions(person) + '</select>' +
         '<input id="bg-date" type="date" value="' + budgetStandardDatum() + '">' +
@@ -119,6 +120,78 @@ function renderBudgetView() {
       '<span class="sp-lbl' + (v.offset === budgetOffset ? ' sel' : '') + '">' + esc(v.kurz) + '</span></button>').join('') +
     '</div>' +
     '</div>';
+}
+
+// ── Geschenke: wer wird beschenkt? ─────────────
+// Bewusst OHNE neues Feld an budgetEntries: der Name steht ohnehin im
+// Kommentar ("Geschenk Nima"). Die Chips ersparen nicht das Tippen, sondern
+// sichern die einheitliche Schreibweise - "Nima" und "Nima H." waeren sonst
+// zwei Zeilen in der Auswertung. Und weil nur gelesen wird, was schon
+// dasteht, greift die Auswertung auch rueckwirkend.
+const GESCHENK_CAT = 'Geschenke';
+const GESCHENK_CHIPS_MAX = 6;
+
+// Die Zeile haengt immer im DOM und wird nur ein-/ausgeblendet: ein
+// Neuzeichnen des Formulars bei jedem Kategoriewechsel wuerde den schon
+// getippten Betrag verwerfen.
+function geschenkChipsHtml() {
+  const namen = (HP.birthdays || [])
+    .map(b => ({ name: b.name, tage: tageBisGeburtstag(b) }))
+    .filter(b => b.name)
+    .sort((a, b) => a.tage - b.tage)
+    .slice(0, GESCHENK_CHIPS_MAX);
+  if (!namen.length) return '';
+  return '<div class="chips" id="bg-chips" hidden>' +
+    // Name über data-Attribut statt in den onclick-String: ein Apostroph im
+    // Namen ("D'Angelo") bricht sonst aus dem JS-String aus.
+    namen.map(b => '<button type="button" class="chip" data-name="' + esc(b.name) + '" ' +
+      'onclick="geschenkChip(this.dataset.name)">' + esc(b.name) + '</button>').join('') +
+    '</div>';
+}
+
+function budgetChipsPruefen() {
+  const chips = document.getElementById('bg-chips');
+  if (chips) chips.hidden = document.getElementById('bg-cat').value !== GESCHENK_CAT;
+}
+
+// Anhaengen statt ersetzen: wer schon "Buch" getippt hat, soll das nicht
+// verlieren. Steht der Name bereits da, passiert nichts.
+function geschenkChip(name) {
+  const el = document.getElementById('bg-comment');
+  if (!el) return;
+  if (!trifftWortanfang(el.value, name.toLowerCase())) {
+    el.value = (el.value.trim() ? el.value.trim() + ' ' : '') + name;
+  }
+  el.focus();
+}
+
+// Summiert ueber BEIDE Personen, anders als die Kategorie-Tabelle darueber:
+// ein gemeinsam gekauftes Geschenk liegt als zwei Haelften mit sharedGroupId
+// da, und "wie viel haben wir fuer Nima ausgegeben" ist eine Haushaltsfrage.
+function geschenkeNachPerson(jahr) {
+  const namen = (HP.birthdays || []).map(b => b.name).filter(Boolean);
+  const gruppen = new Map();
+  let uebrige = 0, total = 0;
+  (HP.budgetEntries || []).forEach(e => {
+    if (e.cat !== GESCHENK_CAT || (e.date || '').slice(0, 4) !== jahr) return;
+    total += e.amount;
+    const treffer = namen.find(n => trifftWortanfang(e.comment, n.toLowerCase()));
+    if (treffer) gruppen.set(treffer, (gruppen.get(treffer) || 0) + e.amount);
+    else uebrige += e.amount;
+  });
+  return { zeilen: [...gruppen].sort((a, b) => b[1] - a[1]), uebrige, total };
+}
+
+function geschenkAuswertungHtml(jahr) {
+  const { zeilen, uebrige, total } = geschenkeNachPerson(jahr);
+  if (!total) return '';
+  return '<div class="section-label">' + BUDGET_CAT_EMOJI[GESCHENK_CAT] + ' Geschenke ' + esc(jahr) +
+    ' · Haushalt ' + fmtCHF(total) + '</div>' +
+    zeilen.map(([name, summe]) => '<div class="entry-row">' +
+      '<span class="er-text">' + esc(name) + '</span>' +
+      '<span class="er-amount">' + fmtCHF(summe) + '</span></div>').join('') +
+    (uebrige ? '<div class="entry-row"><span class="er-text muted">Ohne Namen im Kommentar</span>' +
+      '<span class="er-amount">' + fmtCHF(uebrige) + '</span></div>' : '');
 }
 
 function budgetStandardDatum() {
@@ -260,5 +333,6 @@ function openBudgetJahr() {
     '<tr class="ytotal"><td>Total</td>' + kurz.map(() => '<td></td>').join('') +
     '<td>' + fmtCHF(jahrIst) + '</td><td>' + (jahrSoll ? fmtCHF(jahrSoll) : '–') + '</td></tr>' +
     '</table></div>' +
+    geschenkAuswertungHtml(jahr) +
     '<div class="modal-actions"><span></span><button class="btn btn-outline" onclick="closeModal()">Schliessen</button></div>', true);
 }

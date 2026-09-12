@@ -204,6 +204,16 @@ function shiftDateKey(dateKey, days) {
 }
 function todayKey() { return dk(new Date()); }
 
+// Vergleicht am WORTANFANG, nicht irgendwo im Wort: sonst findet "Lauch" jede
+// "Knoblauchzehe". Stammt aus der Zutatensuche und liegt hier, weil inzwischen
+// die Rezeptsuche, die Geschenk-Zuordnung im Budget und die globale Suche
+// dieselbe Regel brauchen - drei Suchen in einer App sollen sich gleich
+// anfuehlen. q wird klein erwartet.
+function trifftWortanfang(text, q) {
+  return (text || '').toLowerCase().split(/[^a-zäöüßàáâéèêíóôúç0-9]+/)
+    .some(wort => wort && wort.startsWith(q));
+}
+
 // ── Theme & Personenfarben ─────────────────────
 function applyTheme(theme) {
   const hell = theme === 'light';

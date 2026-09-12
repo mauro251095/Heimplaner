@@ -232,15 +232,11 @@ function renderRezepte() {
     '</aside></div>';
 }
 
-// Zutaten werden am Wortanfang verglichen, nicht irgendwo im Wort: sonst
-// findet "Lauch" jede "Knoblauchzehe" - bei 34 Rezepten genug Rauschen, um
-// die Suche unbrauchbar zu machen. Beim Rezeptnamen bleibt es bei "enthält",
-// dort ist die Trefferzahl klein und Teilwörter sind eher gewollt.
-function zutatTrifft(name, q) {
-  return (name || '').toLowerCase().split(/[^a-zäöüßàáâéèêíóôúç0-9]+/)
-    .some(wort => wort.startsWith(q));
-}
-
+// Zutaten werden am Wortanfang verglichen (trifftWortanfang() in app.js),
+// nicht irgendwo im Wort: sonst findet "Lauch" jede "Knoblauchzehe" - bei 34
+// Rezepten genug Rauschen, um die Suche unbrauchbar zu machen. Beim
+// Rezeptnamen bleibt es bei "enthält", dort ist die Trefferzahl klein und
+// Teilwörter sind eher gewollt.
 function rezeptTreffer(q, ungenau) {
   return allRecipes().filter(r =>
     (rezeptFilter === 'Alle' || (r.tags || []).includes(rezeptFilter)) &&
@@ -248,7 +244,7 @@ function rezeptTreffer(q, ungenau) {
       (r.tags || []).some(t => t.toLowerCase().includes(q)) ||
       (r.ing || []).some(i => ungenau
         ? (i.n || '').toLowerCase().includes(q)
-        : zutatTrifft(i.n, q))));
+        : trifftWortanfang(i.n, q))));
 }
 
 function rezeptListeHtml() {
@@ -287,7 +283,7 @@ function rezeptZeileHtml(r, zg, q, ungenau) {
   // Wenn der Treffer nur in den Zutaten steckt, wäre sonst nicht erkennbar,
   // warum das Rezept in der Liste steht.
   const zutatTreffer = q && !r.name.toLowerCase().includes(q)
-    ? (r.ing || []).find(i => ungenau ? (i.n || '').toLowerCase().includes(q) : zutatTrifft(i.n, q))
+    ? (r.ing || []).find(i => ungenau ? (i.n || '').toLowerCase().includes(q) : trifftWortanfang(i.n, q))
     : null;
   const meta = [r.time + ' Min', gekochtLabel(zg[r.id]), zutatTreffer ? 'mit ' + zutatTreffer.n : '']
     .filter(Boolean).join(' · ');
