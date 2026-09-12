@@ -301,8 +301,10 @@ a{color:inherit}
    Gegenentwurf zu den Karten-Blöcken weiter oben: die Ansicht selbst ist die
    Karte, darin gibt es keine weiteren Kästen mehr. "Eingesenkte" Elemente
    (Suchfeld, Emoji-Kachel) nehmen --bg, heben sich also nach innen ab. */
+/* margin-inline:auto, weil die Fläche sonst am linken Rand klebt: auf einem
+   breiten Monitor (2560px) blieben rechts davon rund 1700px leer. */
 .list-page{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
-  padding:var(--sp-8) var(--sp-8) var(--sp-9);max-width:840px}
+  padding:var(--sp-8) var(--sp-8) var(--sp-9);max-width:840px;margin-inline:auto}
 /* Für Raster-Ansichten (Planer Woche/Monat), die mehr Breite brauchen. */
 .list-page.wide{max-width:1240px}
 .list-page .view-head{margin-bottom:var(--sp-6)}
@@ -330,7 +332,7 @@ a{color:inherit}
    leer, und das Blättern durch Rezepte braucht dann keinen Dialog mehr.
    Unterhalb von 1100px wird die Spalte ausgeblendet; openRezeptDetail()
    erkennt das (offsetParent === null) und öffnet wieder den Dialog. */
-.split{display:flex;gap:var(--sp-6);align-items:flex-start;max-width:1400px}
+.split{display:flex;gap:var(--sp-6);align-items:flex-start;max-width:1400px;margin-inline:auto}
 .split .list-page{flex:1 1 440px;min-width:0;max-width:none}
 .detail-page{flex:1 1 520px;min-width:0;position:sticky;top:0;background:var(--surface);
   border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-8);
@@ -550,18 +552,30 @@ a{color:inherit}
 .toast-undo{background:none;border:none;color:var(--accent-text);font-weight:600;font-size:var(--fs-base);
   cursor:pointer;margin-left:var(--sp-5);font-family:inherit}
 
+/* Die Wochenansicht bricht zuerst: eine Tagesspalte trägt Kopf, Einträge und
+   Erfassen-Knopf und braucht dafür rund 150px. Sieben davon gehen sich unter
+   etwa 1000px nicht mehr aus, deshalb bleibt diese Schwelle bei 860px - auch
+   auf dem Tablet hochkant wird die Woche zur Liste aus sieben Zeilen. */
 @media (max-width:860px){
-  .cols-2{grid-template-columns:1fr}
   .week-grid{grid-template-columns:1fr}
+  .day-col{flex-direction:row;flex-wrap:wrap;align-items:flex-start;min-height:0}
+  .day-col .day-head{min-width:64px}
+  .day-col .day-body{flex:1 1 60%}
+  .day-col .day-add{flex:0 0 auto}
+}
+
+/* Die eigentlichen Handy-Sparmassnahmen. Bewusst NICHT bei 860px, wo die
+   Sidebar der Schnellwahl weicht: ein Tablet hochkant (iPad 744-834px) ist ein
+   Touch-Gerät und will die Schnellwahl unten, hat aber reichlich Platz für die
+   volle Darstellung. Die zwei Schwellen beantworten verschiedene Fragen -
+   860px "womit wird navigiert?", 700px "wie viel Inhalt passt in eine Zelle?". */
+@media (max-width:700px){
+  .cols-2{grid-template-columns:1fr}
   /* Rund 50px pro Zelle - für Text zu schmal, deshalb hier die Punkte. */
   .mcell{min-height:0;aspect-ratio:1/1;align-items:center;justify-content:center;padding:2px}
   .mitems{display:none}
   .mdots{display:flex}
   .month-grid{gap:3px}
-  .day-col{flex-direction:row;flex-wrap:wrap;align-items:flex-start;min-height:0}
-  .day-col .day-head{min-width:64px}
-  .day-col .day-body{flex:1 1 60%}
-  .day-col .day-add{flex:0 0 auto}
   .wm-grid{grid-template-columns:repeat(2,1fr)}
   .navrow .lbl{min-width:0;flex:1}
   .addbar input,.addbar select{min-width:0;flex:1 1 100%}

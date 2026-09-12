@@ -109,6 +109,12 @@ function wannLabel(tage) {
   return tage === 0 ? 'heute' : tage === 1 ? 'morgen' : 'in ' + tage + ' Tagen';
 }
 
+// Rueckblickend beschriftet wird nur das kuerzlich Gewesene: "gestern" oder
+// "vor 7 Tagen" ist eine brauchbare Auskunft (nachtraeglich gratulieren), "vor
+// 182 Tagen" dagegen nicht - und es stuende in der Zeile unter einer
+// Ueberschrift, die bereits das naechste Jahr nennt.
+const BDAY_RUECKBLICK_TAGE = 31;
+
 function warLabel(tage) {
   return tage === 1 ? 'gestern' : 'vor ' + tage + ' Tagen';
 }
@@ -121,10 +127,12 @@ function bdayRowHtml(b) {
   const gehabt = bdaySchonGehabt(b);
   const datum = esc(b.date.slice(8, 10)) + '.' + esc(b.date.slice(5, 7)) + '.' + esc(b.year || '');
   const alterText = alter == null ? '' : ' · ' + (gehabt ? 'wurde ' + (alter - 1) : 'wird ' + alter);
+  const seit = gehabt ? tageSeitGeburtstag(b) : null;
+  const wann = seit != null && seit <= BDAY_RUECKBLICK_TAGE ? warLabel(seit) : wannLabel(b.tage);
   return '<div class="ent-row" onclick="openBirthdayForm(\'' + esc(b.id) + '\')">' +
     '<span class="avatar">' + esc((b.name || '?').charAt(0).toUpperCase()) + '</span>' +
     '<span class="ent-name">' + esc(b.name) + '<small>' + datum + alterText + '</small></span>' +
-    '<span class="fr-meta">' + esc(gehabt ? warLabel(tageSeitGeburtstag(b)) : wannLabel(b.tage)) + '</span>' +
+    '<span class="fr-meta">' + esc(wann) + '</span>' +
     '</div>';
 }
 
