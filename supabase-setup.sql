@@ -70,7 +70,66 @@ create index if not exists push_sent_log_sent_at_idx on push_sent_log (sent_at);
 -- );
 
 
--- ── 3. Kontrolle ──────────────────────────────────────────────
+-- ── 3. Aufräumen der Fehlversuchsbremse ───────────────────────
+-- auth_throttle bekommt eine Zeile pro angreifender IP. Über IPv6 lassen sich
+-- davon beliebig viele erzeugen, bis der 500-MB-Gratisspeicher voll ist.
+-- Das ist nicht nur ein Speicherproblem: guardPassword() ist bewusst
+-- fail-open, die Bremse verschwindet also genau dann, wenn Supabase klemmt –
+-- und dann sind unbegrenzt viele Passwortversuche möglich.
+--
+-- Abgelaufene Zeilen werden nicht mehr gebraucht: Fenster und Sperre sind je
+-- 15 Minuten, alles Ältere ist bedeutungslos.
+
+-- Variante A – von Hand, gelegentlich:
+--   delete from auth_throttle
+--   where window_start < now() - interval '1 day'
+--     and (blocked_until is null or blocked_until < now());
+
+-- Variante B – automatisch mit pg_cron (Dashboard → Database → Extensions).
+-- Läuft stündlich.
+--
+-- select cron.schedule(
+--   'heimplaner-purge-throttle',
+--   '7 * * * *',
+--   $$ delete from auth_throttle
+--      where window_start < now() - interval '1 day'
+--        and (blocked_until is null or blocked_until < now()) $$
+-- );
+
+
+-- ── 4. Row Level Security auf den Datentabellen ───────────────
+-- ACHTUNG – REIHENFOLGE. Dieser Abschnitt macht den Datenbestand nur dann
+-- sicherer, wenn die Netlify-Functions vorher auf den service_role-Key
+-- umgestellt wurden. Der service_role-Key umgeht RLS bewusst; der anon-Key
+-- nicht.
+--
+-- Wird RLS eingeschaltet, WÄHREND die Functions noch den anon-Key benutzen,
+-- bricht der Sync LAUTLOS ab: Lesen liefert eine leere Liste statt eines
+-- Fehlers (genau der Fehler, der oben bei auth_throttle schon einmal drin
+-- war), und Schreiben wird abgewiesen.
+--
+-- Richtige Reihenfolge:
+--   1. Netlify → Environment variables → SUPABASE_KEY auf den
+--      service_role-Key ändern, neu deployen
+--   2. In der App prüfen, dass Sync weiterhin grün ist
+--   3. ERST DANN die vier Zeilen unten ausführen
+--
+-- Warum überhaupt: Der anon-Key ist bei Supabase als öffentlicher Wert
+-- konzipiert, RLS ist die eigentlich vorgesehene Schranke. Solange RLS aus
+-- ist, bedeutet jeder Leak dieses Keys sofortigen Vollzugriff auf alles –
+-- unter Umgehung von Netlify, APP_PASSWORD und der Fehlversuchsbremse.
+-- Mit RLS ohne Policy ist ein geleakter anon-Key wertlos.
+--
+-- alter table heimplaner_sync     enable row level security;
+-- alter table push_subscriptions  enable row level security;
+-- alter table push_sent_log       enable row level security;
+--
+-- Und die Notlösung von oben wieder zurücknehmen, die dem anon-Key noch
+-- alles erlaubt (mit service_role nicht mehr nötig):
+-- drop policy if exists "heimplaner_throttle_access" on auth_throttle;
+
+
+-- ── 5. Kontrolle ──────────────────────────────────────────────
 -- Grösse der beteiligten Tabellen ansehen:
 --   select relname, pg_size_pretty(pg_total_relation_size(relid)) as groesse
 --   from pg_catalog.pg_statio_user_tables

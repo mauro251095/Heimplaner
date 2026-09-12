@@ -103,9 +103,13 @@ exports.handler = async (event) => {
         }
       );
 
+      // Der Supabase-Fehlertext bleibt im Netlify-Log, geht aber nicht an den
+      // Client: er nennt Tabellen-, Spalten- und Constraint-Namen. Das ist
+      // zwar erst nach bestandener Passwortpruefung erreichbar, ist dort aber
+      // trotzdem eine unnoetige Auskunft ueber den Innenbau.
       if (!res.ok) {
-        const err = await res.text();
-        return { statusCode: 500, headers, body: JSON.stringify({ error: err }) };
+        console.error('sync: Supabase PATCH fehlgeschlagen', res.status, await res.text());
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Speichern fehlgeschlagen' }) };
       }
 
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
@@ -114,6 +118,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   } catch (e) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };
+    console.error('sync: unerwarteter Fehler', e);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Serverfehler' }) };
   }
 };
