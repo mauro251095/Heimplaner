@@ -69,6 +69,8 @@
   Cache-Control: no-cache
 /settings.js
   Cache-Control: no-cache
+/suche.js
+  Cache-Control: no-cache
 
 /heimplaner-data.js
   Cache-Control: no-cache

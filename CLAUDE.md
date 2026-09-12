@@ -37,6 +37,8 @@ Die App:
 - `planer.js` — Tag/Woche/Monat und Personen
 - `shop.js`, `budget.js`, `meals.js` (Menüplan + Rezepte), `notes.js`,
   `birthdays.js`, `settings.js` — die übrigen Ansichten
+- `suche.js` — globale Suche quer durch alle Daten; hält keine eigenen Daten,
+  sondern zeigt jeden Treffer in der Zeilenform seiner Heimat-Ansicht
 - `icons/` — Tabler-Icons (MIT) als einzelne SVGs, selbst gehostet
 - `sw.js` — Service Worker (reine Netz-Durchreiche, kein Caching)
 - `manifest.json`, `icon-192.png`, `icon-512.png` — PWA-Teil
@@ -76,6 +78,7 @@ Skript-Tags enden, in dieser Reihenfolge, direkt vor `</body>`:
 <script src="notes.js"></script>
 <script src="birthdays.js"></script>
 <script src="settings.js"></script>
+<script src="suche.js"></script>
 <script src="heimplaner-sync.js"></script>
 <script src="heimplaner-pwa.js"></script>
 ```
@@ -171,7 +174,7 @@ störungsfrei läuft, kann der Ordner ersatzlos weg.
   Rezept-Icon). Eingabe ist ein reines Textfeld ohne eigenes Auswahlraster
   (Windows: Win+., iPhone: Emoji-Tastatur); ein eigenes Raster wäre Feinschliff,
   keine Baustelle mit Priorität.
-- **Listen statt Kacheln** in allen elf Ansichten: eine Fläche je Ansicht
+- **Listen statt Kacheln** in allen zwölf Ansichten: eine Fläche je Ansicht
   (`.list-page`, `.wide` für die Raster im Planer), darin Zeilen mit Haarlinie
   und kleine Abschnitts-Überschriften (`.section-label`). Eingesenkte Elemente
   (Suchfeld, Erfassungszeile) nehmen `--bg`. Karten (`.card`) gibt es nur noch
@@ -273,10 +276,27 @@ störungsfrei läuft, kann der Ordner ersatzlos weg.
 - **"Zuletzt gekocht" kommt aus dem Menüplan** (`zuletztGekocht()`, nur
   Einträge bis heute — geplant ist nicht gekocht) und ersetzt in der Zeile die
   Portionenangabe.
-- **Zutatensuche vergleicht am Wortanfang**, sonst findet "Lauch" jede
+- **Suchen vergleichen am Wortanfang**, sonst findet "Lauch" jede
   "Knoblauchzehe". Weil deutsche Komposita damit durchfallen, lockert die Suche
   auf "enthält", **wenn sonst gar nichts gefunden würde** — mit sichtbarem
-  Hinweis.
+  Hinweis. Die Regel steht als `trifftWortanfang()` in `app.js` und gilt für
+  **alle drei** Suchen: Zutaten, globale Suche und die Geschenk-Zuordnung im
+  Budget. Drei Suchen in einer App sollen sich gleich anfühlen.
+- **Die globale Suche hält keine eigene Darstellung**: jeder Treffer erscheint
+  als `.flat-row` und öffnet das Formular seiner Heimat-Ansicht. Pro Gruppe
+  sechs Treffer, darüber "+n weitere", das in die Quell-Ansicht springt. Eine
+  zweite Fassung derselben Zeile liefe über die Zeit auseinander.
+- **Geschenke werden über den Kommentar einer Person zugeordnet, nicht über ein
+  eigenes Feld.** Der Name steht dort ohnehin ("Geschenk Nima"); ein sechstes
+  Formularfeld wäre bei fünf von sechs Kategorien sinnlos. Bei Kategorie
+  "Geschenke" — und nur dort — erscheint unter dem Kommentarfeld eine Chip-Reihe
+  mit den nächsten Geburtstagen; ein Tipp hängt den Namen an (ersetzt nie
+  Getipptes). Die Chips sparen nicht Tipparbeit, sondern sichern die
+  **einheitliche Schreibweise**, sonst wären "Nima" und "Nima H." zwei Zeilen in
+  der Auswertung. Weil nur gelesen wird, was schon dasteht, greift die
+  Auswertung auch **rückwirkend**. Sie summiert bewusst über **beide** Personen:
+  ein gemeinsam gekauftes Geschenk liegt als zwei Hälften mit `sharedGroupId`
+  da, und "wie viel haben wir für X ausgegeben" ist eine Haushaltsfrage.
 - **Detail rechts statt im Dialog**, sobald über 1100px Platz ist (`.split` +
   `.detail-page`). Darunter blendet CSS die Spalte aus, und `openRezeptDetail()`
   merkt das an `offsetParent === null` und öffnet wieder den Dialog. Beide Wege
@@ -303,12 +323,12 @@ störungsfrei läuft, kann der Ordner ersatzlos weg.
 - **Konto-Anzeige** (Desktop): nur Name und kleiner Status-Punkt (Farbe vom
   Sync-Status, `.acct-dot` in `app.js`), keine ausgeschriebene Sync-Leiste. Das
   Sync-Passwort trägt man in den Einstellungen ein.
-- **Sidebar-Reihenfolge (Desktop)**: Heute, Planer, Personen, Haushalt,
+- **Sidebar-Reihenfolge (Desktop)**: Heute, Suche, Planer, Personen, Haushalt,
   Einkaufsliste, Budget, Menüplan, Rezepte, Pinnwand, Geburtstage,
   Einstellungen.
 - **Schnellwahl am unteren Rand (nur Handy)**: fünf Plätze — Heute, Einkauf,
   Budget, Pinnwand, Mehr (`MOBILE_NAV` in `app.js`). "Mehr" öffnet die
-  Schublade mit allen elf Ansichten und ist **der einzige** Weg dorthin: die
+  Schublade mit allen zwölf Ansichten und ist **der einzige** Weg dorthin: die
   Topbar hat auf dem Handy bewusst keinen Hamburger, zwei Einstiege in dasselbe
   Menü an zwei Ecken des Bildschirms waren einer zu viel.
 - **Dort stehen Emoji statt der SVG-Symbole** (🏠 🛒 💰 📌 ☰, wie in der alten
@@ -329,8 +349,8 @@ störungsfrei läuft, kann der Ordner ersatzlos weg.
 Heute-Übersicht, Wochen- und Monatsplaner, Personenansicht, Haushaltsaufgaben
 mit Wiederholung, Einkaufsliste mit Favoriten, Budget mit Limits und
 Jahresstatistik, Menüplan, Rezeptbibliothek (inkl. Copy-Paste-Import von
-bettybossi.ch), Pinnwand, Geburtstage, ICS-Kalenderimport und Web-Push-
-Erinnerungen.
+bettybossi.ch), Pinnwand, Geburtstage, globale Suche, ICS-Kalenderimport und
+Web-Push-Erinnerungen.
 
 Rezepte liegen in `HP.customRecipes` (synchronisiert, bearbeitbar) — das alte
 fest verdrahtete `RECIPES`-Array in `heimplaner-data.js` wird einmalig beim

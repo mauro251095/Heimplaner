@@ -73,6 +73,7 @@ function showUndoToast(msg, undoFn) {
 // undefiniert.
 const VIEWS = {
   heute:        { label: 'Heute',         icon: 'i-home',     render: () => renderHeute() },
+  suche:        { label: 'Suche',         icon: 'i-search',   render: () => renderSuche() },
   planer:       { label: 'Planer',        icon: 'i-calendar', render: () => renderPlaner() },
   personen:     { label: 'Personen',      icon: 'i-users',    render: () => renderPersonen() },
   haushalt:     { label: 'Haushalt',      icon: 'i-home-2',   render: () => renderHaushalt() },
