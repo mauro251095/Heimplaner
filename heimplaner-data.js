@@ -995,8 +995,19 @@ function advanceDateKey(dateKey, unit, value, weekday, nth) {
 }
 
 // Farbe einer Person/Kategorie holen
+// Der Rueckgabewert landet an acht Stellen UNGEESCAPED in einem
+// style="..."-Attribut (app.js, planer.js). HP.colors kommt aus dem Sync bzw.
+// aus einer eingespielten Sicherung, ist also nicht zwingend das, was der
+// Farbwaehler geschrieben hat: ein Wert wie  #000" onmouseover="...  bricht
+// aus dem Attribut aus und wird ausgefuehrt, weil die CSP fuer die
+// onclick-Attribute der App script-src-attr 'unsafe-inline' erlauben muss.
+// Deshalb hier die Schranke - an einer Stelle statt an acht, und damit auch
+// fuer alt/ wirksam, das dieselbe Datei laedt.
+const HEX_FARBE = /^#[0-9a-fA-F]{6}$/;
 function getColor(who) {
-  return (HP.colors && HP.colors[who]) || DEFAULT_COLORS[who] || '#6C8EFF';
+  const gewaehlt = HP.colors && HP.colors[who];
+  if (typeof gewaehlt === 'string' && HEX_FARBE.test(gewaehlt)) return gewaehlt;
+  return DEFAULT_COLORS[who] || '#6C8EFF';
 }
 function getColorBg(who) {
   const val = getColor(who);

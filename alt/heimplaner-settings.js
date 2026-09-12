@@ -87,7 +87,10 @@ function importJSON(e) {
   const reader=new FileReader();
   reader.onload=ev=>{
     try {
-      const d=JSON.parse(ev.target.result);
+      // Sicherheits-Nachzug (keine Weiterentwicklung): alt/ laeuft auf
+      // derselben Origin und demselben localStorage wie die App, ein hier
+      // eingespieltes Fremd-Backup traefe also beide.
+      const d=sanitizeRemote(JSON.parse(ev.target.result));
       if(!d.tasks||!d.names) throw new Error('Ungültiges Format');
       Object.assign(HP,d); HP_save(); render();
       showToast('✅ Daten importiert');

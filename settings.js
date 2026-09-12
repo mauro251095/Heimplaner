@@ -164,7 +164,11 @@ function importJSONV2(input) {
   const reader = new FileReader();
   reader.onload = ev => {
     try {
-      const d = JSON.parse(String(ev.target.result));
+      // Dieselbe Saeuberung wie im Sync-Pfad (heimplaner-sync.js): eine
+      // Sicherungsdatei ist Fremddaten, sobald sie einem untergeschoben wird.
+      // Ohne das biegt ein "__proto__" im JSON ueber Object.assign die
+      // Prototype-Kette von HP um.
+      const d = sanitizeRemote(JSON.parse(String(ev.target.result)));
       if (!d.tasks || !d.names) throw new Error('Ungültiges Format');
       Object.assign(HP, d);
       HP_save();
